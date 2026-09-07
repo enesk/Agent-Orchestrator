@@ -178,6 +178,24 @@ function assertUsableCwd(cwd: string): void {
   }
 }
 
+/**
+ * Der Arbeitsordner ist der Projektpfad — die CLI läuft mit `--dangerously-skip-permissions`,
+ * kann also überallhin schreiben. Ohne diese Ansage legt ein Agent im Zweifel ein eigenes
+ * Repository an, statt das vorhandene zu ändern. Steht hier und nicht in den Prompt-Bausteinen,
+ * weil jeder Lauf — Chat wie Vorhaben — durch diesen Runner geht.
+ */
+function workspaceRule(cwd: string): string {
+  return [
+    '## Arbeitsordner',
+    `Du arbeitest in \`${cwd}\`. Das ist ein vorhandenes lokales Repository und dein aktuelles`,
+    'Verzeichnis — alle relativen Pfade beziehen sich darauf.',
+    '',
+    'Ändere die Dateien direkt dort. Lege kein neues Repository an (`git init`), klone nichts,',
+    'kopiere das Projekt nicht an eine andere Stelle und arbeite nicht außerhalb dieses Ordners.',
+    'Fehlt etwas, das du brauchst, sag es — leg es nicht daneben neu an.',
+  ].join('\n')
+}
+
 function tail(text: string, limit = 600): string {
   const trimmed = text.trim()
   return trimmed.length > limit ? `…${trimmed.slice(-limit)}` : trimmed
@@ -245,7 +263,9 @@ export function run(request: RunRequest): RunHandle {
       model: request.model,
       effort: request.effort,
       resumeId,
-      systemPromptAppend: request.systemPromptAppend,
+      systemPromptAppend: [workspaceRule(request.cwd), request.systemPromptAppend]
+        .filter((part): part is string => Boolean(part?.trim()))
+        .join('\n\n'),
       mcp: request.mcp,
     })
 
