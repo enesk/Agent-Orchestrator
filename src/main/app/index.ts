@@ -2,6 +2,7 @@ import { BrowserWindow, app } from 'electron'
 import { APP_NAME } from '@shared/constants'
 import { closeDatabase, initDatabase } from '../db/connection'
 import { markStaleStreamingMessages } from '../db/repositories/messages'
+import { initChatEngine } from '../chat'
 import { registerIpcHandlers } from '../ipc'
 import { releaseAll, start as startMcpServer, stop as stopMcpServer } from '../mcp'
 import { describeError, logger } from '../Logger'
@@ -46,6 +47,7 @@ async function bootstrap(): Promise<void> {
   }
 
   registerAttachmentProtocol()
+  initChatEngine()
   registerIpcHandlers()
 
   try {
