@@ -1,4 +1,13 @@
-import { createStubHandlers, type DomainHandlers } from './registry'
+import { ensureClaudeStatus, refreshClaudeStatus } from '../claude/status'
+import type { DomainHandlers } from './registry'
 
-/** Wird von einem späteren Ticket gefüllt. */
-export const claudeHandlers: DomainHandlers<'claude'> = createStubHandlers('claude')
+export const claudeHandlers: DomainHandlers<'claude'> = {
+  /** Gemerkter Status; beim ersten Aufruf wird er ermittelt. */
+  status: () => ensureClaudeStatus(),
+
+  /**
+   * Erneute Suche. Ein mitgegebener Pfad wird bevorzugt geprüft — so kann die
+   * Einstellungsseite einen Pfad testen, bevor er gespeichert wird.
+   */
+  detect: (input) => refreshClaudeStatus(input.path),
+}
