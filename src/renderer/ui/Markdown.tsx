@@ -1,14 +1,16 @@
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from './cn'
 
 export interface MarkdownProps {
   content: string
   className?: string
+  /** Ersetzt einzelne Knoten, z.B. Codeblöcke mit Kopier-Knopf im Chat. */
+  components?: Components
 }
 
 /** Einheitliche Markdown-Darstellung für Tickets, Kommentare und Dokumente. */
-export function Markdown({ content, className }: MarkdownProps) {
+export function Markdown({ content, className, components }: MarkdownProps) {
   return (
     <div
       className={cn(
@@ -31,7 +33,9 @@ export function Markdown({ content, className }: MarkdownProps) {
         className,
       )}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        {content}
+      </ReactMarkdown>
     </div>
   )
 }
