@@ -1,334 +1,224 @@
-export interface OrchestratorState {
-  connected: boolean
-  claudeRunning: boolean
-  activeSessions: number
-  userToken: string | null
-  backendUrl: string | null
-  userEmail: string | null
-  planName: string | null
-  lastConnectedAt: string | null
-  version: string
-}
+import type {
+  AgentEffort,
+  AgentRole,
+  GoalStatus,
+  TicketCategory,
+  TicketStatus,
+} from './constants'
 
-export interface IncomingMessage {
-  type: 'run_agent' | 'stop_agent' | 'ping' | 'config_update'
-  agentId: string
-  sessionId: string
-  prompt?: string
-  config?: AgentConfig
-}
-
-export interface OutgoingMessage {
-  type: 'output' | 'completed' | 'error' | 'status' | 'pong' | 'connected'
-  agentId?: string
-  sessionId?: string
-  data?: string
-  error?: string
-  state?: OrchestratorState
-  timestamp: number
-}
-
-export interface AgentConfig {
-  systemPrompt?: string
-  maxTokens?: number
-  tools?: string[]
-  workingDirectory?: string
-  timeout?: number
-}
-
-export interface StoredSettings {
-  backendUrl: string
-  userToken: string
-  autoStart: boolean
-  minimizeToTray: boolean
-  claudePath: string
-}
-
-export interface LogEntry {
-  id: string
-  timestamp: string
-  level: 'info' | 'warn' | 'error' | 'debug'
-  message: string
-  sessionId?: string
-}
-
-// ── Chat / Project Types ─────────────────────────────────────────────────────
+/** Frei geformter JSON-Blob, wie er in `metadata`-Spalten liegt. */
+export type JsonObject = Record<string, unknown>
 
 export interface Project {
   id: string
   name: string
-  description?: string
-  metadata?: Record<string, string>
-  createdAt: string
-  updatedAt: string
-  agents: ProjectAgent[]
-  synced?: boolean
-  remoteId?: number
-}
-
-export interface GlobalAgent {
-  id: string
-  name: string
-  title?: string
-  mentionKey: string
-  systemPrompt: string
-  color: string
-  avatar?: string
-  /** LLM model alias ('sonnet' | 'opus' | 'haiku'). Falls back to DEFAULT_AGENT_MODEL when unset. */
-  model?: string
-  /** Thinking depth passed as `claude --effort <level>`. Falls back to DEFAULT_AGENT_EFFORT when unset. */
-  effort?: string
+  description: string | null
+  /** Absoluter Pfad des Repos auf der Platte — wird als `cwd` der Claude-CLI benutzt. */
+  path: string | null
+  metadata: JsonObject
   createdAt: string
   updatedAt: string
 }
 
-export interface ProjectAgent {
+export interface Agent {
   id: string
-  projectId: string
-  globalAgentId?: string
   name: string
-  title?: string
+  title: string | null
+  /** Erwähnungskürzel inklusive `@`, z.B. `@lena`. */
   mentionKey: string
+  role: AgentRole
   systemPrompt: string
+  model: string
+  effort: AgentEffort
   color: string
-  avatar?: string
-  /** LLM model alias ('sonnet' | 'opus' | 'haiku'). Falls back to DEFAULT_AGENT_MODEL when unset. */
-  model?: string
-  /** Thinking depth passed as `claude --effort <level>`. Falls back to DEFAULT_AGENT_EFFORT when unset. */
-  effort?: string
+  avatar: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** Ein Agent in seiner Rolle innerhalb eines Projekts (Join über `project_agents`). */
+export interface ProjectAgent extends Agent {
+  projectId: string | null
   sortOrder: number
-  status: 'idle' | 'thinking' | 'responding'
-  currentTool?: string
-  /**
-   * User-triggered kill switch. A stopped agent never gets a new Claude run — not from chat
-   * and not from the autonomous goal loop — until it is explicitly resumed. Persisted, so it
-   * also survives an app restart (goal resume included).
-   */
-  stopped?: boolean
+  stopped: boolean
 }
+
+export type MessageRole = 'user' | 'agent' | 'system'
+export type MessageStatus = 'streaming' | 'done' | 'error' | 'stopped'
 
 export interface MessageAttachment {
   id: string
+  messageId: string | null
+  ticketId: string | null
   fileName: string
-  mimeType: string
-  localPath: string
+  mimeType: string | null
+  /** Pfad relativ zu `userData/attachments`, ausgeliefert über `attachment://`. */
+  relativePath: string
   size: number
+  createdAt: string
 }
 
 export interface ChatMessage {
   id: string
   projectId: string
-  role: 'user' | 'agent'
-  agentLocalId?: string
-  agentName?: string
+  role: MessageRole
+  agentId: string | null
   content: string
-  thinkingContent?: string
+  thinking: string | null
+  /** Erwähnte Agent-IDs in Reihenfolge des Auftretens. */
   mentions: string[]
-  replyToLocalId?: string
-  sessionId?: string
-  status: 'sending' | 'streaming' | 'done' | 'error' | 'stopped'
-  errorCode?: 'timeout' | 'spawn_failed' | 'exit_code' | 'unknown'
-  metadata?: Record<string, string>
-  attachments?: MessageAttachment[]
-  clientTimestamp: string
-  synced?: boolean
+  replyToId: string | null
+  status: MessageStatus
+  errorCode: string | null
+  metadata: JsonObject
+  createdAt: string
+  attachments: MessageAttachment[]
 }
 
-// ── Project Documents ────────────────────────────────────────────────────────
+export interface Ticket {
+  id: string
+  projectId: string
+  number: number
+  title: string
+  description: string | null
+  status: TicketStatus
+  category: TicketCategory
+  assignedAgentId: string | null
+  goalId: number | null
+  /** Kennung aus einem fremden System, z.B. beim JSON-Import. */
+  externalId: string | null
+  epicId: string | null
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type TicketAuthorType = 'user' | 'agent'
+
+export interface TicketComment {
+  id: string
+  ticketId: string
+  authorType: TicketAuthorType
+  agentId: string | null
+  content: string
+  createdAt: string
+}
+
+export interface TicketDetail extends Ticket {
+  comments: TicketComment[]
+  /** IDs der Tickets, von denen dieses Ticket abhängt. */
+  dependencies: string[]
+  /** IDs der Tickets, die auf dieses Ticket warten. */
+  dependents: string[]
+  attachments: MessageAttachment[]
+}
 
 export interface ProjectDocument {
   id: string
   projectId: string
   title: string
   content: string
-  createdByAgentId?: string
-  createdByAgentName?: string
-  updatedByAgentId?: string
-  updatedByAgentName?: string
+  createdByAgentId: string | null
+  updatedByAgentId: string | null
   createdAt: string
   updatedAt: string
-  synced?: boolean
 }
 
-export type TicketStatus = 'open' | 'in_progress' | 'done'
-export type TicketCategory = 'bug' | 'feature' | 'task' | 'improvement' | 'documentation' | 'question' | 'epic'
-
-export const TICKET_CATEGORIES: { value: TicketCategory; label: string; color: string }[] = [
-  { value: 'bug', label: 'Bug', color: '#ef4444' },
-  { value: 'feature', label: 'Feature', color: '#8b5cf6' },
-  { value: 'task', label: 'Task', color: '#60a5fa' },
-  { value: 'improvement', label: 'Verbesserung', color: '#f59e0b' },
-  { value: 'documentation', label: 'Dokumentation', color: '#06b6d4' },
-  { value: 'question', label: 'Frage', color: '#ec4899' },
-  { value: 'epic', label: 'Epic', color: '#6366f1' },
-]
-
-export interface Ticket {
-  id: string
-  projectId: string
-  ticketNumber: number
-  title: string
-  description?: string
-  status: TicketStatus
-  category?: TicketCategory
-  assignedAgentLocalId?: string
-  assignedAgentName?: string
-  goalId?: number
-  externalId?: string
-  epicId?: string
-  /** IDs of tickets that must be done before this one (from ticket_dependencies) */
-  dependsOnIds?: string[]
-  sortOrder: number
-  comments: TicketComment[]
-  attachments?: MessageAttachment[]
-  createdAt: string
-  updatedAt: string
-  synced?: boolean
-}
-
-export interface TicketComment {
-  id: string
-  ticketId: string
-  projectId: string
-  authorType: 'user' | 'agent'
-  agentLocalId?: string
-  agentName?: string
-  content: string
-  clientTimestamp: string
-  synced?: boolean
-}
-
-export interface TicketGroups {
-  open: Ticket[]
-  in_progress: Ticket[]
-  done: Ticket[]
-}
-
-// ── Agent Memory ─────────────────────────────────────────────────────────
+export type MemorySource = 'agent' | 'user'
 
 export interface AgentMemory {
   id: number
-  globalAgentId: string
+  agentId: string
   projectId: string | null
   key: string
   value: string
-  importance: 1 | 2 | 3
-  source: 'agent' | 'user'
+  /** 1 = beiläufig, 2 = normal, 3 = wichtig. */
+  importance: number
+  source: MemorySource
   accessCount: number
   lastAccessedAt: string | null
   createdAt: string
   updatedAt: string
 }
 
-// ── Project Goals (Autonomous Loop) ──────────────────────────────────────
-
-export type GoalStatus = 'pending' | 'planning' | 'in_progress' | 'reviewing' | 'done' | 'cancelled' | 'failed'
-export type GoalPhase = 'pflichtenheft' | 'ticket_creation' | 'ticket_work' | 'review' | 'done'
-export type GoalErrorType = 'agent_not_found' | 'rate_limit' | 'timeout' | 'phase_error' | 'max_retries' | 'unknown'
-
-/**
- * 'ai'       — classic pipeline: description → Pflichtenheft → auto tickets → work → review
- * 'selected' — user hand-picks existing tickets; only the work phase runs (with runtime dependencies)
- */
 export type GoalMode = 'ai' | 'selected'
 
-export interface GoalCheckpoint {
-  completedTicketIds?: string[]
-  /** Ticket IDs currently being worked on right now (for live "which ticket runs" display) */
-  activeTicketIds?: string[]
-  retryAtCheckpoint?: number
-  rateLimitResumeAt?: string
-}
-
-export interface ProjectGoal {
+export interface Goal {
   id: number
   projectId: string
   title: string
-  description: string
+  description: string | null
+  mode: GoalMode
   status: GoalStatus
-  mode?: GoalMode
-  pflichtenheftDocumentId?: string
-  currentPhase?: GoalPhase
-  selectedAgentIds?: string[]
+  phase: string | null
+  specDocumentId: string | null
+  selectedAgentIds: string[]
+  checkpoint: JsonObject | null
   retryCount: number
-  errorType?: GoalErrorType
-  errorMessage?: string
-  checkpointData?: GoalCheckpoint
-  completedAt?: string
+  errorType: string | null
+  errorMessage: string | null
   createdAt: string
   updatedAt: string
+  completedAt: string | null
 }
 
-export interface GoalRunLog {
+export type GoalLogStatus = 'running' | 'success' | 'failed'
+
+export interface GoalLogEntry {
   id: number
   goalId: number
-  step: GoalPhase
-  agentName?: string
-  ticketId?: string
+  phase: string | null
+  agentId: string | null
+  ticketId: string | null
   message: string
-  status: 'running' | 'success' | 'failed'
-  errorType?: GoalErrorType
+  status: GoalLogStatus
   createdAt: string
 }
 
-export interface GoalPhaseUpdate {
-  goalId: number
-  phase: GoalPhase
-  status: 'running' | 'success' | 'failed'
-  message: string
+/** Wiederverwendbare Claude-CLI-Session, damit der Prompt-Cache warm bleibt. */
+export interface ClaudeSession {
+  scopeKey: string
+  sessionId: string
+  cwd: string | null
+  turnCount: number
+  createdAt: string
+  lastUsedAt: string
 }
 
-// ── Rating / Bewertungssystem ────────────────────────────────────────────
+export interface ClaudeStatus {
+  available: boolean
+  path: string | null
+  version: string | null
+  error: string | null
+  checkedAt: string
+}
 
-export type RatingPeriod = 'unter_1_monat' | '1_3_monate' | '3_6_monate' | '6_12_monate' | 'ueber_12_monate'
-export type RatingStayType = 'stationiert' | 'kommandiert' | 'durchreise'
-export type RatingStatus = 'draft' | 'pending_verification' | 'published' | 'rejected'
+export interface AppSettings {
+  claudePath: string | null
+  minimizeToTray: boolean
+  notificationsEnabled: boolean
+}
 
-export interface Rating {
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+
+export interface LogEntry {
   id: string
+  level: LogLevel
+  scope: string
+  message: string
+  data: JsonObject | null
+  timestamp: string
+}
+
+/** Laufzeitzustand eines Agenten im Chat, getrennt von der Nachricht selbst. */
+export type AgentActivity = 'idle' | 'thinking' | 'writing' | 'tool' | 'error'
+
+export interface AgentStatusUpdate {
   projectId: string
-  period: RatingPeriod
-  stayType: RatingStayType
-  categories: string[]
-  facilitiesInside: string[]
-  facilitiesNearby: string[]
-  impression: string
-  title: string
-  sleepType: string | null
-  rank: string | null
-  ageGroup: string | null
-  familyStatus: string | null
-  firstName: string
-  email: string
-  status: RatingStatus
-  verificationCode: string | null
-  verifiedAt: string | null
-  createdAt: string
-  updatedAt: string
-  synced?: boolean
+  agentId: string
+  activity: AgentActivity
+  detail: string | null
+  messageId: string | null
 }
 
-export interface RatingCategoryScore {
-  id: number
-  ratingId: string
-  category: string
-  score: number
-}
-
-export interface SyncQueueItem {
-  id: number
-  entityType: 'project' | 'agent' | 'message' | 'ticket' | 'ticket_comment' | 'document' | 'rating'
-  entityId: string
-  action: 'create' | 'update' | 'delete'
-  payload: Record<string, unknown>
-  createdAt: string
-  attempts: number
-  lastError?: string
-}
-
-export interface SyncStatus {
-  isOnline: boolean
-  isSyncing: boolean
-  unsyncedCount: number
-  lastSyncAt: string | null
-}
+export type { AgentEffort, AgentRole, GoalStatus, TicketCategory, TicketStatus }

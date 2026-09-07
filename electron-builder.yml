@@ -1,22 +1,17 @@
-appId: "de.dein-saas.orchestrator-agent"
-productName: "Orchestrator Agent"
+appId: de.orchestrator.agent
+productName: Orchestrator Agent
 directories:
   output: release
-
+  buildResources: assets
 files:
-  - "dist/**/*"
-  - "assets/**/*"
-
-win:
-  target: nsis
-  icon: assets/icon.ico
-
+  - out/**
+  - package.json
+extraResources:
+  - from: assets
+    to: assets
+asarUnpack:
+  - '**/*.node'
 mac:
   target: dmg
-  icon: assets/icon.icns
-
-linux:
-  target: AppImage
-
-publish:
-  provider: github
+  category: public.app-category.developer-tools
+  icon: assets/icon.png

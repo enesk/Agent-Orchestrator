@@ -1,13 +1,16 @@
-<!DOCTYPE html>
-<html lang="de">
+<!doctype html>
+<html lang="de" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: attachment:; connect-src 'self' ws: wss: http: https: attachment:;" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data: attachment:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
     <title>Orchestrator Agent</title>
   </head>
-  <body class="bg-[#FAFBFC] text-[#111827] font-sans">
+  <body>
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <script type="module" src="./main.tsx"></script>
   </body>
 </html>

@@ -1,87 +1,148 @@
 export const APP_NAME = 'Orchestrator Agent'
-export const APP_VERSION = '1.0.0'
 
-export const DEFAULT_BACKEND_URL = 'wss://localhost:8080/ws'
-export const DEFAULT_CLAUDE_PATH = '/usr/local/bin/claude'
+export const WINDOW_DEFAULT_WIDTH = 1440
+export const WINDOW_DEFAULT_HEIGHT = 920
+export const WINDOW_MIN_WIDTH = 1040
+export const WINDOW_MIN_HEIGHT = 680
 
-export const RECONNECT_INTERVAL_MS = 5000
-export const PING_INTERVAL_MS = 30000
-export const MAX_LOG_ENTRIES = 500
+/** Hintergrundfarbe des Fensters, muss zur Tailwind-Farbe `base` passen. */
+export const WINDOW_BACKGROUND = '#0d1013'
 
-export const WINDOW_WIDTH = 1200
-export const WINDOW_HEIGHT = 750
-export const WINDOW_MIN_WIDTH = 900
-export const WINDOW_MIN_HEIGHT = 550
+export type AgentModelGroup = 'Opus' | 'Sonnet' | 'Haiku'
 
-// ── Agent LLM models ────────────────────────────────────────────────────────
-// Model is configurable per agent, down to the specific version. We store the exact
-// model id passed to `claude --model <id>`. The picker offers the versions below,
-// grouped by tier; a "custom" text field lets users enter any id their CLI supports
-// (e.g. a newer release or a pinned legacy snapshot) without a code change.
-export const AGENT_MODELS = [
-  // Sonnet — ausgewogen, gutes Preis-/Leistungsverhältnis
-  { value: 'claude-sonnet-5', label: 'Sonnet 5 — schnell & günstig (empfohlen)', group: 'Sonnet' },
-  { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6', group: 'Sonnet' },
-  { value: 'claude-sonnet-4-5', label: 'Sonnet 4.5', group: 'Sonnet' },
-  // Opus — höchste Qualität, teuer
-  { value: 'claude-opus-5', label: 'Opus 5 — neueste, stärkste', group: 'Opus' },
-  { value: 'claude-opus-4-8', label: 'Opus 4.8', group: 'Opus' },
-  { value: 'claude-opus-4-7', label: 'Opus 4.7', group: 'Opus' },
-  { value: 'claude-opus-4-6', label: 'Opus 4.6', group: 'Opus' },
-  { value: 'claude-opus-4-5', label: 'Opus 4.5', group: 'Opus' },
-  // Haiku — am günstigsten
-  { value: 'claude-haiku-4-5', label: 'Haiku 4.5 — am günstigsten', group: 'Haiku' },
-  // Fable — maximale Fähigkeit, höchste Kosten
-  { value: 'claude-fable-5', label: 'Fable 5 — max. Fähigkeit, sehr teuer', group: 'Fable' },
-] as const
+export interface AgentModelOption {
+  value: string
+  label: string
+  group: AgentModelGroup
+}
 
-export type AgentModel = (typeof AGENT_MODELS)[number]['value']
+export const AGENT_MODELS: readonly AgentModelOption[] = [
+  { value: 'claude-opus-5', label: 'Opus 5', group: 'Opus' },
+  { value: 'claude-sonnet-5', label: 'Sonnet 5', group: 'Sonnet' },
+  { value: 'claude-haiku-4-5', label: 'Haiku 4.5', group: 'Haiku' },
+]
 
-// Ordered list of the tier groups, for rendering <optgroup>s.
-export const AGENT_MODEL_GROUPS: string[] = AGENT_MODELS.reduce<string[]>((groups, m) => {
-  if (!groups.includes(m.group)) groups.push(m.group)
-  return groups
-}, [])
+export const DEFAULT_AGENT_MODEL = 'claude-sonnet-5'
 
-// New agents default to Sonnet 5 to keep token cost low; users opt into Opus per agent.
-export const DEFAULT_AGENT_MODEL: string = 'claude-sonnet-5'
+export type AgentEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
-// ── Agent effort levels ─────────────────────────────────────────────────────
-// Second cost/quality dial next to the model: passed as `claude --effort <level>`.
-// It controls how deeply the model thinks and how much it does per turn — lower
-// effort means fewer, more consolidated tool calls and less preamble.
-// Not every model supports every level (Sonnet 4.5 / Haiku 4.5 have no effort at
-// all, Opus 4.6 / Sonnet 4.6 have no 'xhigh'), so the CLI is the authority here —
-// an unsupported combination fails at spawn time, not at save time.
-export const AGENT_EFFORTS = [
-  { value: 'low', label: 'Low — günstig, für einfache Aufgaben' },
-  { value: 'medium', label: 'Medium — sparsam, meist ausreichend' },
-  { value: 'high', label: 'High — ausgewogen (empfohlen)' },
-  { value: 'xhigh', label: 'XHigh — für Coding & Agenten-Aufgaben' },
-  { value: 'max', label: 'Max — teuer, nur wenn Korrektheit alles ist' },
-] as const
+export interface AgentEffortOption {
+  value: AgentEffort
+  label: string
+}
 
-export type AgentEffort = (typeof AGENT_EFFORTS)[number]['value']
+export const AGENT_EFFORTS: readonly AgentEffortOption[] = [
+  { value: 'low', label: 'Niedrig' },
+  { value: 'medium', label: 'Mittel' },
+  { value: 'high', label: 'Hoch' },
+  { value: 'xhigh', label: 'Sehr hoch' },
+  { value: 'max', label: 'Maximum' },
+]
 
-// New agents default to 'high' (the API default) rather than the Claude Code CLI
-// default 'xhigh' — same reasoning as DEFAULT_AGENT_MODEL: start cheap, opt in.
-// Agents that existed before this setting are backfilled to 'xhigh' by the schema
-// migration so their behavior does not change silently.
-export const DEFAULT_AGENT_EFFORT: string = 'high'
+export const DEFAULT_AGENT_EFFORT: AgentEffort = 'medium'
 
-// Models that reject the effort parameter outright.
-const MODELS_WITHOUT_EFFORT = ['claude-sonnet-4-5', 'claude-haiku-4-5']
-// Models that support effort but not the 'xhigh' level (added with Opus 4.7).
-const MODELS_WITHOUT_XHIGH = ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-opus-4-5']
+/** Modelle, die den Effort-Parameter nicht kennen — dort wird er weggelassen. */
+const MODELS_WITHOUT_EFFORT: readonly string[] = [
+  'claude-haiku-4-5',
+  'claude-haiku-4-5-20251001',
+  'claude-3-5-haiku',
+  'claude-3-5-sonnet',
+  'claude-3-7-sonnet',
+  'claude-sonnet-4',
+  'claude-sonnet-4-5',
+]
 
 /**
- * Effort level to actually pass for this model, or null when the flag must be omitted.
- * Sending an unsupported level is a hard API error, and the model is free-text (custom
- * ids), so anything unknown is passed through as-is and left to the CLI to judge.
+ * Liefert den Effort-Level, den die CLI für dieses Modell akzeptiert — oder `null`,
+ * wenn das Modell den Parameter nicht kennt. Frei eingetippte Modell-IDs, die wir nicht
+ * kennen, werden unverändert durchgereicht.
  */
-export function resolveEffortForModel(model: string, effort: string): string | null {
-  const id = model.trim()
-  if (MODELS_WITHOUT_EFFORT.includes(id)) return null
-  if (effort === 'xhigh' && MODELS_WITHOUT_XHIGH.includes(id)) return 'high'
+export function resolveEffortForModel(model: string, effort: string | null | undefined): string | null {
+  if (!effort) return null
+  const normalized = model.trim().toLowerCase()
+  if (MODELS_WITHOUT_EFFORT.some((id) => normalized === id || normalized.startsWith(`${id}-`))) {
+    return null
+  }
   return effort
 }
+
+export type AgentRole = 'worker' | 'planner' | 'pm' | 'reviewer'
+
+export interface AgentRoleOption {
+  value: AgentRole
+  label: string
+  description: string
+}
+
+export const AGENT_ROLES: readonly AgentRoleOption[] = [
+  { value: 'worker', label: 'Umsetzung', description: 'Arbeitet Tickets im Repo ab.' },
+  { value: 'planner', label: 'Planung', description: 'Schreibt das Pflichtenheft und zerlegt Vorhaben in Tickets.' },
+  { value: 'pm', label: 'Projektleitung', description: 'Verteilt Tickets und behält den Fortschritt im Blick.' },
+  { value: 'reviewer', label: 'Review', description: 'Prüft fertige Arbeit und meldet Nacharbeit zurück.' },
+]
+
+export type TicketCategory =
+  | 'bug'
+  | 'feature'
+  | 'task'
+  | 'improvement'
+  | 'documentation'
+  | 'question'
+  | 'epic'
+
+export interface TicketCategoryOption {
+  value: TicketCategory
+  label: string
+  color: string
+}
+
+export const TICKET_CATEGORIES: readonly TicketCategoryOption[] = [
+  { value: 'bug', label: 'Fehler', color: '#e5645f' },
+  { value: 'feature', label: 'Funktion', color: '#5b8dee' },
+  { value: 'task', label: 'Aufgabe', color: '#9aa5b3' },
+  { value: 'improvement', label: 'Verbesserung', color: '#4ac08a' },
+  { value: 'documentation', label: 'Dokumentation', color: '#58a6c9' },
+  { value: 'question', label: 'Frage', color: '#b98ce0' },
+  { value: 'epic', label: 'Epic', color: '#e3b341' },
+]
+
+export type TicketStatus = 'open' | 'in_progress' | 'done'
+
+export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
+  open: 'Offen',
+  in_progress: 'In Arbeit',
+  done: 'Erledigt',
+}
+
+export type GoalStatus =
+  | 'pending'
+  | 'planning'
+  | 'in_progress'
+  | 'reviewing'
+  | 'done'
+  | 'cancelled'
+  | 'failed'
+
+export const GOAL_STATUS_LABELS: Record<GoalStatus, string> = {
+  pending: 'Wartet',
+  planning: 'Planung',
+  in_progress: 'In Arbeit',
+  reviewing: 'Review',
+  done: 'Abgeschlossen',
+  cancelled: 'Abgebrochen',
+  failed: 'Fehlgeschlagen',
+}
+
+/** Nach so vielen Turns wird eine Claude-CLI-Session in Rente geschickt. */
+export const SESSION_MAX_TURNS = 40
+
+export const AGENT_COLORS: readonly string[] = [
+  '#5b8dee',
+  '#4ac08a',
+  '#e3b341',
+  '#e5645f',
+  '#b98ce0',
+  '#58a6c9',
+  '#e08a5b',
+  '#7fb069',
+]

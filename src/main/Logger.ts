@@ -1,66 +1,57 @@
-import winston from 'winston'
-import path from 'path'
-import { app } from 'electron'
-import { LogEntry } from '@shared/types'
-import { MAX_LOG_ENTRIES } from '@shared/constants'
-import { randomUUID } from 'crypto'
+import { randomUUID } from 'node:crypto'
+import { emitEvent } from './ipc/events'
+import type { JsonObject, LogEntry, LogLevel } from '@shared/types'
 
-const logDir = path.join(app.getPath('userData'), 'logs')
+const MAX_ENTRIES = 500
 
-const logger = winston.createLogger({
-  level: 'debug',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.File({
-      filename: path.join(logDir, 'error.log'),
-      level: 'error',
-    }),
-    new winston.transports.File({
-      filename: path.join(logDir, 'combined.log'),
-    }),
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      ),
-    }),
-  ],
-})
+const buffer: LogEntry[] = []
 
-const logBuffer: LogEntry[] = []
-let onLogCallback: ((entry: LogEntry) => void) | null = null
-
-function addLogEntry(level: LogEntry['level'], message: string, sessionId?: string): void {
+function push(level: LogLevel, scope: string, message: string, data?: JsonObject): void {
   const entry: LogEntry = {
     id: randomUUID(),
-    timestamp: new Date().toISOString(),
     level,
+    scope,
     message,
-    sessionId,
+    data: data ?? null,
+    timestamp: new Date().toISOString(),
   }
 
-  logBuffer.push(entry)
-  if (logBuffer.length > MAX_LOG_ENTRIES) {
-    logBuffer.shift()
+  buffer.push(entry)
+  if (buffer.length > MAX_ENTRIES) buffer.splice(0, buffer.length - MAX_ENTRIES)
+
+  const line = `[${entry.level}] ${entry.scope}: ${entry.message}`
+  if (level === 'error') console.error(line, data ?? '')
+  else if (level === 'warn') console.warn(line, data ?? '')
+  else console.log(line, data ?? '')
+
+  emitEvent('log.entry', entry)
+}
+
+/** Reduziert einen unbekannten Fehler auf etwas, das als JSON durch den IPC passt. */
+export function describeError(error: unknown): JsonObject {
+  if (error instanceof Error) {
+    return { name: error.name, message: error.message, stack: error.stack ?? null }
   }
-
-  onLogCallback?.(entry)
+  return { message: String(error) }
 }
 
-export function setLogCallback(cb: (entry: LogEntry) => void): void {
-  onLogCallback = cb
+export const logger = {
+  debug: (scope: string, message: string, data?: JsonObject) => push('debug', scope, message, data),
+  info: (scope: string, message: string, data?: JsonObject) => push('info', scope, message, data),
+  warn: (scope: string, message: string, data?: JsonObject) => push('warn', scope, message, data),
+  error: (scope: string, message: string, data?: JsonObject) => push('error', scope, message, data),
+  recent: (limit = MAX_ENTRIES): LogEntry[] => buffer.slice(-limit),
+  clear: (): void => {
+    buffer.length = 0
+  },
 }
 
-export function getLogEntries(): LogEntry[] {
-  return [...logBuffer]
+/** Namensraum-gebundener Logger, damit Aufrufer den Scope nicht wiederholen müssen. */
+export function scopedLogger(scope: string) {
+  return {
+    debug: (message: string, data?: JsonObject) => logger.debug(scope, message, data),
+    info: (message: string, data?: JsonObject) => logger.info(scope, message, data),
+    warn: (message: string, data?: JsonObject) => logger.warn(scope, message, data),
+    error: (message: string, data?: JsonObject) => logger.error(scope, message, data),
+  }
 }
-
-export function log(level: LogEntry['level'], message: string, sessionId?: string): void {
-  logger.log(level, message, { sessionId })
-  addLogEntry(level, message, sessionId)
-}
-
-export default logger
