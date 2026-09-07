@@ -209,6 +209,15 @@ export const appSettingsSchema = z.object({
   notificationsEnabled: z.boolean(),
 })
 
+export const appInfoSchema = z.object({
+  name: z.string(),
+  version: z.string(),
+  electronVersion: z.string(),
+  platform: z.string(),
+  databasePath: z.string(),
+  databaseDirectory: z.string(),
+})
+
 export const logEntrySchema = z.object({
   id: z.string(),
   level: logLevelSchema,
@@ -532,6 +541,14 @@ export const ipcContract = {
   settings: {
     get: { request: z.void(), response: appSettingsSchema },
     save: { request: appSettingsSchema.partial(), response: appSettingsSchema },
+    pickClaudePath: { request: z.void(), response: z.object({ path: z.string().nullable() }) },
+  },
+  app: {
+    info: { request: z.void(), response: appInfoSchema },
+    /** Öffnet den Ordner der Datenbank im Dateimanager. */
+    openDatabaseFolder: { request: z.void(), response: okSchema },
+    /** Zeigt die Datenbankdatei selbst markiert im Dateimanager. */
+    showDatabaseFile: { request: z.void(), response: okSchema },
   },
   claude: {
     status: { request: z.void(), response: claudeStatusSchema },

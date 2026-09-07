@@ -199,6 +199,15 @@ export interface AppSettings {
   notificationsEnabled: boolean
 }
 
+export interface AppInfo {
+  name: string
+  version: string
+  electronVersion: string
+  platform: string
+  databasePath: string
+  databaseDirectory: string
+}
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
 export interface LogEntry {

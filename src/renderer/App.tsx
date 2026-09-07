@@ -4,6 +4,7 @@ import { ChatView } from './features/chat/ChatView'
 import { DocumentsView } from './features/documents/DocumentsView'
 import { GoalsView } from './features/goals/GoalsView'
 import { HomeView } from './features/home/HomeView'
+import { LogBar } from './features/logs/LogBar'
 import { SettingsView } from './features/settings/SettingsView'
 import { TicketsView } from './features/tickets/TicketsView'
 import { NavigationRail } from './layout/NavigationRail'
@@ -26,6 +27,8 @@ const VIEWS: Record<Section, () => ReactNode> = {
 export function App() {
   const activeSection = useUiStore((state) => state.activeSection)
   const panelOpen = useUiStore((state) => state.panelOpen)
+  const logBarOpen = useUiStore((state) => state.logBarOpen)
+  const toggleLogBar = useUiStore((state) => state.toggleLogBar)
   const loadProjects = useProjectStore((state) => state.load)
   const loadClaudeStatus = useClaudeStore((state) => state.load)
   const setClaudeStatus = useClaudeStore((state) => state.set)
@@ -35,6 +38,17 @@ export function App() {
     void loadClaudeStatus()
     return window.api.on('claude.status', setClaudeStatus)
   }, [loadProjects, loadClaudeStatus, setClaudeStatus])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'l') {
+        event.preventDefault()
+        toggleLogBar()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [toggleLogBar])
 
   const View = VIEWS[activeSection]
 
@@ -56,6 +70,7 @@ export function App() {
             </aside>
           )}
         </div>
+        {logBarOpen && <LogBar />}
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 import { useActiveProject } from '../store/projectStore'
 import { SECTION_LABELS, useUiStore } from '../store/uiStore'
 import { IconButton } from '../ui'
-import { PanelIcon } from '../ui/icons'
+import { PanelIcon, TerminalIcon } from '../ui/icons'
 import { ClaudeStatusChip } from './ClaudeStatusChip'
 
 export function TopBar() {
@@ -9,6 +9,8 @@ export function TopBar() {
   const activeSection = useUiStore((state) => state.activeSection)
   const panelOpen = useUiStore((state) => state.panelOpen)
   const togglePanel = useUiStore((state) => state.togglePanel)
+  const logBarOpen = useUiStore((state) => state.logBarOpen)
+  const toggleLogBar = useUiStore((state) => state.toggleLogBar)
 
   return (
     <header className="drag-region flex h-11 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
@@ -21,6 +23,12 @@ export function TopBar() {
 
       <div className="no-drag flex items-center gap-2">
         <ClaudeStatusChip />
+        <IconButton
+          label={logBarOpen ? 'Protokoll schließen (⌘L)' : 'Protokoll öffnen (⌘L)'}
+          icon={<TerminalIcon />}
+          active={logBarOpen}
+          onClick={toggleLogBar}
+        />
         <IconButton
           label={panelOpen ? 'Seitenpanel schließen' : 'Seitenpanel öffnen'}
           icon={<PanelIcon />}

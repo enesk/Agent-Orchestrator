@@ -7,9 +7,7 @@ import { describeError, logger } from '../Logger'
 import { registerAttachmentProtocol, registerAttachmentSchemePrivileges } from './attachments'
 import { getSettings } from './settings'
 import { createTray, destroyTray } from './tray'
-import { createMainWindow, getMainWindow } from './window'
-
-let quitting = false
+import { createMainWindow, getMainWindow, isQuitting, setQuitting } from './window'
 
 // Muss vor `whenReady` passieren, sonst kennt Electron das Schema nicht.
 registerAttachmentSchemePrivileges()
@@ -60,12 +58,12 @@ async function bootstrap(): Promise<void> {
 }
 
 app.on('before-quit', () => {
-  quitting = true
+  setQuitting(true)
 })
 
 app.on('window-all-closed', () => {
   // Auf macOS bleibt die App üblicherweise im Dock; sonst nur, wenn der Tray gewünscht ist.
-  if (quitting) return
+  if (isQuitting()) return
   if (process.platform !== 'darwin' && !getSettings().minimizeToTray) app.quit()
 })
 

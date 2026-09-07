@@ -9,8 +9,19 @@ import {
   WINDOW_MIN_WIDTH,
 } from '@shared/constants'
 import { assetPath } from './paths'
+import { getSettings } from './settings'
 
 let mainWindow: BrowserWindow | null = null
+let quitting = false
+
+/** Ab `app.quit()` darf das Schließen nicht mehr in den Tray umgeleitet werden. */
+export function setQuitting(value: boolean): void {
+  quitting = value
+}
+
+export function isQuitting(): boolean {
+  return quitting
+}
 
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow && !mainWindow.isDestroyed() ? mainWindow : null
@@ -58,6 +69,13 @@ export function createMainWindow(): BrowserWindow {
   } else {
     void window.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
+
+  // „In die Menüleiste minimieren" heißt: das Fenster verschwindet, die App läuft weiter.
+  window.on('close', (event) => {
+    if (quitting || !getSettings().minimizeToTray) return
+    event.preventDefault()
+    window.hide()
+  })
 
   window.on('closed', () => {
     mainWindow = null
