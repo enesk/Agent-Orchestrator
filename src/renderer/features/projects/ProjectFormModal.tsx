@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { JsonObject, Project } from '@shared/types'
+import { roleLabel } from '../agents/agentHelpers'
+import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useProjectStore } from '../../store/projectStore'
 import { useUiStore } from '../../store/uiStore'
-import { Button, IconButton, Input, Modal, Textarea } from '../../ui'
+import { Badge, Button, IconButton, Input, Modal, Textarea } from '../../ui'
 import { CloseIcon, FolderIcon, PlusIcon } from '../../ui/icons'
 
 interface MetadataPair {
@@ -42,14 +44,26 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
   const createProject = useProjectStore((state) => state.create)
   const updateProject = useProjectStore((state) => state.update)
   const setActiveProject = useUiStore((state) => state.setActiveProject)
+  const openAgents = useUiStore((state) => state.openAgents)
+
+  const allAgents = useAgentStore((state) => state.allAgents)
+  const loadAllAgents = useAgentStore((state) => state.loadAll)
+  const addManyToProject = useAgentStore((state) => state.addManyToProject)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [path, setPath] = useState('')
   const [pairs, setPairs] = useState<MetadataPair[]>([])
+  /** `null` heißt „noch nichts angefasst" — dann gilt die Vorauswahl aller Worker. */
+  const [agentIds, setAgentIds] = useState<string[] | null>(null)
   const [pathWarning, setPathWarning] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!open || project) return
+    void loadAllAgents()
+  }, [open, project, loadAllAgents])
 
   useEffect(() => {
     if (!open) return
@@ -57,10 +71,22 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
     setDescription(project?.description ?? '')
     setPath(project?.path ?? '')
     setPairs(project ? toPairs(project.metadata) : [])
+    setAgentIds(null)
     setPathWarning(null)
     setError(null)
     setSaving(false)
   }, [open, project])
+
+  const selectedAgentIds =
+    agentIds ?? allAgents.filter((agent) => agent.role === 'worker').map((agent) => agent.id)
+
+  function toggleAgent(agentId: string): void {
+    setAgentIds(
+      selectedAgentIds.includes(agentId)
+        ? selectedAgentIds.filter((id) => id !== agentId)
+        : [...selectedAgentIds, agentId],
+    )
+  }
 
   async function browse(): Promise<void> {
     try {
@@ -87,7 +113,21 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
         ? await updateProject(project.id, payload)
         : await createProject(payload)
 
-      if (!project) setActiveProject(result.id)
+      if (!project) {
+        setActiveProject(result.id)
+        // Die Zuordnung darf das gespeicherte Projekt nicht mehr kippen — nur melden.
+        const chosen = allAgents
+          .filter((agent) => selectedAgentIds.includes(agent.id))
+          .map((agent) => agent.id)
+        if (chosen.length > 0) {
+          try {
+            await addManyToProject(result.id, chosen)
+          } catch (caught) {
+            setError(`Projekt gespeichert, aber die Agenten konnten nicht zugeordnet werden: ${toErrorMessage(caught)}`)
+            return
+          }
+        }
+      }
 
       // Ein fehlender Ordner blockiert das Speichern nicht — er wird nur angezeigt.
       if (result.pathWarning) {
@@ -167,6 +207,60 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
             </p>
           )}
         </div>
+
+        {!project && (
+          <div>
+            <span className="mb-1 block text-xs font-medium text-ink-muted">Agenten</span>
+            {allAgents.length === 0 ? (
+              <div className="rounded-md border border-line bg-base px-2 py-2">
+                <p className="text-xs text-ink-faint">
+                  Es ist noch kein Agent angelegt. Ohne zugeordneten Agenten antwortet im Chat
+                  niemand.
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-1.5"
+                  onClick={() => {
+                    onClose()
+                    openAgents('editor')
+                  }}
+                >
+                  Zum Agenten-Bereich
+                </Button>
+              </div>
+            ) : (
+              <>
+                <ul className="max-h-44 space-y-0.5 overflow-auto rounded-md border border-line bg-base p-1">
+                  {allAgents.map((agent) => (
+                    <li key={agent.id}>
+                      <label className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 hover:bg-raised">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 shrink-0 accent-accent"
+                          checked={selectedAgentIds.includes(agent.id)}
+                          onChange={() => toggleAgent(agent.id)}
+                        />
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: agent.color }}
+                        />
+                        <span className="truncate text-sm text-ink">{agent.name}</span>
+                        <Badge>{roleLabel(agent.role)}</Badge>
+                        <span className="ml-auto shrink-0 font-mono text-[11px] text-ink-faint">
+                          {agent.mentionKey}
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 text-xs text-ink-faint">
+                  Nur zugeordnete Agenten lassen sich im Chat mit @ erwähnen. Vorausgewählt sind
+                  alle Worker.
+                </p>
+              </>
+            )}
+          </div>
+        )}
 
         <div>
           <div className="mb-1 flex items-center justify-between">

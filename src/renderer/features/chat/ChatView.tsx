@@ -5,7 +5,7 @@ import { useChatStore } from '../../store/chatStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useUiStore } from '../../store/uiStore'
 import { Button, EmptyState, Spinner, useConfirm } from '../../ui'
-import { ChatIcon } from '../../ui/icons'
+import { AgentIcon, ChatIcon } from '../../ui/icons'
 import { AgentBar } from './AgentBar'
 import { Composer, type ComposerHandle } from './Composer'
 import { MessageList } from './MessageList'
@@ -32,8 +32,14 @@ export function ChatView() {
   const openThread = useChatStore((state) => state.openThread)
 
   const agents = useAgentStore((state) => state.agents)
+  const agentsLoading = useAgentStore((state) => state.loading)
+  const allAgents = useAgentStore((state) => state.allAgents)
   const loadAgents = useAgentStore((state) => state.load)
+  const loadAllAgents = useAgentStore((state) => state.loadAll)
+  const addToProject = useAgentStore((state) => state.addToProject)
   const subscribeAgents = useAgentStore((state) => state.subscribe)
+
+  const openAgents = useUiStore((state) => state.openAgents)
 
   const composerRef = useRef<ComposerHandle>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -43,12 +49,19 @@ export function ChatView() {
   useEffect(() => {
     void loadChat(projectId)
     void loadAgents(projectId)
-  }, [projectId, loadChat, loadAgents])
+    void loadAllAgents()
+  }, [projectId, loadChat, loadAgents, loadAllAgents])
 
   useEffect(() => subscribeChat(), [subscribeChat])
   useEffect(() => subscribeAgents(), [subscribeAgents])
 
   const agentById = useMemo(() => new Map(agents.map((agent) => [agent.id, agent])), [agents])
+
+  // Global vorhandene, hier aber nicht zugeordnete Agenten — das @-Menü bietet sie mit an.
+  const unassignedAgents = useMemo(
+    () => allAgents.filter((agent) => !agents.some((assigned) => assigned.id === agent.id)),
+    [allAgents, agents],
+  )
 
   // Antworten hängen im Thread, nicht im Hauptverlauf — dort steht nur die Zahl darunter.
   const rootMessages = useMemo(
@@ -147,6 +160,19 @@ export function ChatView() {
           <div className="flex min-h-0 flex-1 items-center justify-center">
             <Spinner />
           </div>
+        ) : rootMessages.length === 0 && !storeError && !agentsLoading && agents.length === 0 ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center">
+            <EmptyState
+              title="Diesem Projekt ist kein Agent zugeordnet"
+              description="Erwähnungen werden nur gegen die Agenten dieses Projekts aufgelöst — ohne Zuordnung antwortet niemand."
+              icon={<AgentIcon />}
+              action={
+                <Button variant="primary" onClick={() => openAgents('project')}>
+                  Agenten zuordnen
+                </Button>
+              }
+            />
+          </div>
         ) : rootMessages.length === 0 ? (
           <div className="flex min-h-0 flex-1 items-center justify-center">
             <EmptyState
@@ -183,6 +209,8 @@ export function ChatView() {
         <Composer
           ref={composerRef}
           agents={agents}
+          unassignedAgents={unassignedAgents}
+          onAssignAgent={(agent) => addToProject(projectId, agent.id)}
           placeholder="Nachricht an das Projekt — @ erwähnt einen Agenten"
           onSend={(input) =>
             sendMessage({

@@ -3,7 +3,7 @@ import type { ProjectAgent } from '@shared/types'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useActiveProject } from '../../store/projectStore'
-import { useUiStore } from '../../store/uiStore'
+import { useUiStore, type AgentsTab } from '../../store/uiStore'
 import { Button, EmptyState, Spinner, cn, useConfirm } from '../../ui'
 import { AgentIcon, PlusIcon } from '../../ui/icons'
 import { AgentEditor } from './AgentEditor'
@@ -12,9 +12,7 @@ import { AgentMemoryPanel } from './AgentMemoryPanel'
 import { CreateAgentModal } from './CreateAgentModal'
 import { ProjectAgentsPanel } from './ProjectAgentsPanel'
 
-type Tab = 'editor' | 'project' | 'memory'
-
-const TABS: { id: Tab; label: string }[] = [
+const TABS: { id: AgentsTab; label: string }[] = [
   { id: 'editor', label: 'Agenten' },
   { id: 'project', label: 'Im Projekt' },
   { id: 'memory', label: 'Gedächtnis' },
@@ -33,7 +31,8 @@ export function AgentsView() {
   const create = useAgentStore((state) => state.create)
   const remove = useAgentStore((state) => state.remove)
 
-  const [tab, setTab] = useState<Tab>('editor')
+  const tab = useUiStore((state) => state.agentsTab)
+  const setTab = useUiStore((state) => state.setAgentsTab)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)

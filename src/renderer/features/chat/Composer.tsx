@@ -13,6 +13,7 @@ import type { MessageAttachment, ProjectAgent } from '@shared/types'
 import { toErrorMessage } from '../../store/errorMessage'
 import { Button, Spinner, cn } from '../../ui'
 import { CloseIcon } from '../../ui/icons'
+import { roleLabel } from '../agents/agentHelpers'
 import {
   attachmentUrl,
   isImage,
@@ -44,8 +45,20 @@ export interface ComposerHandle {
   focus: () => void
 }
 
+/** Ein Eintrag des @-Menüs — `assigned: false` steht für einen erst noch zuzuordnenden Agenten. */
+interface MentionOption {
+  agent: ProjectAgent
+  assigned: boolean
+}
+
 export interface ComposerProps {
   agents: ProjectAgent[]
+  /**
+   * Globale Agenten, die dem Projekt nicht zugeordnet sind. Sie erscheinen im @-Menü als
+   * zweiter Abschnitt und werden bei Auswahl über `onAssignAgent` zugeordnet.
+   */
+  unassignedAgents?: ProjectAgent[]
+  onAssignAgent?: (agent: ProjectAgent) => Promise<unknown>
   placeholder: string
   disabled?: boolean
   autoFocus?: boolean
@@ -57,7 +70,15 @@ export interface ComposerProps {
 }
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { agents, placeholder, disabled = false, autoFocus = false, onSend },
+  {
+    agents,
+    unassignedAgents = [],
+    onAssignAgent,
+    placeholder,
+    disabled = false,
+    autoFocus = false,
+    onSend,
+  },
   ref,
 ) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -72,17 +93,31 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [assigningId, setAssigningId] = useState<string | null>(null)
 
-  const candidates = mention
-    ? agents.filter((agent) => {
-        const query = mention.query.toLowerCase()
-        if (!query) return true
-        return (
-          agent.mentionKey.slice(1).toLowerCase().includes(query) ||
-          agent.name.toLowerCase().includes(query)
-        )
-      })
+  function matchesQuery(agent: ProjectAgent, query: string): boolean {
+    if (!query) return true
+    return (
+      agent.mentionKey.slice(1).toLowerCase().includes(query) ||
+      agent.name.toLowerCase().includes(query)
+    )
+  }
+
+  // Beide Abschnitte hängen an derselben Liste, damit die Pfeiltasten über sie hinweglaufen.
+  const options: MentionOption[] = mention
+    ? [
+        ...agents
+          .filter((agent) => matchesQuery(agent, mention.query.toLowerCase()))
+          .map((agent) => ({ agent, assigned: true })),
+        ...(onAssignAgent
+          ? unassignedAgents
+              .filter((agent) => matchesQuery(agent, mention.query.toLowerCase()))
+              .map((agent) => ({ agent, assigned: false }))
+          : []),
+      ]
     : []
+
+  const assignedCount = options.filter((option) => option.assigned).length
 
   useLayoutEffect(() => {
     const textarea = textareaRef.current
@@ -112,16 +147,38 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   }
 
   function replaceRange(start: number, end: number, insert: string): void {
-    const next = `${text.slice(0, start)}${insert}${text.slice(end)}`
     pendingCaret.current = start + insert.length
-    setText(next)
+    setText((current) => `${current.slice(0, start)}${insert}${current.slice(end)}`)
     setMention(null)
   }
 
-  function acceptMention(agent: ProjectAgent): void {
+  /**
+   * Ein nicht zugeordneter Agent wird erst dem Projekt zugeschlagen und landet erst danach
+   * im Text — schlägt die Zuordnung fehl, bleibt das Feld unverändert.
+   */
+  async function acceptOption(option: MentionOption): Promise<void> {
     const textarea = textareaRef.current
-    if (!mention || !textarea) return
-    replaceRange(mention.start, textarea.selectionStart, `${agent.mentionKey} `)
+    if (!mention || !textarea || assigningId) return
+    const { start } = mention
+    const end = textarea.selectionStart
+    const insert = `${option.agent.mentionKey} `
+
+    if (option.assigned || !onAssignAgent) {
+      replaceRange(start, end, insert)
+      return
+    }
+
+    setAssigningId(option.agent.id)
+    setError(null)
+    try {
+      await onAssignAgent(option.agent)
+      replaceRange(start, end, insert)
+    } catch (caught) {
+      setError(toErrorMessage(caught))
+    } finally {
+      setAssigningId(null)
+      textareaRef.current?.focus()
+    }
   }
 
   useImperativeHandle(ref, () => ({
@@ -192,21 +249,21 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
-    if (mention && candidates.length > 0) {
+    if (mention && options.length > 0) {
       if (event.key === 'ArrowDown') {
         event.preventDefault()
-        setHighlighted((current) => (current + 1) % candidates.length)
+        setHighlighted((current) => (current + 1) % options.length)
         return
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault()
-        setHighlighted((current) => (current - 1 + candidates.length) % candidates.length)
+        setHighlighted((current) => (current - 1 + options.length) % options.length)
         return
       }
       if (event.key === 'Enter' || event.key === 'Tab') {
         event.preventDefault()
-        const agent = candidates[Math.min(highlighted, candidates.length - 1)]
-        if (agent) acceptMention(agent)
+        const option = options[Math.min(highlighted, options.length - 1)]
+        if (option) void acceptOption(option)
         return
       }
       if (event.key === 'Escape') {
@@ -230,7 +287,9 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     text.trim().length === 0 || mentions.length > 0
       ? 'Enter sendet · Shift+Enter für eine neue Zeile · Bilder einfügen oder ablegen'
       : agents.length === 0
-        ? 'Diesem Projekt ist kein Agent zugeordnet — unter „Agenten" mindestens einen hinzufügen.'
+        ? unassignedAgents.length > 0 && onAssignAgent
+          ? 'Diesem Projekt ist kein Agent zugeordnet — tippe @ und wähle einen aus, das ordnet ihn zu.'
+          : 'Diesem Projekt ist kein Agent zugeordnet — unter „Agenten" mindestens einen hinzufügen.'
         : `Ohne Erwähnung antwortet niemand — verfügbar: ${agents
             .map((agent) => agent.mentionKey)
             .join(', ')}`
@@ -288,37 +347,60 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       )}
 
       <div className="relative">
-        {mention && candidates.length > 0 && (
-          <ul className="absolute bottom-full left-0 z-40 mb-1 max-h-60 w-72 overflow-auto rounded-md border border-line bg-overlay py-1 shadow-lg">
-            {candidates.map((agent, index) => (
-              <li key={agent.id}>
-                <button
-                  type="button"
-                  onMouseDown={(event) => {
-                    event.preventDefault()
-                    acceptMention(agent)
-                  }}
-                  onMouseEnter={() => setHighlighted(index)}
-                  className={cn(
-                    'flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm',
-                    index === highlighted ? 'bg-raised' : 'hover:bg-raised',
-                    agent.stopped && 'opacity-50',
+        {mention && options.length > 0 && (
+          <ul className="absolute bottom-full left-0 z-40 mb-1 max-h-72 w-80 overflow-auto rounded-md border border-line bg-overlay py-1 shadow-lg">
+            {options.map((option, index) => {
+              const agent = option.agent
+              const assigning = assigningId === agent.id
+              return (
+                <li key={`${option.assigned ? 'in' : 'out'}-${agent.id}`}>
+                  {/* Kopfzeile des zweiten Abschnitts — sie steht vor dem ersten fremden Agenten. */}
+                  {!option.assigned && index === assignedCount && (
+                    <p
+                      className={cn(
+                        'px-2 pb-0.5 pt-1.5 text-[11px] font-medium text-ink-faint',
+                        assignedCount > 0 && 'mt-1 border-t border-line',
+                      )}
+                    >
+                      Nicht in diesem Projekt — Auswahl ordnet zu
+                    </p>
                   )}
-                >
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: agent.color }}
-                  />
-                  <span className="truncate text-ink">{agent.name}</span>
-                  {agent.title && (
-                    <span className="truncate text-xs text-ink-faint">{agent.title}</span>
-                  )}
-                  <span className="ml-auto shrink-0 font-mono text-[11px] text-ink-faint">
-                    {agent.stopped ? 'gestoppt' : agent.mentionKey}
-                  </span>
-                </button>
-              </li>
-            ))}
+                  <button
+                    type="button"
+                    disabled={assigningId !== null && !assigning}
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                      void acceptOption(option)
+                    }}
+                    onMouseEnter={() => setHighlighted(index)}
+                    className={cn(
+                      'flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm',
+                      index === highlighted ? 'bg-raised' : 'hover:bg-raised',
+                      (agent.stopped || !option.assigned) && 'opacity-60',
+                    )}
+                  >
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: agent.color }}
+                    />
+                    <span className="truncate text-ink">{agent.name}</span>
+                    {option.assigned ? (
+                      agent.title && (
+                        <span className="truncate text-xs text-ink-faint">{agent.title}</span>
+                      )
+                    ) : (
+                      <span className="truncate text-xs text-ink-faint">
+                        {roleLabel(agent.role)}
+                      </span>
+                    )}
+                    <span className="ml-auto flex shrink-0 items-center gap-1.5 font-mono text-[11px] text-ink-faint">
+                      {assigning && <Spinner size={12} />}
+                      {option.assigned && agent.stopped ? 'gestoppt' : agent.mentionKey}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
           </ul>
         )}
 

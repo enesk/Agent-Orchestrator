@@ -19,6 +19,8 @@ interface AgentState {
   update: (id: string, patch: IpcRequest<'agents', 'update'>['patch']) => Promise<Agent>
   remove: (id: string) => Promise<void>
   addToProject: (projectId: string, agentId: string) => Promise<void>
+  /** Ordnet mehrere Agenten in der übergebenen Reihenfolge zu — für den Projekt-Anlagedialog. */
+  addManyToProject: (projectId: string, agentIds: string[]) => Promise<void>
   removeFromProject: (projectId: string, agentId: string) => Promise<void>
   setStopped: (projectId: string, agentId: string, stopped: boolean) => Promise<void>
   /** Verschiebt einen Agenten in der Projektreihenfolge um eine Position. */
@@ -83,6 +85,13 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   addToProject: async (projectId, agentId) => {
     await window.api.agents.addToProject({ projectId, agentId })
     await get().load(projectId)
+  },
+
+  addManyToProject: async (projectId, agentIds) => {
+    for (const [sortOrder, agentId] of agentIds.entries()) {
+      await window.api.agents.addToProject({ projectId, agentId, sortOrder })
+    }
+    if (get().projectId === projectId) await get().load(projectId)
   },
 
   removeFromProject: async (projectId, agentId) => {
