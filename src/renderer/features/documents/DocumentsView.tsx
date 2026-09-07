@@ -3,7 +3,7 @@ import { useAgentStore } from '../../store/agentStore'
 import { useDocumentStore } from '../../store/documentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useUiStore } from '../../store/uiStore'
-import { Button, EmptyState, Input, Modal, Spinner, cn, formatDateTime } from '../../ui'
+import { Button, EmptyState, Input, Modal, Spinner, cn, formatDateTime, useConfirm } from '../../ui'
 import { DocumentIcon, PlusIcon } from '../../ui/icons'
 import { DocumentEditor } from './DocumentEditor'
 
@@ -28,6 +28,8 @@ export function DocumentsView() {
   const [dialog, setDialog] = useState<'create' | 'rename' | null>(null)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  // `dialog` ist hier schon der Name des Titel-Modals.
+  const { confirm, dialog: confirmDialog } = useConfirm()
 
   useEffect(() => {
     void loadDocuments(projectId)
@@ -54,7 +56,13 @@ export function DocumentsView() {
 
   async function remove(): Promise<void> {
     if (!selected) return
-    if (!window.confirm(`Dokument „${selected.title}" löschen?`)) return
+    const confirmed = await confirm({
+      title: 'Dokument löschen',
+      message: `Dokument „${selected.title}" löschen?`,
+      confirmLabel: 'Löschen',
+      danger: true,
+    })
+    if (!confirmed) return
     await run(() => removeDocument(selected.id))
   }
 
@@ -178,6 +186,7 @@ export function DocumentsView() {
         />
         {actionError && <p className="mt-2 text-xs text-danger">{actionError}</p>}
       </Modal>
+      {confirmDialog}
     </div>
   )
 }

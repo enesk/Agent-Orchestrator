@@ -50,10 +50,15 @@ Die Event-Namen und ihre Schemas stehen in `ipcEvents`.
 `src/main/app/index.ts` ist die einzige Stelle, an der die Teile zusammengesteckt werden. Der
 Ablauf beim Start:
 
-1. `registerAttachmentSchemePrivileges()` — muss vor `app.whenReady()` laufen, sonst kennt
+1. `app.setPath('userData', …/'Orchestrator Agent v2')` — muss vor jedem `getPath('userData')`
+   laufen. v1 heißt ebenfalls `orchestrator-agent` und legt dort eine `orchestrator.db` in einem
+   anderen Schema ab; ohne eigenen Ordner mischen sich beide.
+   `registerAttachmentSchemePrivileges()` — muss vor `app.whenReady()` laufen, sonst kennt
    Electron das Schema `attachment://` nicht.
 2. Einzelinstanz-Sperre; eine zweite Instanz holt nur das vorhandene Fenster nach vorne.
-3. `initDatabase()` — öffnet `orchestrator.db` und wendet offene Migrationen an.
+3. `initDatabase()` — öffnet `orchestrator.db`, wendet offene Migrationen an und prüft
+   anschließend das Schema (`verifySchema`). Passt es nicht, bricht der Start mit einer
+   deutschen Meldung samt Dateipfad ab, statt in einen halb kaputten Zustand zu laufen.
    `markStaleStreamingMessages()` räumt Nachrichten auf, die beim letzten Beenden noch liefen.
 4. `registerAttachmentProtocol()`, `initChatEngine()`, `registerIpcHandlers()`.
 5. `startMcpServer()` — schlägt das fehl, läuft die App weiter, die Agenten arbeiten dann
@@ -74,7 +79,12 @@ Tray und Datenbank.
 SQLite über `better-sqlite3`, Datei `orchestrator.db` in `userData`, WAL an,
 `PRAGMA foreign_keys = ON`. Migrationen sind nummerierte `.sql`-Dateien unter
 `src/main/db/migrations/`, werden als Rohtext eingebettet (`?raw`) und der Reihe nach
-angewendet; der Stand steht in `schema_migrations`.
+angewendet; der Stand steht in `schema_migrations`. Die Namen tragen ein `v2` (`001_v2_initial`),
+damit ein Migrationsstand aus v1 nicht versehentlich als erledigt gilt.
+
+Weil `CREATE TABLE IF NOT EXISTS` an bereits vorhandenen Tabellen fremden Schemas wortlos
+vorbeigeht, prüft `verifySchema()` danach Stichproben (u. a. `projects.path`, `tickets.number`,
+`agents.role`) und wirft sonst einen `SchemaMismatchError`.
 
 ```
 projects ──┬── project_agents ── agents
@@ -111,6 +121,10 @@ liegt vollständig in `src/main/db/repositories/`. Services bekommen nur fertige
 Jeder Claude-Aufruf — Chat wie autonomer Goal-Loop — geht durch `ClaudeRunner.run()`. Er
 spawnt `claude -p --output-format stream-json …` mit `cwd` = Projektpfad, parst den Stream und
 liefert Events (Text, Denkschritte, Tool-Aufrufe, Ende).
+
+Die einzige bewusste Ausnahme von „`cwd` = Projektpfad" ist die Systemprompt-Erzeugung im
+Agenten-Editor (`src/main/chat/wiring.ts`): Sie gehört zu keinem Projekt und läuft deshalb mit
+`cwd = userData`, damit sie kein fremdes Repo als Arbeitsverzeichnis sieht.
 
 Der Goal-Loop ruft den Runner **direkt** auf. Er darf nicht den Umweg über „Chat-Nachricht
 schreiben, danach die Datenbank auf Änderungen absuchen" nehmen: In v1 war genau das die

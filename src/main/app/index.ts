@@ -1,6 +1,7 @@
-import { BrowserWindow, app } from 'electron'
+import { BrowserWindow, app, dialog } from 'electron'
+import { join } from 'node:path'
 import { APP_NAME } from '@shared/constants'
-import { closeDatabase, initDatabase } from '../db/connection'
+import { SchemaMismatchError, closeDatabase, initDatabase } from '../db/connection'
 import { markStaleStreamingMessages } from '../db/repositories/messages'
 import { initChatEngine } from '../chat'
 import { resumeInterrupted, shutdown as shutdownGoals } from '../goals'
@@ -12,6 +13,11 @@ import { registerAttachmentProtocol, registerAttachmentSchemePrivileges } from '
 import { getSettings } from './settings'
 import { createTray, destroyTray, refreshTray, setTrayStatusSources } from './tray'
 import { createMainWindow, getMainWindow, isQuitting, setQuitting } from './window'
+
+// Eigener Datenordner: v1 heißt ebenfalls `orchestrator-agent` und legt dort eine
+// `orchestrator.db` in einem völlig anderen Schema ab. Muss vor jedem `app.getPath('userData')`
+// stehen, also noch vor `whenReady`.
+app.setPath('userData', join(app.getPath('appData'), 'Orchestrator Agent v2'))
 
 // Muss vor `whenReady` passieren, sonst kennt Electron das Schema nicht.
 registerAttachmentSchemePrivileges()
@@ -45,7 +51,13 @@ async function bootstrap(): Promise<void> {
     }
   } catch (error) {
     logger.error('app', 'Datenbank konnte nicht geöffnet werden', describeError(error))
-    throw error
+    // Ein stiller Schemabruch ist der schlechteste Ausgang: lieber sichtbar abbrechen.
+    dialog.showErrorBox(
+      error instanceof SchemaMismatchError ? 'Datenbank passt nicht' : 'Datenbank nicht lesbar',
+      error instanceof Error ? error.message : String(error),
+    )
+    app.exit(1)
+    return
   }
 
   registerAttachmentProtocol()

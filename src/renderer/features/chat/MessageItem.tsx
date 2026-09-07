@@ -28,6 +28,19 @@ function errorText(message: ChatMessage): string {
   return 'Der Agent hat nicht geantwortet.'
 }
 
+const squash = (value: string): string => value.replace(/\s+/g, ' ').trim().toLowerCase()
+
+/**
+ * Bricht die CLI ab, steht ihre Meldung oft schon als Teiltext im Stream. Dann wäre der rote
+ * Kasten nur eine Wiederholung — die Schaltfläche „Wiederholen" bleibt trotzdem stehen.
+ */
+function visibleErrorText(message: ChatMessage): string | null {
+  const text = errorText(message)
+  const content = squash(message.content)
+  if (content && content.includes(squash(text))) return null
+  return text
+}
+
 export function MessageItem({
   message,
   agent,
@@ -159,7 +172,9 @@ export function MessageItem({
 
             {message.status === 'error' && (
               <div className="mt-2 flex items-center gap-2 border-t border-danger/30 pt-2">
-                <span className="min-w-0 flex-1 text-xs text-danger">{errorText(message)}</span>
+                <span className="min-w-0 flex-1 text-xs text-danger">
+                  {visibleErrorText(message)}
+                </span>
                 <button
                   type="button"
                   onClick={onRetry}

@@ -4,7 +4,7 @@ import { toErrorMessage } from '../../store/errorMessage'
 import { useDocumentStore } from '../../store/documentStore'
 import { useGoalStore } from '../../store/goalStore'
 import { useUiStore } from '../../store/uiStore'
-import { Badge, Button, formatDateTime } from '../../ui'
+import { Badge, Button, formatDateTime, useConfirm } from '../../ui'
 import { GoalLog } from './GoalLog'
 import { PhaseBar } from './PhaseBar'
 import {
@@ -42,6 +42,7 @@ export function GoalProgress({
 
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const { confirm, dialog } = useConfirm()
 
   const active = isGoalActive(goal)
   const now = useNow(active)
@@ -114,8 +115,15 @@ export function GoalProgress({
                 variant="danger"
                 disabled={busy}
                 onClick={() => {
-                  if (!window.confirm(`Vorhaben „${goal.title}" wirklich abbrechen?`)) return
-                  void run(() => cancel(goal.id))
+                  void confirm({
+                    title: 'Vorhaben abbrechen',
+                    message: `Vorhaben „${goal.title}" wirklich abbrechen?`,
+                    confirmLabel: 'Abbrechen',
+                    cancelLabel: 'Weiterlaufen lassen',
+                    danger: true,
+                  }).then((confirmed) => {
+                    if (confirmed) void run(() => cancel(goal.id))
+                  })
                 }}
               >
                 Abbrechen
@@ -205,6 +213,7 @@ export function GoalProgress({
           tickets={ticketById}
         />
       </div>
+      {dialog}
     </div>
   )
 }

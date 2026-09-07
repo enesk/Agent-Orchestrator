@@ -18,6 +18,8 @@ export function initChatEngine(): void {
   registerOneShotRunner(async ({ prompt, systemPrompt }) => {
     const handle = run({
       prompt,
+      // Bewusste Ausnahme von der Regel „cwd = Projektpfad": die Prompt-Erzeugung gehört zu
+      // keinem Projekt. Sie darf deshalb auch kein fremdes Repo als Arbeitsverzeichnis sehen.
       cwd: app.getPath('userData'),
       model: 'claude-sonnet-5',
       effort: 'medium',

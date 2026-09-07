@@ -4,7 +4,7 @@ import { useAgentStore } from '../../store/agentStore'
 import { useChatStore } from '../../store/chatStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useUiStore } from '../../store/uiStore'
-import { Button, EmptyState, Spinner } from '../../ui'
+import { Button, EmptyState, Spinner, useConfirm } from '../../ui'
 import { ChatIcon } from '../../ui/icons'
 import { AgentBar } from './AgentBar'
 import { Composer, type ComposerHandle } from './Composer'
@@ -38,6 +38,7 @@ export function ChatView() {
   const composerRef = useRef<ComposerHandle>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [stopBusy, setStopBusy] = useState<Set<string>>(new Set())
+  const { confirm, dialog } = useConfirm()
 
   useEffect(() => {
     void loadChat(projectId)
@@ -104,8 +105,14 @@ export function ChatView() {
     })
   }
 
-  function deleteMessage(messageId: string): void {
-    if (!window.confirm('Diese Nachricht löschen?')) return
+  async function deleteMessage(messageId: string): Promise<void> {
+    const confirmed = await confirm({
+      title: 'Nachricht löschen',
+      message: 'Diese Nachricht löschen?',
+      confirmLabel: 'Löschen',
+      danger: true,
+    })
+    if (!confirmed) return
     void run(() => removeMessage(messageId))
   }
 
@@ -168,7 +175,7 @@ export function ChatView() {
             replyCounts={replyCounts}
             onRetry={(messageId) => void run(() => retryMessage(messageId))}
             onStop={(messageId) => void run(() => stopMessage(messageId))}
-            onDelete={deleteMessage}
+            onDelete={(id) => void deleteMessage(id)}
             onOpenThread={(messageId) => void openThread(messageId)}
           />
         )}
@@ -200,7 +207,7 @@ export function ChatView() {
           onClose={() => void openThread(null)}
           onRetry={(messageId) => void run(() => retryMessage(messageId))}
           onStop={(messageId) => void run(() => stopMessage(messageId))}
-          onDelete={deleteMessage}
+          onDelete={(id) => void deleteMessage(id)}
           onSend={(input) =>
             sendMessage({
               content: input.content,
@@ -211,6 +218,7 @@ export function ChatView() {
           }
         />
       )}
+      {dialog}
     </div>
   )
 }

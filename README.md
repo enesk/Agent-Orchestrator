@@ -21,6 +21,13 @@ npm install     # installiert Abhängigkeiten und baut better-sqlite3 für Elect
 npm run dev     # startet die App im Entwicklungsmodus
 ```
 
+Bricht `npm run dev` mit „Electron uninstall" ab, hat `npm install` das Electron-Binary nicht
+heruntergeladen (kommt hinter Proxys und in Sandboxes vor). Dann einmal nachholen:
+
+```bash
+node node_modules/electron/install.js
+```
+
 Weitere Skripte:
 
 ```bash
@@ -34,11 +41,18 @@ sind nicht vorgesehen.
 
 ## Wo liegen die Daten?
 
-In `app.getPath('userData')`:
+In `app.getPath('userData')`, das der Start bewusst auf einen **eigenen v2-Ordner** umbiegt
+(macOS: `~/Library/Application Support/Orchestrator Agent v2/`):
 
 - `orchestrator.db` — SQLite-Datenbank (WAL-Modus)
 - `attachments/` — hochgeladene Dateien, ausgeliefert über das `attachment://`-Protokoll
 - `settings.json` — Claude-Pfad, Tray- und Hinweis-Einstellungen
+
+Version 1 benutzt den Ordner `orchestrator-agent` und legt dort eine gleichnamige
+`orchestrator.db` in einem völlig anderen Schema ab. Die Trennung ist nötig, weil beide
+Schemata sonst in derselben Datei landen und die App an `no such column: …` stirbt. Findet v2
+trotzdem eine fremde Datenbank, bricht es beim Start mit einer Meldung ab, statt halb
+weiterzulaufen.
 
 ## Architektur in Kurzform
 

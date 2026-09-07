@@ -2,14 +2,15 @@ import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import Database from 'better-sqlite3'
 import { app } from 'electron'
-import initial001 from './migrations/001_initial.sql?raw'
+import { APP_NAME } from '@shared/constants'
+import initial001 from './migrations/001_v2_initial.sql?raw'
 
 /**
  * Migrationen werden als Rohtext eingebettet, damit sie im gebauten Paket ohne
  * Dateisystemzugriff verfügbar sind. Neue Migrationen unten anhängen — niemals umsortieren.
  */
 const MIGRATIONS: readonly { name: string; sql: string }[] = [
-  { name: '001_initial', sql: initial001 },
+  { name: '001_v2_initial', sql: initial001 },
 ]
 
 let db: Database.Database | null = null
@@ -31,6 +32,7 @@ export function initDatabase(filePath = getDatabasePath()): Database.Database {
   connection.pragma('busy_timeout = 5000')
 
   runMigrations(connection)
+  verifySchema(connection, filePath)
   db = connection
   return db
 }
@@ -75,6 +77,52 @@ function runMigrations(connection: Database.Database): void {
     apply()
     connection.pragma('foreign_keys = ON')
   }
+}
+
+/**
+ * Stichproben aus dem v2-Schema. Sie sind so gewählt, dass eine v1-Datenbank sicher
+ * auffällt: v1 kennt weder `projects.path` noch `tickets.number` noch die Tabelle `agents`.
+ */
+const REQUIRED_COLUMNS: readonly { table: string; column: string }[] = [
+  { table: 'projects', column: 'path' },
+  { table: 'tickets', column: 'number' },
+  { table: 'agents', column: 'role' },
+  { table: 'messages', column: 'project_id' },
+  { table: 'project_agents', column: 'agent_id' },
+]
+
+export class SchemaMismatchError extends Error {
+  constructor(
+    readonly databasePath: string,
+    readonly missing: readonly string[],
+  ) {
+    super(
+      `Die Datenbank passt nicht zu dieser Version von ${APP_NAME}.\n\n` +
+        `Datei: ${databasePath}\n\n` +
+        `Es fehlen: ${missing.join(', ')}.\n\n` +
+        'Vermutlich stammt die Datei aus einer älteren Version. Verschiebe oder benenne sie ' +
+        'um, damit eine neue Datenbank angelegt werden kann — lösche sie nicht, sie enthält ' +
+        'möglicherweise noch Daten.',
+    )
+    this.name = 'SchemaMismatchError'
+  }
+}
+
+/**
+ * `CREATE TABLE IF NOT EXISTS` überspringt Tabellen, die schon in einem fremden Schema
+ * existieren. Ohne diese Prüfung startet die App scheinbar normal und stirbt danach bei
+ * jeder zweiten Abfrage mit `no such column: …`.
+ */
+function verifySchema(connection: Database.Database, databasePath: string): void {
+  const columnsOf = connection.prepare<[string], { name: string }>(
+    'SELECT name FROM pragma_table_info(?)',
+  )
+
+  const missing = REQUIRED_COLUMNS.filter(
+    ({ table, column }) => !columnsOf.all(table).some((row) => row.name === column),
+  ).map(({ table, column }) => `${table}.${column}`)
+
+  if (missing.length > 0) throw new SchemaMismatchError(databasePath, missing)
 }
 
 /** ISO-Zeitstempel in dem Format, das alle `*_at`-Spalten benutzen. */

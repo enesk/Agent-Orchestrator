@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { AgentRole } from '@shared/constants'
 import { toErrorMessage } from '../../store/errorMessage'
-import { Button, Modal, Textarea } from '../../ui'
+import { Button, Modal, Textarea, useConfirm } from '../../ui'
 
 export interface GeneratePromptModalProps {
   open: boolean
@@ -24,6 +24,7 @@ export function GeneratePromptModal({
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { confirm, dialog } = useConfirm()
 
   useEffect(() => {
     if (open) return
@@ -35,8 +36,13 @@ export function GeneratePromptModal({
   async function generate(): Promise<void> {
     const trimmed = description.trim()
     if (!trimmed) return
-    if (hasPrompt && !window.confirm('Der vorhandene Systemprompt wird ersetzt. Fortfahren?')) {
-      return
+    if (hasPrompt) {
+      const confirmed = await confirm({
+        title: 'Systemprompt ersetzen',
+        message: 'Der vorhandene Systemprompt wird ersetzt. Fortfahren?',
+        confirmLabel: 'Ersetzen',
+      })
+      if (!confirmed) return
     }
     setLoading(true)
     setError(null)
@@ -56,6 +62,7 @@ export function GeneratePromptModal({
   }
 
   return (
+    <>
     <Modal
       open={open}
       title="Systemprompt erzeugen"
@@ -91,5 +98,7 @@ export function GeneratePromptModal({
       )}
       {error && <p className="mt-2 text-xs text-danger">{error}</p>}
     </Modal>
+    {dialog}
+    </>
   )
 }

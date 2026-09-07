@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Agent, AgentMemory } from '@shared/types'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useProjectStore } from '../../store/projectStore'
-import { Button, EmptyState, IconButton, Input, Modal, Select, Spinner, Textarea, cn, formatDateTime } from '../../ui'
+import { Button, EmptyState, IconButton, Input, Modal, Select, Spinner, Textarea, cn, formatDateTime, useConfirm } from '../../ui'
 import { CloseIcon, PlusIcon } from '../../ui/icons'
 
 const IMPORTANCE_OPTIONS = [
@@ -22,6 +22,7 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const { confirm, dialog } = useConfirm()
 
   const load = useCallback(async (agentId: string): Promise<void> => {
     setLoading(true)
@@ -41,7 +42,13 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
   }, [agent.id, load])
 
   async function remove(memory: AgentMemory): Promise<void> {
-    if (!window.confirm(`Erinnerung „${memory.key}" löschen?`)) return
+    const confirmed = await confirm({
+      title: 'Erinnerung löschen',
+      message: `Erinnerung „${memory.key}" löschen?`,
+      confirmLabel: 'Löschen',
+      danger: true,
+    })
+    if (!confirmed) return
     try {
       await window.api.memory.remove({ id: memory.id })
       setMemories((current) => current.filter((item) => item.id !== memory.id))
@@ -51,7 +58,13 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
   }
 
   async function clearAll(): Promise<void> {
-    if (!window.confirm(`Alle ${memories.length} Erinnerungen von „${agent.name}" löschen?`)) return
+    const confirmed = await confirm({
+      title: 'Gedächtnis leeren',
+      message: `Alle ${memories.length} Erinnerungen von „${agent.name}" löschen?`,
+      confirmLabel: 'Alle löschen',
+      danger: true,
+    })
+    if (!confirmed) return
     try {
       await window.api.memory.clear({ agentId: agent.id })
       setMemories([])
@@ -129,6 +142,7 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
         onClose={() => setCreateOpen(false)}
         onSaved={(memory) => setMemories((current) => [memory, ...current])}
       />
+      {dialog}
     </div>
   )
 }

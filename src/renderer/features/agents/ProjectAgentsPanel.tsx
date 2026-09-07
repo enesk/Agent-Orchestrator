@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Project, ProjectAgent } from '@shared/types'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
-import { Badge, Button, EmptyState, IconButton, Select, Switch } from '../../ui'
+import { Badge, Button, EmptyState, IconButton, Select, Switch, useConfirm } from '../../ui'
 import { AgentIcon, ChevronDownIcon, CloseIcon } from '../../ui/icons'
 import { AgentAvatar } from './AgentAvatar'
 import { modelLabel, roleLabel } from './agentHelpers'
@@ -22,6 +22,7 @@ export function ProjectAgentsPanel({ project }: ProjectAgentsPanelProps) {
   const [pending, setPending] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { confirm, dialog } = useConfirm()
 
   const available = useMemo(
     () => allAgents.filter((agent) => !agents.some((assigned) => assigned.id === agent.id)),
@@ -41,7 +42,13 @@ export function ProjectAgentsPanel({ project }: ProjectAgentsPanelProps) {
   }
 
   async function remove(agent: ProjectAgent): Promise<void> {
-    if (!window.confirm(`„${agent.name}" aus dem Projekt „${project.name}" entfernen?`)) return
+    const confirmed = await confirm({
+      title: 'Agent entfernen',
+      message: `„${agent.name}" aus dem Projekt „${project.name}" entfernen?`,
+      confirmLabel: 'Entfernen',
+      danger: true,
+    })
+    if (!confirmed) return
     await run(() => removeFromProject(project.id, agent.id))
   }
 
@@ -143,6 +150,7 @@ export function ProjectAgentsPanel({ project }: ProjectAgentsPanelProps) {
           </ul>
         )}
       </div>
+      {dialog}
     </div>
   )
 }

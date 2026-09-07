@@ -5,7 +5,7 @@ import { toErrorMessage } from '../../store/errorMessage'
 import { useGoalStore } from '../../store/goalStore'
 import { useTicketStore } from '../../store/ticketStore'
 import { useUiStore } from '../../store/uiStore'
-import { Button, EmptyState, Input, Select, Spinner } from '../../ui'
+import { Button, EmptyState, Input, Select, Spinner, useConfirm } from '../../ui'
 import { PlusIcon, TicketIcon } from '../../ui/icons'
 import { CreateTicketModal } from './CreateTicketModal'
 import { ImportTicketsModal } from './ImportTicketsModal'
@@ -48,6 +48,7 @@ export function TicketsView() {
   const [importOpen, setImportOpen] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionBusy, setActionBusy] = useState(false)
+  const { confirm, dialog } = useConfirm()
 
   useEffect(() => {
     void loadTickets(projectId)
@@ -104,11 +105,15 @@ export function TicketsView() {
 
   async function deleteChecked(): Promise<void> {
     if (checkedList.length === 0) return
-    const confirmed = window.confirm(
-      checkedList.length === 1
-        ? 'Dieses Ticket löschen?'
-        : `${checkedList.length} Tickets löschen?`,
-    )
+    const confirmed = await confirm({
+      title: checkedList.length === 1 ? 'Ticket löschen' : 'Tickets löschen',
+      message:
+        checkedList.length === 1
+          ? 'Dieses Ticket löschen?'
+          : `${checkedList.length} Tickets löschen?`,
+      confirmLabel: 'Löschen',
+      danger: true,
+    })
     if (!confirmed) return
     await run(async () => {
       for (const ticket of checkedList) await removeTicket(ticket.id)
@@ -255,6 +260,7 @@ export function TicketsView() {
         tickets={tickets}
         onClose={() => setImportOpen(false)}
       />
+      {dialog}
     </div>
   )
 }

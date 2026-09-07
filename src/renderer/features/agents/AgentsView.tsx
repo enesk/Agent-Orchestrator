@@ -4,7 +4,7 @@ import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useActiveProject } from '../../store/projectStore'
 import { useUiStore } from '../../store/uiStore'
-import { Button, EmptyState, Spinner, cn } from '../../ui'
+import { Button, EmptyState, Spinner, cn, useConfirm } from '../../ui'
 import { AgentIcon, PlusIcon } from '../../ui/icons'
 import { AgentEditor } from './AgentEditor'
 import { AgentList } from './AgentList'
@@ -37,6 +37,7 @@ export function AgentsView() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const { confirm, dialog } = useConfirm()
 
   useEffect(() => {
     void loadAll()
@@ -81,9 +82,12 @@ export function AgentsView() {
   }
 
   async function deleteAgent(agent: ProjectAgent): Promise<void> {
-    const confirmed = window.confirm(
-      `Agent „${agent.name}" löschen? Seine Zuordnungen, Erinnerungen und Nachrichten gehen mit.`,
-    )
+    const confirmed = await confirm({
+      title: 'Agent löschen',
+      message: `Agent „${agent.name}" löschen? Seine Zuordnungen, Erinnerungen und Nachrichten gehen mit.`,
+      confirmLabel: 'Löschen',
+      danger: true,
+    })
     if (!confirmed) return
     setActionError(null)
     try {
@@ -180,6 +184,7 @@ export function AgentsView() {
         onClose={() => setCreateOpen(false)}
         onCreated={setSelectedId}
       />
+      {dialog}
     </div>
   )
 }

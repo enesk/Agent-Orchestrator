@@ -3,7 +3,7 @@ import type { Project } from '@shared/types'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useProjectStore } from '../../store/projectStore'
 import { useUiStore } from '../../store/uiStore'
-import { Button, EmptyState, Spinner } from '../../ui'
+import { Button, EmptyState, Spinner, useConfirm } from '../../ui'
 import { HomeIcon, PlusIcon } from '../../ui/icons'
 import { ProjectCard, type ProjectStats } from '../projects/ProjectCard'
 import { ProjectFormModal } from '../projects/ProjectFormModal'
@@ -23,6 +23,7 @@ export function HomeView() {
   const [editing, setEditing] = useState<Project | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const { confirm, dialog } = useConfirm()
 
   const projectIds = projects.map((project) => project.id).join(',')
 
@@ -62,9 +63,12 @@ export function HomeView() {
   }
 
   async function deleteProject(project: Project): Promise<void> {
-    const confirmed = window.confirm(
-      `Projekt „${project.name}" endgültig löschen? Tickets, Dokumente und der Chatverlauf gehen mit.`,
-    )
+    const confirmed = await confirm({
+      title: 'Projekt löschen',
+      message: `Projekt „${project.name}" endgültig löschen? Tickets, Dokumente und der Chatverlauf gehen mit.`,
+      confirmLabel: 'Löschen',
+      danger: true,
+    })
     if (!confirmed) return
     setActionError(null)
     try {
@@ -154,6 +158,7 @@ export function HomeView() {
       </div>
 
       <ProjectFormModal open={formOpen} project={editing} onClose={() => setFormOpen(false)} />
+      {dialog}
     </div>
   )
 }
