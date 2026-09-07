@@ -1,4 +1,14 @@
-import { createStubHandlers, type DomainHandlers } from './registry'
+import * as projects from '../projects/ProjectService'
+import type { DomainHandlers } from './registry'
 
-/** Wird von einem späteren Ticket gefüllt. */
-export const projectsHandlers: DomainHandlers<'projects'> = createStubHandlers('projects')
+export const projectsHandlers: DomainHandlers<'projects'> = {
+  list: () => projects.list(),
+  get: ({ id }) => projects.get(id),
+  create: (input) => projects.create(input),
+  update: ({ id, patch }) => projects.update(id, patch),
+  remove: ({ id }) => {
+    projects.remove(id)
+    return { ok: true }
+  },
+  pickPath: async () => ({ path: await projects.pickPath() }),
+}

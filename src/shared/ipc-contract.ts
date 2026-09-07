@@ -59,6 +59,14 @@ export const projectSchema = z.object({
   updatedAt: z.string(),
 })
 
+/**
+ * Ein gespeichertes Projekt plus Hinweis, falls der hinterlegte Pfad nicht existiert oder
+ * kein Verzeichnis ist. Gespeichert wird trotzdem — die UI zeigt den Hinweis nur an.
+ */
+export const projectSaveResultSchema = projectSchema.extend({
+  pathWarning: z.string().nullable(),
+})
+
 export const agentSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -363,8 +371,8 @@ export const ipcContract = {
   projects: {
     list: { request: z.void(), response: z.array(projectSchema) },
     get: { request: idSchema, response: projectSchema.nullable() },
-    create: { request: createProjectSchema, response: projectSchema },
-    update: { request: updateProjectSchema, response: projectSchema },
+    create: { request: createProjectSchema, response: projectSaveResultSchema },
+    update: { request: updateProjectSchema, response: projectSaveResultSchema },
     remove: { request: idSchema, response: okSchema },
     pickPath: { request: z.void(), response: z.object({ path: z.string().nullable() }) },
   },
@@ -476,6 +484,8 @@ export const ipcContract = {
         created: z.number(),
         updated: z.number(),
         tickets: z.array(ticketSchema),
+        /** Tolerierte Ungereimtheiten der Datei — der Import läuft trotzdem durch. */
+        warnings: z.array(z.string()),
       }),
     },
   },
