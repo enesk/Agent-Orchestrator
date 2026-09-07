@@ -3,6 +3,7 @@ import { APP_NAME } from '@shared/constants'
 import { closeDatabase, initDatabase } from '../db/connection'
 import { markStaleStreamingMessages } from '../db/repositories/messages'
 import { registerIpcHandlers } from '../ipc'
+import { releaseAll, start as startMcpServer, stop as stopMcpServer } from '../mcp'
 import { describeError, logger } from '../Logger'
 import { registerAttachmentProtocol, registerAttachmentSchemePrivileges } from './attachments'
 import { getSettings } from './settings'
@@ -46,6 +47,14 @@ async function bootstrap(): Promise<void> {
 
   registerAttachmentProtocol()
   registerIpcHandlers()
+
+  try {
+    await startMcpServer()
+  } catch (error) {
+    // Ohne Werkzeugserver läuft die App weiter, die Agenten arbeiten dann aber blind.
+    logger.error('app', 'Werkzeugserver konnte nicht gestartet werden', describeError(error))
+  }
+
   createTray()
   createMainWindow()
 
@@ -59,6 +68,8 @@ async function bootstrap(): Promise<void> {
 
 app.on('before-quit', () => {
   setQuitting(true)
+  releaseAll()
+  void stopMcpServer()
 })
 
 app.on('window-all-closed', () => {

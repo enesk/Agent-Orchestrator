@@ -10,7 +10,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:security": "tsx --test src/main/app/attachment-path.test.ts",
+    "test:security": "tsx --test src/main/app/attachment-path.test.ts src/main/mcp/auth.test.ts",
     "dist:mac": "electron-vite build && electron-builder --mac",
     "postinstall": "electron-rebuild -f -w better-sqlite3"
   },
