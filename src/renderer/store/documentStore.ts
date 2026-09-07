@@ -40,18 +40,24 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   error: null,
 
   load: async (projectId) => {
-    set({ projectId, loading: true, error: null, documents: [], selectedId: null })
+    // `selectedId` bleibt stehen: andere Bereiche wählen ein Dokument vor dem Wechsel aus.
+    set({ projectId, loading: true, error: null, documents: [] })
     if (!projectId) {
-      set({ loading: false })
+      set({ loading: false, selectedId: null })
       return
     }
     try {
       const documents = await window.api.documents.list({ projectId })
       if (get().projectId !== projectId) return
-      set({ documents: sortDocuments(documents), loading: false })
+      const selectedId = get().selectedId
+      set({
+        documents: sortDocuments(documents),
+        loading: false,
+        selectedId: documents.some((document) => document.id === selectedId) ? selectedId : null,
+      })
     } catch (error) {
       if (get().projectId !== projectId) return
-      set({ documents: [], loading: false, error: toErrorMessage(error) })
+      set({ documents: [], loading: false, selectedId: null, error: toErrorMessage(error) })
     }
   },
 

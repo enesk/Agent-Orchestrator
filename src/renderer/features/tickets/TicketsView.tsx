@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { TICKET_CATEGORIES, type TicketCategory, type TicketStatus } from '@shared/constants'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
+import { useGoalStore } from '../../store/goalStore'
 import { useTicketStore } from '../../store/ticketStore'
 import { useUiStore } from '../../store/uiStore'
 import { Button, EmptyState, Input, Select, Spinner } from '../../ui'
@@ -35,6 +36,9 @@ export function TicketsView() {
   const agents = useAgentStore((state) => state.agents)
   const loadAgents = useAgentStore((state) => state.load)
   const subscribeAgents = useAgentStore((state) => state.subscribe)
+
+  const setDraftTickets = useGoalStore((state) => state.setDraftTickets)
+  const setActiveSection = useUiStore((state) => state.setActiveSection)
 
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -112,15 +116,12 @@ export function TicketsView() {
     })
   }
 
-  async function startGoal(): Promise<void> {
+  /** Die Auswahl wandert in den Vorhaben-Bereich, wo sie bestätigt und besetzt wird. */
+  function startGoal(): void {
     if (!projectId || checkedList.length === 0) return
-    await run(async () => {
-      await window.api.goals.startFromTickets({
-        projectId,
-        ticketIds: checkedList.map((ticket) => ticket.id),
-      })
-      setCheckedIds(new Set())
-    })
+    setDraftTickets(checkedList.map((ticket) => ticket.id))
+    setCheckedIds(new Set())
+    setActiveSection('goals')
   }
 
   if (!projectId) {
@@ -180,7 +181,7 @@ export function TicketsView() {
             <Button size="sm" disabled={actionBusy} onClick={() => setCheckedIds(new Set())}>
               Auswahl aufheben
             </Button>
-            <Button size="sm" variant="primary" disabled={actionBusy} onClick={() => void startGoal()}>
+            <Button size="sm" variant="primary" disabled={actionBusy} onClick={startGoal}>
               Vorhaben starten
             </Button>
             <Button size="sm" variant="danger" disabled={actionBusy} onClick={() => void deleteChecked()}>
