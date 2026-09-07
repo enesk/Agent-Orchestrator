@@ -15,12 +15,9 @@ export const SECTION_LABELS: Record<Section, string> = {
 interface UiState {
   activeProjectId: string | null
   activeSection: Section
-  panelOpen: boolean
   logBarOpen: boolean
   setActiveProject: (projectId: string | null) => void
   setActiveSection: (section: Section) => void
-  setPanelOpen: (open: boolean) => void
-  togglePanel: () => void
   setLogBarOpen: (open: boolean) => void
   toggleLogBar: () => void
 }
@@ -28,12 +25,9 @@ interface UiState {
 export const useUiStore = create<UiState>((set) => ({
   activeProjectId: null,
   activeSection: 'home',
-  panelOpen: false,
   logBarOpen: false,
   setActiveProject: (activeProjectId) => set({ activeProjectId }),
   setActiveSection: (activeSection) => set({ activeSection }),
-  setPanelOpen: (panelOpen) => set({ panelOpen }),
-  togglePanel: () => set((state) => ({ panelOpen: !state.panelOpen })),
   setLogBarOpen: (logBarOpen) => set({ logBarOpen }),
   toggleLogBar: () => set((state) => ({ logBarOpen: !state.logBarOpen })),
 }))

@@ -2,13 +2,17 @@ import { dialog } from 'electron'
 import { getSettings, saveSettings } from '../app/settings'
 import { refreshTray } from '../app/tray'
 import { getMainWindow } from '../app/window'
+import { refreshClaudeStatus } from '../claude'
 import type { DomainHandlers } from './registry'
 
 export const settingsHandlers: DomainHandlers<'settings'> = {
   get: () => getSettings(),
   save: (patch) => {
+    const before = getSettings().claudePath
     const settings = saveSettings(patch)
-    refreshTray()
+    // Ein neuer CLI-Pfad macht den gemerkten Status ungültig; das Ergebnis kommt als Event.
+    if (settings.claudePath !== before) void refreshClaudeStatus().finally(refreshTray)
+    else refreshTray()
     return settings
   },
   pickClaudePath: async () => {

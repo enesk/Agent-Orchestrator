@@ -11,8 +11,7 @@ import { NavigationRail } from './layout/NavigationRail'
 import { TopBar } from './layout/TopBar'
 import { useClaudeStore } from './store/claudeStore'
 import { useProjectStore } from './store/projectStore'
-import { SECTION_LABELS, useUiStore, type Section } from './store/uiStore'
-import { EmptyState } from './ui'
+import { useUiStore, type Section } from './store/uiStore'
 
 const VIEWS: Record<Section, () => ReactNode> = {
   home: HomeView,
@@ -26,7 +25,6 @@ const VIEWS: Record<Section, () => ReactNode> = {
 
 export function App() {
   const activeSection = useUiStore((state) => state.activeSection)
-  const panelOpen = useUiStore((state) => state.panelOpen)
   const logBarOpen = useUiStore((state) => state.logBarOpen)
   const toggleLogBar = useUiStore((state) => state.toggleLogBar)
   const loadProjects = useProjectStore((state) => state.load)
@@ -61,14 +59,6 @@ export function App() {
           <main className="min-w-0 flex-1 overflow-auto">
             <View />
           </main>
-          {panelOpen && (
-            <aside className="w-80 shrink-0 border-l border-line bg-surface">
-              <EmptyState
-                title="Seitenpanel"
-                description={`Kontext zu „${SECTION_LABELS[activeSection]}" erscheint hier.`}
-              />
-            </aside>
-          )}
         </div>
         {logBarOpen && <LogBar />}
       </div>

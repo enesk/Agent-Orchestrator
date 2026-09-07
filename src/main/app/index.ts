@@ -4,12 +4,13 @@ import { closeDatabase, initDatabase } from '../db/connection'
 import { markStaleStreamingMessages } from '../db/repositories/messages'
 import { initChatEngine } from '../chat'
 import { resumeInterrupted, shutdown as shutdownGoals } from '../goals'
+import { getCachedClaudeStatus, listRuns, refreshClaudeStatus } from '../claude'
 import { registerIpcHandlers } from '../ipc'
 import { releaseAll, start as startMcpServer, stop as stopMcpServer } from '../mcp'
 import { describeError, logger } from '../Logger'
 import { registerAttachmentProtocol, registerAttachmentSchemePrivileges } from './attachments'
 import { getSettings } from './settings'
-import { createTray, destroyTray } from './tray'
+import { createTray, destroyTray, refreshTray, setTrayStatusSources } from './tray'
 import { createMainWindow, getMainWindow, isQuitting, setQuitting } from './window'
 
 // Muss vor `whenReady` passieren, sonst kennt Electron das Schema nicht.
@@ -58,8 +59,17 @@ async function bootstrap(): Promise<void> {
     logger.error('app', 'Werkzeugserver konnte nicht gestartet werden', describeError(error))
   }
 
+  // Der Tray zeigt Claude-Status und laufende Agenten an; beide leben in anderen Modulen.
+  setTrayStatusSources({
+    claudeStatus: getCachedClaudeStatus,
+    activeRunCount: () => listRuns().length,
+  })
   createTray()
   createMainWindow()
+
+  // Die CLI-Erkennung läuft von sich aus los, damit Status-Chip und Tray nicht erst dann
+  // etwas wissen, wenn der Renderer danach fragt.
+  void refreshClaudeStatus().finally(refreshTray)
 
   logger.info('app', `${APP_NAME} gestartet`)
 

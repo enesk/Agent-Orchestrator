@@ -120,10 +120,3 @@ export const TerminalIcon = (props: IconProps) => (
     <path d="m7 9 3 3-3 3M13 15h4" />
   </Icon>
 )
-
-export const PanelIcon = (props: IconProps) => (
-  <Icon {...props}>
-    <rect x="3" y="5" width="18" height="14" rx="2" />
-    <path d="M15 5v14" />
-  </Icon>
-)

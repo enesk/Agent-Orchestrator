@@ -35,13 +35,39 @@ Daraus entstehen automatisch drei Dinge:
 - `registerDomain('projects', handlers)` im Main-Prozess, das jeden Request gegen das Schema
   prüft, bevor der Handler ihn sieht.
 
-Der Nutzen: Renderer und Main lassen sich unabhängig voneinander bauen. Ein noch nicht
-umgesetzter Kanal wird über `createStubHandlers(domain)` registriert und wirft
-`"<domain>.<method> ist noch nicht implementiert"` — der Renderer kann bereits dagegen bauen.
+Der Nutzen: Renderer und Main lassen sich unabhängig voneinander bauen. Solange eine Domäne
+noch fehlt, kann sie über `createStubHandlers(domain)` registriert werden; der Stub wirft
+`"<domain>.<method> ist noch nicht implementiert"`, der Renderer kann aber schon dagegen
+bauen. Im aktuellen Stand ist jede Domäne des Vertrags echt umgesetzt — `registerIpcHandlers()`
+in `src/main/ipc/index.ts` registriert elf Domänen, keine davon als Stub.
 
 Events laufen umgekehrt (main → renderer) über einen einzigen Kanal (`app:event`) mit einem
 Umschlag `{ event, payload }`. `window.api.on(event, cb)` gibt die Abmeldefunktion zurück.
 Die Event-Namen und ihre Schemas stehen in `ipcEvents`.
+
+## Start und Beenden
+
+`src/main/app/index.ts` ist die einzige Stelle, an der die Teile zusammengesteckt werden. Der
+Ablauf beim Start:
+
+1. `registerAttachmentSchemePrivileges()` — muss vor `app.whenReady()` laufen, sonst kennt
+   Electron das Schema `attachment://` nicht.
+2. Einzelinstanz-Sperre; eine zweite Instanz holt nur das vorhandene Fenster nach vorne.
+3. `initDatabase()` — öffnet `orchestrator.db` und wendet offene Migrationen an.
+   `markStaleStreamingMessages()` räumt Nachrichten auf, die beim letzten Beenden noch liefen.
+4. `registerAttachmentProtocol()`, `initChatEngine()`, `registerIpcHandlers()`.
+5. `startMcpServer()` — schlägt das fehl, läuft die App weiter, die Agenten arbeiten dann
+   aber ohne Werkzeuge.
+6. `setTrayStatusSources()` + `createTray()` + `createMainWindow()`. Der Tray fragt seinen
+   Inhalt über die angemeldeten Quellen ab, statt Claude- oder Runner-Module zu importieren.
+7. `refreshClaudeStatus()` — die CLI-Erkennung läuft von sich aus los; das Ergebnis geht als
+   Event `claude.status` an den Renderer und aktualisiert den Tray.
+8. `resumeInterrupted()` — Vorhaben, die beim letzten Beenden noch liefen, machen aus ihrem
+   Checkpoint weiter.
+
+Beim Beenden (`before-quit`) werden laufende Vorhaben angehalten (ohne sie als abgebrochen zu
+markieren), alle MCP-Lauf-Token freigegeben und der Werkzeugserver gestoppt; auf `quit` folgen
+Tray und Datenbank.
 
 ## Datenmodell
 
@@ -112,6 +138,21 @@ Rollen („welcher `planner` ist in diesem Projekt aktiv?"), nie nach Namen.
 In v1 standen Agentennamen im Code. Ein Umbenennen in der Oberfläche brach den Loop, und ein
 Projekt ohne den erwarteten Namen bekam still keinen Planer. Über die Rolle ist die App
 gegenüber Umbenennungen und beliebigen Agentenbesetzungen unempfindlich.
+
+## Vorhaben
+
+Ein Vorhaben (`goals`) läuft durch fünf Stationen: `spec → tickets → work → review → done`.
+Im Modus `ai` beginnt es beim Pflichtenheft; im Modus `selected` — gestartet aus im Board
+ausgewählten Tickets — steigt es direkt bei `work` ein und endet ohne Abnahme.
+
+`GoalEngine` hält je laufendem Vorhaben genau einen `AbortController` im Speicher; aller
+übrige Zustand steht im `checkpoint`-JSON. `cancel()` bricht das Signal ab **und** beendet über
+`killByFilter(info => info.scope.goalId === id)` die noch laufenden CLI-Prozesse.
+
+Die Arbeitsphase verteilt `WorkerPool` auf bis zu drei parallele Läufe. Bereit ist ein Ticket,
+wenn alle seine Abhängigkeiten `done` sind; bevorzugt wird, was andere Tickets blockiert. Meldet
+ein Lauf eine Blockade, geht das Ticket zurück in die Warteschlange (höchstens dreimal).
+Besetzt werden die Läufe über `resolveWorkers()` — also über die Rolle, nie über Namen.
 
 ## Sicherheit
 
