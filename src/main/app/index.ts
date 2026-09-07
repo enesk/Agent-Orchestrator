@@ -3,6 +3,7 @@ import { APP_NAME } from '@shared/constants'
 import { closeDatabase, initDatabase } from '../db/connection'
 import { markStaleStreamingMessages } from '../db/repositories/messages'
 import { initChatEngine } from '../chat'
+import { resumeInterrupted, shutdown as shutdownGoals } from '../goals'
 import { registerIpcHandlers } from '../ipc'
 import { releaseAll, start as startMcpServer, stop as stopMcpServer } from '../mcp'
 import { describeError, logger } from '../Logger'
@@ -62,6 +63,9 @@ async function bootstrap(): Promise<void> {
 
   logger.info('app', `${APP_NAME} gestartet`)
 
+  // Erst nach dem Fenster, damit die Oberfläche die ersten Ereignisse mitbekommt.
+  resumeInterrupted()
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
     else getMainWindow()?.show()
@@ -70,6 +74,7 @@ async function bootstrap(): Promise<void> {
 
 app.on('before-quit', () => {
   setQuitting(true)
+  shutdownGoals()
   releaseAll()
   void stopMcpServer()
 })
