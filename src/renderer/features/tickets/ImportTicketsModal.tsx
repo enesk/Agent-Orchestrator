@@ -1,38 +1,9 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
-import { z } from 'zod'
 import type { Ticket } from '@shared/types'
+import { isSupportedSchemaVersion, ticketImportFileSchema } from '@shared/ticketImport'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useTicketStore, type TicketImportResult } from '../../store/ticketStore'
 import { Button, Modal, Textarea } from '../../ui'
-
-/**
- * Vorschau-Prüfung im Renderer. Sie spiegelt das Format v1.x, das der Import-Handler
- * erwartet, damit der Nutzer Fehler sieht, bevor irgendetwas geschrieben wird.
- */
-const importSchema = z.object({
-  meta: z.object({
-    project: z.string().optional(),
-    feature_key: z.string().optional(),
-    schema_version: z.string().regex(/^1\./, 'Es werden nur Versionen 1.x.x unterstützt'),
-  }),
-  epic: z
-    .object({
-      id: z.string(),
-      title: z.string(),
-      goal: z.string().optional(),
-      owner: z.string().optional(),
-    })
-    .optional(),
-  tickets: z
-    .array(
-      z.object({
-        id: z.string().min(1),
-        title: z.string().min(1),
-        depends_on: z.array(z.string()).optional(),
-      }),
-    )
-    .min(1, 'Die Datei enthält keine Tickets'),
-})
 
 interface Preview {
   created: number
@@ -71,7 +42,7 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
       return { created: 0, updated: 0, issues: [`JSON: ${toErrorMessage(caught)}`] }
     }
 
-    const checked = importSchema.safeParse(parsed)
+    const checked = ticketImportFileSchema.safeParse(parsed)
     if (!checked.success) {
       return {
         created: 0,
@@ -81,6 +52,15 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
         ),
       }
     }
+
+    const issues: string[] = []
+    if (!isSupportedSchemaVersion(checked.data.meta.schema_version)) {
+      issues.push('meta.schema_version: Es werden nur Versionen 1.x.x unterstützt')
+    }
+    if (checked.data.tickets.length === 0) {
+      issues.push('tickets: Die Datei enthält keine Tickets')
+    }
+    if (issues.length > 0) return { created: 0, updated: 0, issues }
 
     let created = 0
     let updated = 0

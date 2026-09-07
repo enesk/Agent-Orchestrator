@@ -58,25 +58,3 @@ export function registerDomain<D extends IpcDomain>(domain: D, handlers: DomainH
     })
   }
 }
-
-/**
- * Platzhalter für Domänen, die ein späterer Worker füllt. Der Fehler ist bewusst deutlich,
- * damit im Renderer sofort sichtbar ist, was noch fehlt.
- */
-export function createStubHandlers<D extends IpcDomain>(domain: D): DomainHandlers<D> {
-  const handlers: Record<string, () => never> = {}
-  for (const method of methodsOf(domain)) {
-    handlers[method] = () => {
-      throw new Error(`${domain}.${method} ist noch nicht implementiert`)
-    }
-  }
-  return handlers as DomainHandlers<D>
-}
-
-/** Wie `createStubHandlers`, aber einzelne Methoden sind bereits umgesetzt. */
-export function withStubs<D extends IpcDomain>(
-  domain: D,
-  implemented: Partial<DomainHandlers<D>>,
-): DomainHandlers<D> {
-  return { ...createStubHandlers(domain), ...implemented }
-}

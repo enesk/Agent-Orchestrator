@@ -50,6 +50,11 @@ export type TicketImportEntry = z.output<typeof importTicketSchema>
 /** Nur `1.x.x` wird unterstützt — spätere Hauptversionen dürfen anders aussehen. */
 const SCHEMA_VERSION_PATTERN = /^1\.\d+(\.\d+)?$/
 
+/** Damit die Vorschau im Renderer dieselbe Grenze zieht wie der Import selbst. */
+export function isSupportedSchemaVersion(version: string): boolean {
+  return SCHEMA_VERSION_PATTERN.test(version.trim())
+}
+
 const STATUS_ALIASES: Record<string, TicketStatus> = {
   open: 'open',
   offen: 'open',
@@ -169,7 +174,7 @@ export function parseTicketImportFile(json: string): TicketImportFile {
     return failParse(`Das Importformat passt nicht: ${detail}`)
   }
 
-  if (!SCHEMA_VERSION_PATTERN.test(parsed.data.meta.schema_version.trim())) {
+  if (!isSupportedSchemaVersion(parsed.data.meta.schema_version)) {
     return failParse(
       `Nicht unterstützte schema_version "${parsed.data.meta.schema_version}" — erwartet wird 1.x.x.`,
     )

@@ -37,13 +37,26 @@ export function isPromptGenerationAvailable(): boolean {
   return runner !== null
 }
 
+const TITLE_MARKER = 'TITEL:'
+const PROMPT_MARKER = 'PROMPT:'
+
+/**
+ * Bewusst kein JSON: Modelle schreiben in deutschen Texten typografische und gerade
+ * Anführungszeichen durcheinander, und ein einziges unmaskiertes `"` machte die Antwort
+ * unlesbar — dann landete der Rohtext im Feld des Nutzers.
+ */
 const META_PROMPT = `Du schreibst Systemprompts für KI-Agenten, die in einer lokalen
-Entwicklungs-App an echten Code-Repositories arbeiten. Antworte ausschließlich mit einem
-JSON-Objekt der Form {"title": string, "systemPrompt": string} — kein Fließtext, keine
-Code-Zäune. "title" ist eine kurze deutsche Rollenbezeichnung (höchstens vier Wörter).
-"systemPrompt" ist ein deutscher Systemprompt in zweiter Person, 120 bis 250 Wörter, der
-Aufgabe, Arbeitsweise, Grenzen und Tonfall des Agenten beschreibt. Erfinde keine Werkzeuge
-und keine Namen von Kolleginnen oder Kollegen.`
+Entwicklungs-App an echten Code-Repositories arbeiten.
+
+Antworte in genau diesem Format, ohne Einleitung, ohne Code-Zäune:
+
+${TITLE_MARKER} <kurze deutsche Rollenbezeichnung, höchstens vier Wörter>
+${PROMPT_MARKER}
+<der Systemprompt>
+
+Der Systemprompt ist deutsch, in zweiter Person, 120 bis 250 Wörter, und beschreibt Aufgabe,
+Arbeitsweise, Grenzen und Tonfall des Agenten. Erfinde keine Werkzeuge und keine Namen von
+Kolleginnen oder Kollegen.`
 
 export async function generateAgentPrompt(
   request: PromptGenerationRequest,
@@ -68,30 +81,63 @@ function buildUserPrompt(request: PromptGenerationRequest): string {
   return lines.join('\n')
 }
 
-/** Nimmt auch Antworten an, die das JSON in Code-Zäune oder Fließtext einbetten. */
+/**
+ * Nimmt das erwartete Format an, notfalls auch das frühere JSON und im letzten Schritt den
+ * Rohtext — ein Systemprompt ist besser als eine Fehlermeldung.
+ */
 function parseAnswer(answer: string, request: PromptGenerationRequest): PromptGenerationResult {
   const text = answer.trim()
-  const start = text.indexOf('{')
-  const end = text.lastIndexOf('}')
 
-  if (start !== -1 && end > start) {
-    try {
-      const parsed: unknown = JSON.parse(text.slice(start, end + 1))
-      if (parsed && typeof parsed === 'object') {
-        const record = parsed as Record<string, unknown>
-        const systemPrompt = typeof record.systemPrompt === 'string' ? record.systemPrompt.trim() : ''
-        const title = typeof record.title === 'string' ? record.title.trim() : ''
-        if (systemPrompt) {
-          return { systemPrompt, title: title || null }
-        }
-      }
-    } catch {
-      // Fällt unten auf den Rohtext zurück.
-    }
-  }
+  const marked = parseMarked(text)
+  if (marked) return marked
+
+  const json = parseJson(text)
+  if (json) return json
 
   if (!text) {
     throw new Error(`Claude hat keinen Systemprompt für "${request.description}" geliefert.`)
   }
   return { systemPrompt: text, title: null }
+}
+
+/** Das vorgegebene Format: eine Titelzeile, danach alles ab `PROMPT:`. */
+function parseMarked(text: string): PromptGenerationResult | null {
+  const promptAt = text.indexOf(PROMPT_MARKER)
+  if (promptAt === -1) return null
+
+  const systemPrompt = text.slice(promptAt + PROMPT_MARKER.length).trim()
+  if (!systemPrompt) return null
+
+  const head = text.slice(0, promptAt)
+  const titleAt = head.indexOf(TITLE_MARKER)
+  const title =
+    titleAt === -1
+      ? ''
+      : head
+          .slice(titleAt + TITLE_MARKER.length)
+          .split('\n')[0]!
+          .trim()
+
+  return { systemPrompt, title: title || null }
+}
+
+/** Ältere Antworten kamen als JSON-Objekt; das bleibt gültig, solange es sich lesen lässt. */
+function parseJson(text: string): PromptGenerationResult | null {
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start === -1 || end <= start) return null
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text.slice(start, end + 1))
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object') return null
+
+  const record = parsed as Record<string, unknown>
+  const systemPrompt = typeof record.systemPrompt === 'string' ? record.systemPrompt.trim() : ''
+  if (!systemPrompt) return null
+  const title = typeof record.title === 'string' ? record.title.trim() : ''
+  return { systemPrompt, title: title || null }
 }

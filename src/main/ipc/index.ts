@@ -26,5 +26,5 @@ export function registerIpcHandlers(): void {
 }
 
 export { emitEvent } from './events'
-export { registerDomain, createStubHandlers, withStubs } from './registry'
+export { registerDomain } from './registry'
 export type { DomainHandlers } from './registry'
