@@ -43,10 +43,13 @@ interface ChatState {
 
 const HISTORY_LIMIT = 300
 
+/**
+ * Nur nach Zeitstempel, und `sort` ist stabil: Nachrichten aus derselben Millisekunde behalten
+ * die Reihenfolge, in der sie ankamen. Ein Hinweis des Systems stand sonst über der Nachricht,
+ * auf die er sich bezieht — der Zufall der UUID entschied.
+ */
 function sortMessages(messages: ChatMessage[]): ChatMessage[] {
-  return [...messages].sort(
-    (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
-  )
+  return [...messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 }
 
 /** Einzelne Nachricht einfügen oder ersetzen — der Verlauf wird nie komplett neu geladen. */

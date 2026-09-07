@@ -8,6 +8,7 @@ import type {
   JsonObject,
   MessageAttachment,
   Project,
+  ProjectAgent,
 } from '@shared/types'
 import { buildFull, buildResume } from '../agents/PromptBuilder'
 import { isStopped } from '../agents/AgentService'
@@ -20,7 +21,7 @@ import {
   run as startClaudeRun,
   type RunHandle,
 } from '../claude'
-import { listProjectAgents } from '../db/repositories/agents'
+import { listAgents, listProjectAgents } from '../db/repositories/agents'
 import {
   attachToMessage,
   createAttachment,
@@ -38,7 +39,7 @@ import { emitEvent } from '../ipc/events'
 import { withRunContext } from '../mcp'
 import { describeError, scopedLogger } from '../Logger'
 import { describeRunFailure } from './errors'
-import { mentionedAgents, resolveMentions } from './mentions'
+import { mentionedAgents, mentionedOutsideProject, resolveMentions } from './mentions'
 import { toolLabel } from './toolLabels'
 
 const log = scopedLogger('chat')
@@ -100,13 +101,10 @@ export function send(input: SendInput): ChatMessage {
     )
   }
 
-  if (mentioned.length === 0 && agents.length > 0) {
-    const keys = agents.map((agent) => agent.mentionKey).join(', ')
-    systemMessage(
-      project.id,
-      `Niemand wurde erwähnt — die Nachricht steht nur im Verlauf. Verfügbar: ${keys}`,
-      replyToId,
-    )
+  // Eine Nachricht, auf die nichts folgt, darf nie unkommentiert bleiben — sonst sieht es aus,
+  // als sei die App kaputt.
+  if (mentioned.length === 0) {
+    systemMessage(project.id, unansweredNote(agents, input.content), replyToId)
   }
 
   const runnable = mentioned.filter((agent) => !agent.stopped)
@@ -125,6 +123,32 @@ export function send(input: SendInput): ChatMessage {
   }
 
   return message
+}
+
+/**
+ * Warum auf diese Nachricht niemand antwortet. Die drei Fälle unterscheiden sich für den Nutzer
+ * deutlich: kein Agent im Projekt, ein Agent erwähnt der nicht zum Projekt gehört, oder schlicht
+ * keine Erwähnung im Text.
+ */
+function unansweredNote(agents: readonly ProjectAgent[], text: string): string {
+  if (agents.length === 0) {
+    return (
+      'Diesem Projekt ist kein Agent zugeordnet — die Nachricht steht nur im Verlauf. ' +
+      'Ordne dem Projekt unter „Agenten" mindestens einen Agenten zu.'
+    )
+  }
+
+  const keys = agents.map((agent) => agent.mentionKey).join(', ')
+  const outside = mentionedOutsideProject(agents, listAgents(), text)
+  if (outside.length > 0) {
+    const named = outside.map((agent) => `${agent.mentionKey} (${agent.name})`).join(', ')
+    return (
+      `${named} gehört nicht zu diesem Projekt und wurde deshalb nicht gestartet. ` +
+      `Ordne den Agenten dem Projekt zu oder erwähne: ${keys}`
+    )
+  }
+
+  return `Niemand wurde erwähnt — die Nachricht steht nur im Verlauf. Verfügbar: ${keys}`
 }
 
 // ---------------------------------------------------------------------------

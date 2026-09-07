@@ -223,8 +223,17 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   }
 
   const mentions = mentionedAgentIds(text, agents)
-  const showMentionHint = text.trim().length > 0 && mentions.length === 0 && agents.length > 0
   const canSend = (text.trim().length > 0 || attachments.length > 0) && !sending && !disabled
+
+  // Ohne Zuordnung kann niemand antworten — das muss beim Tippen dastehen, nicht erst danach.
+  const hint =
+    text.trim().length === 0 || mentions.length > 0
+      ? 'Enter sendet · Shift+Enter für eine neue Zeile · Bilder einfügen oder ablegen'
+      : agents.length === 0
+        ? 'Diesem Projekt ist kein Agent zugeordnet — unter „Agenten" mindestens einen hinzufügen.'
+        : `Ohne Erwähnung antwortet niemand — verfügbar: ${agents
+            .map((agent) => agent.mentionKey)
+            .join(', ')}`
 
   return (
     <div
@@ -318,7 +327,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           <div
             ref={backdropRef}
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-3 py-2 text-sm leading-relaxed text-transparent"
+            className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-3 py-2 text-sm leading-relaxed text-ink"
           >
             {splitMentions(text, agents).map((segment, index) =>
               segment.agent ? (
@@ -367,13 +376,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       </div>
 
       <div className="mt-1.5 flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-[11px] text-ink-faint">
-          {showMentionHint
-            ? `Ohne Erwähnung antwortet niemand — verfügbar: ${agents
-                .map((agent) => agent.mentionKey)
-                .join(', ')}`
-            : 'Enter sendet · Shift+Enter für eine neue Zeile · Bilder einfügen oder ablegen'}
-        </span>
+        <span className="min-w-0 flex-1 truncate text-[11px] text-ink-faint">{hint}</span>
         <Button
           variant="primary"
           size="sm"
