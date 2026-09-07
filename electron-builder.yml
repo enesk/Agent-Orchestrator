@@ -1,0 +1,22 @@
+appId: "de.dein-saas.orchestrator-agent"
+productName: "Orchestrator Agent"
+directories:
+  output: release
+
+files:
+  - "dist/**/*"
+  - "assets/**/*"
+
+win:
+  target: nsis
+  icon: assets/icon.ico
+
+mac:
+  target: dmg
+  icon: assets/icon.icns
+
+linux:
+  target: AppImage
+
+publish:
+  provider: github

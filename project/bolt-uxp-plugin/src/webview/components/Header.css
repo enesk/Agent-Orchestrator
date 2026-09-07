@@ -1,0 +1,155 @@
+/* ── Header ──
+   Nutzt CSS-Variablen aus dem Design-System (global.css)
+*/
+
+.header {
+  flex-shrink: 0;
+}
+
+/* Accent line — 3px purple gradient at top of panel */
+.header-accent-line {
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-purple), var(--accent-indigo));
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-md) var(--space-sm);
+  background-color: var(--bg-secondary);
+}
+
+/* ── Left: Icon + Text ── */
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+/* CSS-generated App Icon: purple gradient circle with play triangle */
+.header-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.header-icon-play {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 6px 0 6px 10px;
+  border-color: transparent transparent transparent rgba(255, 255, 255, 0.9);
+  margin-left: 2px;
+}
+
+.header-text {
+  min-width: 0;
+}
+
+.header-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Status Badge ── */
+
+.header-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: var(--radius-xl);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  flex-shrink: 0;
+  transition: background-color var(--transition-normal),
+              color var(--transition-normal);
+}
+
+.header-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background-color var(--transition-normal);
+}
+
+/* Default: gray */
+.header-badge--default {
+  background-color: rgba(153, 153, 153, 0.15);
+  color: var(--text-secondary);
+}
+.header-badge--default .header-badge-dot {
+  background-color: var(--text-secondary);
+}
+
+/* Loading: pulsing blue */
+.header-badge--loading {
+  background-color: rgba(33, 150, 243, 0.15);
+  color: var(--accent-blue);
+}
+.header-badge--loading .header-badge-dot {
+  background-color: var(--accent-blue);
+  animation: badge-pulse 1.4s ease-in-out infinite;
+}
+
+/* Success: green */
+.header-badge--success {
+  background-color: rgba(76, 175, 80, 0.15);
+  color: var(--accent-green);
+}
+.header-badge--success .header-badge-dot {
+  background-color: var(--accent-green);
+}
+
+/* Warning: yellow */
+.header-badge--warning {
+  background-color: rgba(255, 193, 7, 0.15);
+  color: var(--accent-yellow);
+}
+.header-badge--warning .header-badge-dot {
+  background-color: var(--accent-yellow);
+}
+
+/* Error: red */
+.header-badge--error {
+  background-color: rgba(244, 67, 54, 0.15);
+  color: var(--accent-red);
+}
+.header-badge--error .header-badge-dot {
+  background-color: var(--accent-red);
+}
+
+/* Pulse animation for loading state */
+@keyframes badge-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.75);
+  }
+}

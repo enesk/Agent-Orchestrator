@@ -1,0 +1,323 @@
+export type Language = 'de' | 'en' | 'tr'
+
+export const LANGUAGES: { value: Language; label: string; flag: string }[] = [
+  { value: 'de', label: 'Deutsch', flag: '🇩🇪' },
+  { value: 'en', label: 'English', flag: '🇬🇧' },
+  { value: 'tr', label: 'Türkçe', flag: '🇹🇷' },
+]
+
+const translations = {
+  // ── Common ────────────────────────────────────────────────────────────────
+  'common.cancel': { de: 'Abbrechen', en: 'Cancel', tr: 'İptal' },
+  'common.create': { de: 'Erstellen', en: 'Create', tr: 'Oluştur' },
+  'common.delete': { de: 'Loeschen', en: 'Delete', tr: 'Sil' },
+  'common.send': { de: 'Senden', en: 'Send', tr: 'Gönder' },
+  'common.save': { de: 'Speichern', en: 'Save', tr: 'Kaydet' },
+  'common.no': { de: 'Nein', en: 'No', tr: 'Hayır' },
+  'common.yes': { de: 'Ja', en: 'Yes', tr: 'Evet' },
+  'common.you': { de: 'Du', en: 'You', tr: 'Sen' },
+  'common.optional': { de: 'Optional...', en: 'Optional...', tr: 'İsteğe bağlı...' },
+  'common.description': { de: 'Beschreibung', en: 'Description', tr: 'Açıklama' },
+  'common.error': { de: 'Fehler', en: 'Error', tr: 'Hata' },
+  'common.retry': { de: 'Wiederholen', en: 'Retry', tr: 'Tekrar dene' },
+  'common.discard': { de: 'Verwerfen', en: 'Discard', tr: 'Sil' },
+  'common.offline': { de: 'Offline', en: 'Offline', tr: 'Çevrimdışı' },
+  'common.online': { de: 'Online', en: 'Online', tr: 'Çevrimiçi' },
+
+  // ── App / Loading ─────────────────────────────────────────────────────────
+  'app.initializing': { de: 'Initialisiere...', en: 'Initializing...', tr: 'Başlatılıyor...' },
+  'app.noProjectSelected': { de: 'Kein Projekt ausgewahlt', en: 'No project selected', tr: 'Proje seçilmedi' },
+  'app.createProject': { de: 'Projekt erstellen', en: 'Create project', tr: 'Proje oluştur' },
+
+  // ── Home ─────────────────────────────────────────────────────────────────
+  'home.title': { de: 'Projekte', en: 'Projects', tr: 'Projeler' },
+  'home.subtitle': { de: 'Alle deine Projekte auf einen Blick', en: 'All your projects at a glance', tr: 'Tüm projelerin bir bakışta' },
+  'home.agent': { de: 'Agent', en: 'Agent', tr: 'Ajan' },
+  'home.agents': { de: 'Agenten', en: 'Agents', tr: 'Ajanlar' },
+  'home.createProject': { de: 'Neues Projekt', en: 'New project', tr: 'Yeni proje' },
+  'home.noProjects': { de: 'Noch keine Projekte', en: 'No projects yet', tr: 'Henüz proje yok' },
+  'home.noProjectsDesc': { de: 'Erstelle dein erstes Projekt um loszulegen', en: 'Create your first project to get started', tr: 'Başlamak için ilk projeni oluştur' },
+  'home.createFirst': { de: 'Erstes Projekt erstellen', en: 'Create first project', tr: 'İlk projeyi oluştur' },
+
+  // ── Navigation Rail ───────────────────────────────────────────────────────
+  'nav.home': { de: 'Start', en: 'Home', tr: 'Ana Sayfa' },
+  'nav.chat': { de: 'Chat', en: 'Chat', tr: 'Sohbet' },
+  'nav.tickets': { de: 'Tickets', en: 'Tickets', tr: 'Biletler' },
+  'nav.documents': { de: 'Dokumente', en: 'Documents', tr: 'Belgeler' },
+  'nav.projectSettings': { de: 'Projekt', en: 'Project', tr: 'Proje' },
+  'nav.goals': { de: 'Vorhaben', en: 'Goals', tr: 'Hedefler' },
+  'nav.settings': { de: 'Settings', en: 'Settings', tr: 'Ayarlar' },
+  'nav.newProject': { de: 'Neues Projekt', en: 'New project', tr: 'Yeni proje' },
+
+  // ── Top Bar ───────────────────────────────────────────────────────────────
+  'topbar.noProject': { de: 'Kein Projekt', en: 'No project', tr: 'Proje yok' },
+  'topbar.syncing': { de: 'Syncing', en: 'Syncing', tr: 'Senkronize ediliyor' },
+  'topbar.synced': { de: 'Synced', en: 'Synced', tr: 'Senkronize' },
+  'topbar.pending': { de: 'ausstehend', en: 'pending', tr: 'beklemede' },
+  'topbar.sync': { de: 'Sync', en: 'Sync', tr: 'Senkronize et' },
+  'topbar.sidebar': { de: 'Seitenleiste (Cmd+B)', en: 'Sidebar (Cmd+B)', tr: 'Kenar çubuğu (Cmd+B)' },
+  'topbar.disconnect': { de: 'Trennen', en: 'Disconnect', tr: 'Bağlantıyı kes' },
+
+  // ── Login Screen ──────────────────────────────────────────────────────────
+  'login.title': { de: 'Orchestrator', en: 'Orchestrator', tr: 'Orchestrator' },
+  'login.subtitle': { de: 'Verbinde dich mit deinem Backend', en: 'Connect to your backend', tr: 'Backend\'ine bağlan' },
+  'login.backendUrl': { de: 'Backend URL', en: 'Backend URL', tr: 'Backend URL' },
+  'login.backendPlaceholder': { de: 'https://dein-saas.de', en: 'https://your-saas.com', tr: 'https://senin-saas.com' },
+  'login.token': { de: 'Token', en: 'Token', tr: 'Token' },
+  'login.tokenPlaceholder': { de: 'Token aus dem Dashboard', en: 'Token from dashboard', tr: 'Dashboard\'dan token' },
+  'login.autoConnect': { de: 'Automatisch verbinden', en: 'Auto-connect', tr: 'Otomatik bağlan' },
+  'login.connecting': { de: 'Verbinde...', en: 'Connecting...', tr: 'Bağlanıyor...' },
+  'login.connect': { de: 'Verbinden', en: 'Connect', tr: 'Bağlan' },
+
+  // ── Chat Window ───────────────────────────────────────────────────────────
+  'chat.startConversation': { de: 'Starte eine Unterhaltung', en: 'Start a conversation', tr: 'Bir sohbet başlat' },
+  'chat.mentionAgent': { de: 'Erwaehne einen Agenten mit @', en: 'Mention an agent with @', tr: 'Bir ajanı @ ile etiketle' },
+  'chat.inputPlaceholder': { de: 'Nachricht schreiben... @ zum Erwaehnen', en: 'Write a message... @ to mention', tr: 'Mesaj yaz... @ ile etiketle' },
+  'chat.attachFile': { de: 'Datei anhaengen (.md)', en: 'Attach file (.md)', tr: 'Dosya ekle (.md)' },
+  'chat.reply': { de: 'Antwort', en: 'reply', tr: 'yanıt' },
+  'chat.replies': { de: 'Antworten', en: 'replies', tr: 'yanıt' },
+  'chat.thinking': { de: 'denkt nach', en: 'thinking', tr: 'düşünüyor' },
+  'chat.typing': { de: 'schreibt', en: 'typing', tr: 'yazıyor' },
+  'chat.timeout': { de: 'Timeout', en: 'Timeout', tr: 'Zaman aşımı' },
+  'chat.stopAgent': { de: 'Stopp', en: 'Stop', tr: 'Durdur' },
+  'chat.stopAgentTitle': {
+    de: 'Diese Antwort abbrechen — der laufende Claude-Prozess wird beendet',
+    en: 'Cancel this response — kills the running Claude process',
+    tr: 'Bu yanıtı iptal et — çalışan Claude süreci sonlandırılır',
+  },
+  'chat.spawnFailed': { de: 'Start fehlgeschlagen', en: 'Start failed', tr: 'Başlatma başarısız' },
+  'chat.replyTo': { de: 'antworten', en: 'reply', tr: 'yanıtla' },
+  'chat.stop': { de: 'Stoppen', en: 'Stop', tr: 'Durdur' },
+
+  // ── Thread Panel ──────────────────────────────────────────────────────────
+  'thread.title': { de: 'Thread', en: 'Thread', tr: 'Konu' },
+  'thread.inputPlaceholder': { de: 'Antworten... @ zum Erwaehnen', en: 'Reply... @ to mention', tr: 'Yanıtla... @ ile etiketle' },
+
+  // ── Context Panel ─────────────────────────────────────────────────────────
+  'context.agents': { de: 'Agenten', en: 'Agents', tr: 'Ajanlar' },
+  'context.ticket': { de: 'Ticket', en: 'Ticket', tr: 'Bilet' },
+  'context.idle': { de: 'Bereit', en: 'Idle', tr: 'Hazır' },
+  'context.thinkingStatus': { de: 'denkt nach...', en: 'thinking...', tr: 'düşünüyor...' },
+  'context.typingStatus': { de: 'schreibt...', en: 'typing...', tr: 'yazıyor...' },
+  'context.stoppedStatus': { de: 'gestoppt', en: 'stopped', tr: 'durduruldu' },
+  'context.stopAgent': { de: 'Stopp', en: 'Stop', tr: 'Durdur' },
+  'context.resumeAgent': { de: 'Weiter', en: 'Resume', tr: 'Devam' },
+  'context.stopAgentTitle': {
+    de: 'Diesen Agenten sofort stoppen — laufender Prozess wird beendet, keine neuen Aufgaben',
+    en: 'Stop this agent now — kills the running process, no new work',
+    tr: 'Bu ajanı hemen durdur — çalışan süreç sonlandırılır, yeni görev verilmez',
+  },
+  'context.resumeAgentTitle': {
+    de: 'Agenten wieder arbeiten lassen',
+    en: 'Let this agent work again',
+    tr: 'Ajanın tekrar çalışmasına izin ver',
+  },
+  'context.noAgents': { de: 'Keine Agenten', en: 'No agents', tr: 'Ajan yok' },
+  'context.addAgent': { de: 'Agent hinzufuegen', en: 'Add agent', tr: 'Ajan ekle' },
+  'context.category': { de: 'Kategorie', en: 'Category', tr: 'Kategori' },
+  'context.addDescription': { de: 'Beschreibung hinzufuegen...', en: 'Add description...', tr: 'Açıklama ekle...' },
+  'context.assignedTo': { de: 'Zugewiesen an', en: 'Assigned to', tr: 'Atanan' },
+  'context.unassigned': { de: 'Nicht zugewiesen', en: 'Unassigned', tr: 'Atanmamış' },
+  'context.comments': { de: 'Kommentare', en: 'Comments', tr: 'Yorumlar' },
+  'context.commentPlaceholder': { de: 'Kommentar...', en: 'Comment...', tr: 'Yorum...' },
+  'context.deleteTicket': { de: 'Ticket loeschen', en: 'Delete ticket', tr: 'Bileti sil' },
+  'context.attachments': { de: 'Bilder', en: 'Images', tr: 'Görseller' },
+
+  // ── Ticket Board ──────────────────────────────────────────────────────────
+  'tickets.open': { de: 'Offen', en: 'Open', tr: 'Açık' },
+  'tickets.inProgress': { de: 'In Bearbeitung', en: 'In Progress', tr: 'Devam Ediyor' },
+  'tickets.done': { de: 'Erledigt', en: 'Done', tr: 'Tamamlandı' },
+  'tickets.noTickets': { de: 'Keine Tickets', en: 'No tickets', tr: 'Bilet yok' },
+  'tickets.createTicket': { de: 'Ticket erstellen', en: 'Create ticket', tr: 'Bilet oluştur' },
+  'tickets.select': { de: 'Auswaehlen', en: 'Select', tr: 'Seç' },
+  'tickets.delete': { de: 'loeschen', en: 'delete', tr: 'sil' },
+  'tickets.import': { de: 'Import', en: 'Import', tr: 'İçe aktar' },
+  'tickets.importDrop': { de: 'JSON-Datei hier ablegen', en: 'Drop JSON file here', tr: 'JSON dosyasını buraya bırak' },
+  'tickets.importFailed': { de: 'Import fehlgeschlagen', en: 'Import failed', tr: 'İçe aktarma başarısız' },
+  'tickets.importWarnings': { de: 'Warnungen', en: 'Warnings', tr: 'Uyarılar' },
+  'tickets.start': { de: 'Los', en: 'Go', tr: 'Başlat' },
+  'tickets.startTooltip': { de: 'Arbeit durch zugeteilten Agenten starten', en: 'Start work via the assigned agent', tr: 'Atanan ajan ile çalışmayı başlat' },
+  'tickets.startNoAgent': { de: 'Kein Agent zugewiesen — weise zuerst einen Agenten zu', en: 'No agent assigned — assign an agent first', tr: 'Atanmış ajan yok — önce bir ajan ata' },
+  'tickets.startVorhaben': { de: 'Vorhaben starten', en: 'Start goal', tr: 'Hedef başlat' },
+  'tickets.working': { de: 'läuft', en: 'running', tr: 'çalışıyor' },
+
+  // ── Ticket Create Modal ───────────────────────────────────────────────────
+  'ticketCreate.title': { de: 'Neues Ticket', en: 'New Ticket', tr: 'Yeni Bilet' },
+  'ticketCreate.subtitle': { de: 'Erstelle ein neues Ticket für dein Projekt', en: 'Create a new ticket for your project', tr: 'Projen için yeni bir bilet oluştur' },
+  'ticketCreate.titleLabel': { de: 'Titel *', en: 'Title *', tr: 'Başlık *' },
+  'ticketCreate.titlePlaceholder': { de: 'z.B. Login-Bug fixen', en: 'e.g. Fix login bug', tr: 'ör. Giriş hatasını düzelt' },
+  'ticketCreate.assignTo': { de: 'Zuweisen an', en: 'Assign to', tr: 'Ata' },
+  'ticketCreate.attachments': { de: 'Bilder', en: 'Images', tr: 'Görseller' },
+  'ticketCreate.addImage': { de: 'Bild hinzufügen', en: 'Add image', tr: 'Görsel ekle' },
+  'ticketCreate.uploading': { de: 'Lade hoch…', en: 'Uploading…', tr: 'Yükleniyor…' },
+  'ticketCreate.dropImages': { de: 'Bilder hier ablegen', en: 'Drop images here', tr: 'Görselleri buraya bırak' },
+
+  // ── Agent Create Modal ────────────────────────────────────────────────────
+  'agentCreate.title': { de: 'Neuer Agent', en: 'New Agent', tr: 'Yeni Ajan' },
+  'agentCreate.editTitle': { de: 'Agent bearbeiten', en: 'Edit Agent', tr: 'Ajanı Düzenle' },
+  'agentCreate.subtitle': { de: 'Konfiguriere einen neuen KI-Agenten', en: 'Configure a new AI agent', tr: 'Yeni bir yapay zeka ajanı yapılandır' },
+  'agentCreate.editSubtitle': { de: 'Ändere die Konfiguration des Agenten', en: 'Change the agent configuration', tr: 'Ajan yapılandırmasını değiştir' },
+  'agentCreate.nameLabel': { de: 'Name *', en: 'Name *', tr: 'Ad *' },
+  'agentCreate.namePlaceholder': { de: 'z.B. Developer', en: 'e.g. Developer', tr: 'ör. Geliştirici' },
+  'agentCreate.titleLabel': { de: 'Titel', en: 'Title', tr: 'Unvan' },
+  'agentCreate.titlePlaceholder': { de: 'z.B. Lead Developer', en: 'e.g. Lead Developer', tr: 'ör. Baş Geliştirici' },
+  'agentCreate.mention': { de: 'Mention: ', en: 'Mention: ', tr: 'Etiket: ' },
+  'agentCreate.skillsLabel': { de: 'Agent Skills beschreiben', en: 'Describe agent skills', tr: 'Ajan yeteneklerini tanımla' },
+  'agentCreate.skillsPlaceholder': { de: 'z.B. React/TypeScript Entwickler, schreibt Tests, reviewt Code...', en: 'e.g. React/TypeScript developer, writes tests, reviews code...', tr: 'ör. React/TypeScript geliştirici, test yazar, kod inceler...' },
+  'agentCreate.generating': { de: 'Generiert...', en: 'Generating...', tr: 'Oluşturuluyor...' },
+  'agentCreate.generatePrompt': { de: 'Prompt generieren', en: 'Generate prompt', tr: 'Prompt oluştur' },
+  'agentCreate.promptLabel': { de: 'System Prompt * (min. 20 Zeichen)', en: 'System Prompt * (min. 20 chars)', tr: 'Sistem Promptu * (min. 20 karakter)' },
+  'agentCreate.promptPlaceholder': {
+    de: 'Du bist ein erfahrener React/TypeScript Entwickler.\nDu schreibst sauberen, gut kommentierten Code.\nDu fragst nach wenn etwas unklar ist.',
+    en: 'You are an experienced React/TypeScript developer.\nYou write clean, well-commented code.\nYou ask for clarification when something is unclear.',
+    tr: 'Deneyimli bir React/TypeScript geliştiricisisin.\nTemiz, iyi yorumlanmış kod yazarsın.\nBir şey belirsiz olduğunda soru sorarsın.',
+  },
+  'agentCreate.color': { de: 'Farbe', en: 'Color', tr: 'Renk' },
+  'agentCreate.avatar': { de: 'Avatar', en: 'Avatar', tr: 'Avatar' },
+
+  // ── Agent Picker Modal ──────────────────────────────────────────────────
+  'agentPicker.title': { de: 'Agent hinzufügen', en: 'Add Agent', tr: 'Ajan Ekle' },
+  'agentPicker.subtitle': { de: 'Wähle einen vorhandenen Agenten oder erstelle einen neuen', en: 'Choose an existing agent or create a new one', tr: 'Mevcut bir ajan seçin veya yeni bir tane oluşturun' },
+  'agentPicker.searchPlaceholder': { de: 'Agenten suchen...', en: 'Search agents...', tr: 'Ajan ara...' },
+  'agentPicker.noAgents': { de: 'Noch keine Agenten vorhanden. Erstelle deinen ersten!', en: 'No agents yet. Create your first one!', tr: 'Henüz ajan yok. İlkini oluşturun!' },
+  'agentPicker.noResults': { de: 'Keine passenden Agenten gefunden', en: 'No matching agents found', tr: 'Eşleşen ajan bulunamadı' },
+  'agentPicker.createNew': { de: 'Neuen Agenten erstellen', en: 'Create new agent', tr: 'Yeni ajan oluştur' },
+
+  // ── Project Create Modal ──────────────────────────────────────────────────
+  'projectCreate.title': { de: 'Neues Projekt', en: 'New Project', tr: 'Yeni Proje' },
+  'projectCreate.subtitle': { de: 'Erstelle ein neues Projekt', en: 'Create a new project', tr: 'Yeni bir proje oluştur' },
+  'projectCreate.nameLabel': { de: 'Name *', en: 'Name *', tr: 'Ad *' },
+  'projectCreate.namePlaceholder': { de: 'z.B. Web App Redesign', en: 'e.g. Web App Redesign', tr: 'ör. Web Uygulama Yeniden Tasarımı' },
+
+  // ── Status Bar ────────────────────────────────────────────────────────────
+  'statusbar.agent': { de: 'Agent', en: 'Agent', tr: 'Ajan' },
+  'statusbar.agents': { de: 'Agenten', en: 'Agents', tr: 'Ajanlar' },
+  'statusbar.active': { de: 'aktiv', en: 'active', tr: 'aktif' },
+  'statusbar.ticket': { de: 'Ticket', en: 'Ticket', tr: 'Bilet' },
+  'statusbar.tickets': { de: 'Tickets', en: 'Tickets', tr: 'Biletler' },
+  'statusbar.openTickets': { de: 'offen', en: 'open', tr: 'açık' },
+  'statusbar.messages': { de: 'Nachrichten', en: 'Messages', tr: 'Mesajlar' },
+
+  // ── Settings ──────────────────────────────────────────────────────────────
+  'settings.title': { de: 'Einstellungen', en: 'Settings', tr: 'Ayarlar' },
+  'settings.account': { de: 'Account', en: 'Account', tr: 'Hesap' },
+  'settings.email': { de: 'Email', en: 'Email', tr: 'E-posta' },
+  'settings.plan': { de: 'Plan', en: 'Plan', tr: 'Plan' },
+  'settings.backend': { de: 'Backend', en: 'Backend', tr: 'Backend' },
+  'settings.sync': { de: 'Synchronisation', en: 'Synchronization', tr: 'Senkronizasyon' },
+  'settings.status': { de: 'Status', en: 'Status', tr: 'Durum' },
+  'settings.unsynced': { de: 'Unsynced', en: 'Unsynced', tr: 'Senkronize edilmemiş' },
+  'settings.syncNow': { de: 'Jetzt synchronisieren', en: 'Sync now', tr: 'Şimdi senkronize et' },
+  'settings.version': { de: 'Version', en: 'Version', tr: 'Sürüm' },
+  'settings.disconnectBtn': { de: 'Verbindung trennen', en: 'Disconnect', tr: 'Bağlantıyı kes' },
+  'settings.language': { de: 'Sprache', en: 'Language', tr: 'Dil' },
+
+  // ── Project Settings ─────────────────────────────────────────────────────
+  'projectSettings.title': { de: 'Projekteinstellungen', en: 'Project Settings', tr: 'Proje Ayarları' },
+  'projectSettings.subtitle': { de: 'Name und Details deines Projekts bearbeiten', en: 'Edit your project name and details', tr: 'Proje adını ve detaylarını düzenle' },
+  'projectSettings.nameLabel': { de: 'Projektname', en: 'Project name', tr: 'Proje adı' },
+  'projectSettings.descriptionPlaceholder': { de: 'Projektbeschreibung hinzufügen...', en: 'Add a project description...', tr: 'Proje açıklaması ekle...' },
+  'projectSettings.saving': { de: 'Speichern...', en: 'Saving...', tr: 'Kaydediliyor...' },
+  'projectSettings.saved': { de: 'Gespeichert', en: 'Saved', tr: 'Kaydedildi' },
+  'projectSettings.info': { de: 'Informationen', en: 'Information', tr: 'Bilgi' },
+  'projectSettings.created': { de: 'Erstellt am', en: 'Created', tr: 'Oluşturulma' },
+  'projectSettings.agents': { de: 'Agenten', en: 'Agents', tr: 'Ajanlar' },
+  'projectSettings.projectId': { de: 'Projekt-ID', en: 'Project ID', tr: 'Proje ID' },
+  'projectSettings.dangerZone': { de: 'Gefahrenzone', en: 'Danger zone', tr: 'Tehlikeli bölge' },
+  'projectSettings.deleteWarning': { de: 'Das Löschen eines Projekts kann nicht rückgängig gemacht werden. Alle Nachrichten, Tickets und Agenten werden entfernt.', en: 'Deleting a project cannot be undone. All messages, tickets and agents will be removed.', tr: 'Bir projeyi silmek geri alınamaz. Tüm mesajlar, biletler ve ajanlar kaldırılacak.' },
+  'projectSettings.deleteProject': { de: 'Projekt löschen', en: 'Delete project', tr: 'Projeyi sil' },
+  'projectSettings.confirmDelete': { de: 'Endgültig löschen', en: 'Delete permanently', tr: 'Kalıcı olarak sil' },
+  'projectSettings.metaTitle': { de: 'Projektdaten', en: 'Project Data', tr: 'Proje Verileri' },
+  'projectSettings.metaSubtitle': { de: 'Diese Daten werden Agenten automatisch als Kontext bereitgestellt', en: 'This data is automatically provided to agents as context', tr: 'Bu veriler ajanlara otomatik olarak bağlam olarak sağlanır' },
+  'projectSettings.metaPath': { de: 'Projektpfad', en: 'Project Path', tr: 'Proje Yolu' },
+  'projectSettings.metaTestUrl': { de: 'Test-URL', en: 'Test URL', tr: 'Test URL' },
+  'projectSettings.metaLiveUrl': { de: 'Live-URL', en: 'Live URL', tr: 'Canlı URL' },
+  'projectSettings.metaTechStack': { de: 'Tech-Stack', en: 'Tech Stack', tr: 'Teknoloji Yığını' },
+  'projectSettings.metaAddCustom': { de: 'Eigenes Feld hinzufügen', en: 'Add custom field', tr: 'Özel alan ekle' },
+  'projectSettings.metaKeyPlaceholder': { de: 'Schlüssel', en: 'Key', tr: 'Anahtar' },
+  'projectSettings.metaValuePlaceholder': { de: 'Wert', en: 'Value', tr: 'Değer' },
+
+  // ── Documents ───────────────────────────────────────────────────────────
+  'documents.title': { de: 'Dokumente', en: 'Documents', tr: 'Belgeler' },
+  'documents.subtitle': { de: 'Forschungsnotizen und Wissen der Agenten', en: 'Research notes and agent knowledge', tr: 'Araştırma notları ve ajan bilgisi' },
+  'documents.create': { de: 'Neues Dokument', en: 'New Document', tr: 'Yeni Belge' },
+  'documents.noDocuments': { de: 'Noch keine Dokumente', en: 'No documents yet', tr: 'Henüz belge yok' },
+  'documents.noDocumentsDesc': { de: 'Agenten können hier Forschungsnotizen und Wissen speichern', en: 'Agents can store research notes and knowledge here', tr: 'Ajanlar burada araştırma notlarını ve bilgilerini saklayabilir' },
+  'documents.titleLabel': { de: 'Titel', en: 'Title', tr: 'Başlık' },
+  'documents.titlePlaceholder': { de: 'Dokumenttitel...', en: 'Document title...', tr: 'Belge başlığı...' },
+  'documents.contentPlaceholder': { de: 'Inhalt schreiben...', en: 'Write content...', tr: 'İçerik yaz...' },
+  'documents.createdBy': { de: 'Erstellt von', en: 'Created by', tr: 'Oluşturan' },
+  'documents.updatedBy': { de: 'Aktualisiert von', en: 'Updated by', tr: 'Güncelleyen' },
+  'documents.lastUpdated': { de: 'Zuletzt aktualisiert', en: 'Last updated', tr: 'Son güncelleme' },
+  'documents.confirmDelete': { de: 'Dokument wirklich löschen?', en: 'Really delete document?', tr: 'Belgeyi gerçekten sil?' },
+  'documents.backToList': { de: 'Zurück', en: 'Back', tr: 'Geri' },
+  'documents.download': { de: 'Als Markdown herunterladen', en: 'Download as Markdown', tr: 'Markdown olarak indir' },
+  'documents.downloadPdf': { de: 'Als PDF herunterladen', en: 'Download as PDF', tr: 'PDF olarak indir' },
+
+  // ── Log Feed ──────────────────────────────────────────────────────────────
+  'logs.title': { de: 'Live Logs', en: 'Live Logs', tr: 'Canlı Loglar' },
+  'logs.clear': { de: 'Log leeren', en: 'Clear logs', tr: 'Logları temizle' },
+  'logs.empty': { de: 'Noch keine Log-Einträge', en: 'No log entries yet', tr: 'Henüz log kaydı yok' },
+  'logs.codeOutput': { de: 'Code Output', en: 'Code Output', tr: 'Kod Çıktısı' },
+  'logs.lines': { de: 'Zeilen', en: 'lines', tr: 'satır' },
+
+  // ── Goals (Autonomous Loop) ──────────────────────────────────────────────
+  'goal.startButton': { de: 'Vorhaben starten', en: 'Start Goal', tr: 'Hedef Başlat' },
+  'goal.modalTitle': { de: 'Neues Vorhaben', en: 'New Goal', tr: 'Yeni Hedef' },
+  'goal.modalSubtitle': { de: 'Beschreibe was erreicht werden soll — das System arbeitet autonom', en: 'Describe what should be achieved — the system works autonomously', tr: 'Neyin başarılması gerektiğini tanımla — sistem otonom çalışır' },
+  'goal.placeholder': { de: 'Was soll erreicht werden? Z.B. "Ich möchte eine Suchfunktion für das Portal bauen"', en: 'What should be achieved? E.g. "I want to build a search function for the portal"', tr: 'Ne başarılmalı? Ör. "Portal için bir arama fonksiyonu oluşturmak istiyorum"' },
+  'goal.startAutonomous': { de: 'Autonom starten', en: 'Start Autonomously', tr: 'Otonom Başlat' },
+  'goal.progress': { de: 'Fortschritt', en: 'Progress', tr: 'İlerleme' },
+  'goal.phasePflichtenheft': { de: 'Pflichtenheft erstellen', en: 'Create Requirements', tr: 'Gereksinimler Oluştur' },
+  'goal.phaseTickets': { de: 'Tickets erstellen', en: 'Create Tickets', tr: 'Biletler Oluştur' },
+  'goal.phaseWork': { de: 'Tickets abarbeiten', en: 'Execute Tickets', tr: 'Biletleri Çalıştır' },
+  'goal.phaseReview': { de: 'PM Review', en: 'PM Review', tr: 'PM İnceleme' },
+  'goal.phaseDone': { de: 'Fertig', en: 'Done', tr: 'Tamamlandı' },
+  'goal.cancel': { de: 'Abbrechen', en: 'Cancel', tr: 'İptal' },
+  'goal.retry': { de: 'Wiederholen', en: 'Retry', tr: 'Tekrarla' },
+  'goal.cancelled': { de: 'Abgebrochen', en: 'Cancelled', tr: 'İptal Edildi' },
+  'goal.failed': { de: 'Fehlgeschlagen', en: 'Failed', tr: 'Başarısız' },
+  'goal.completed': { de: 'Abgeschlossen', en: 'Completed', tr: 'Tamamlandı' },
+  'goal.running': { de: 'Läuft', en: 'Running', tr: 'Çalışıyor' },
+  'goal.noGoals': { de: 'Keine Vorhaben', en: 'No goals', tr: 'Hedef yok' },
+  'goal.noGoalsDesc': { de: 'Starte ein neues Vorhaben — das System arbeitet autonom', en: 'Start a new goal — the system works autonomously', tr: 'Yeni bir hedef başlat — sistem otonom çalışır' },
+  'goal.viewTitle': { de: 'Vorhaben', en: 'Goals', tr: 'Hedefler' },
+  'goal.viewSubtitle': { de: 'Autonome Vorhaben und ihr Fortschritt', en: 'Autonomous goals and their progress', tr: 'Otonom hedefler ve ilerleme durumu' },
+  'goal.autonomous': { de: 'Autonom', en: 'Autonomous', tr: 'Otonom' },
+  'goal.selectAgents': { de: 'Beteiligte Agenten', en: 'Participating Agents', tr: 'Katılan Ajanlar' },
+  'goal.selectAll': { de: 'Alle auswählen', en: 'Select all', tr: 'Tümünü seç' },
+  'goal.deselectAll': { de: 'Alle abwählen', en: 'Deselect all', tr: 'Tümünü kaldır' },
+  'goal.attachments': { de: 'Anhänge', en: 'Attachments', tr: 'Ekler' },
+  'goal.dropFiles': { de: 'Dateien hierher ziehen oder klicken', en: 'Drop files here or click to upload', tr: 'Dosyaları buraya sürükleyin veya tıklayın' },
+
+  // ── Reusable UI Components ─────────────────────────────────────────────────
+  'ui.skip': { de: 'Überspringen', en: 'Skip', tr: 'Atla' },
+  'ui.close': { de: 'Schließen', en: 'Close', tr: 'Kapat' },
+  'ui.tooltipLabel': { de: 'Warum das wichtig ist', en: 'Why this matters', tr: 'Bunun neden önemli olduğu' },
+  'ui.ratingOf': { de: 'von', en: 'of', tr: 'üzerinden' },
+  'ui.ratingLow': { de: 'Sehr schlecht', en: 'Very bad', tr: 'Çok kötü' },
+  'ui.ratingMid': { de: 'Geht so', en: 'So-so', tr: 'İdare eder' },
+  'ui.ratingHigh': { de: 'Sehr gut', en: 'Very good', tr: 'Çok iyi' },
+  'ui.progressStep': { de: 'Schritt', en: 'Step', tr: 'Adım' },
+  'ui.progressOf': { de: 'von', en: 'of', tr: '/' },
+  'ui.counterMin': { de: 'min', en: 'min', tr: 'min' },
+  'ui.counterMax': { de: 'max', en: 'max', tr: 'maks' },
+
+  // ── Ticket Categories ─────────────────────────────────────────────────────
+  'category.bug': { de: 'Bug', en: 'Bug', tr: 'Hata' },
+  'category.feature': { de: 'Feature', en: 'Feature', tr: 'Özellik' },
+  'category.task': { de: 'Task', en: 'Task', tr: 'Görev' },
+  'category.improvement': { de: 'Verbesserung', en: 'Improvement', tr: 'İyileştirme' },
+  'category.documentation': { de: 'Dokumentation', en: 'Documentation', tr: 'Dokümantasyon' },
+  'category.question': { de: 'Frage', en: 'Question', tr: 'Soru' },
+  'category.epic': { de: 'Epic', en: 'Epic', tr: 'Epik' },
+} as const
+
+export type TranslationKey = keyof typeof translations
+
+export function getTranslation(key: TranslationKey, lang: Language): string {
+  const entry = translations[key]
+  return entry?.[lang] ?? entry?.en ?? key
+}
+
+export default translations
