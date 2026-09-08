@@ -183,6 +183,18 @@ export function formatDuration(goal: Goal, now: number): string {
   return rest === 0 ? `${hours} Std` : `${hours} Std ${rest} Min`
 }
 
+/** Wie lange etwas schon anhält, kurz geschrieben — für die Zeile „was tut der Agent gerade". */
+export function formatElapsed(since: string, now: number): string {
+  const start = new Date(since).getTime()
+  if (Number.isNaN(start)) return '—'
+  const seconds = Math.max(0, Math.round((now - start) / 1000))
+  if (seconds < 60) return `${seconds} Sek`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}:${String(seconds % 60).padStart(2, '0')} Min`
+  const hours = Math.floor(minutes / 60)
+  return `${hours}:${String(minutes % 60).padStart(2, '0')} Std`
+}
+
 /** Tickt im Sekundentakt, damit laufende Vorhaben eine mitlaufende Dauer zeigen. */
 export function useNow(active: boolean, intervalMs = 1000): number {
   const [now, setNow] = useState(() => Date.now())

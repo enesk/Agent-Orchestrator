@@ -129,6 +129,20 @@ export function reportRateLimit(
   }
 }
 
+/**
+ * Meldet der Oberfläche, was ein Agent gerade tut. Bewusst nur als Ereignis — jeder
+ * Werkzeugaufruf in den Checkpoint zu schreiben wäre reine Verschwendung.
+ */
+export function reportActivity(
+  goalId: number,
+  agentId: string,
+  ticketId: string | null,
+): (tool: string | null) => void {
+  return (tool) => {
+    emitEvent('goal.activity', { goalId, agentId, ticketId, tool, since: new Date().toISOString() })
+  }
+}
+
 function formatTime(iso: string): string {
   const date = new Date(iso)
   return Number.isNaN(date.getTime()) ? iso : date.toLocaleTimeString('de-DE')

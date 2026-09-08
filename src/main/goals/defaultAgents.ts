@@ -86,14 +86,24 @@ export function ensureRoleAgent(projectId: string, role: 'planner' | 'pm' | 'rev
   return agents.addToProject(projectId, created.id)
 }
 
-/** Die Umsetzer des Vorhabens: Rolle `worker`, nicht gestoppt, ggf. auf die Auswahl begrenzt. */
-export function resolveWorkers(projectId: string, selectedAgentIds: readonly string[]): ProjectAgent[] {
+/**
+ * Alle für das Vorhaben freigegebenen Umsetzer — auch gestoppte. Der WorkerPool braucht diese
+ * Menge, um zu wissen, wann wirklich jeder Agent ein Ticket einmal in der Hand hatte.
+ */
+export function resolveWorkerCandidates(
+  projectId: string,
+  selectedAgentIds: readonly string[],
+): ProjectAgent[] {
   const all = listProjectAgents(projectId).filter((agent) => agent.role === 'worker')
   const selected = selectedAgentIds.length > 0
     ? all.filter((agent) => selectedAgentIds.includes(agent.id))
     : all
-  const pool = selected.length > 0 ? selected : all
-  return pool.filter((agent) => !agent.stopped)
+  return selected.length > 0 ? selected : all
+}
+
+/** Die Umsetzer des Vorhabens: Rolle `worker`, nicht gestoppt, ggf. auf die Auswahl begrenzt. */
+export function resolveWorkers(projectId: string, selectedAgentIds: readonly string[]): ProjectAgent[] {
+  return resolveWorkerCandidates(projectId, selectedAgentIds).filter((agent) => !agent.stopped)
 }
 
 /** Meldung, wenn kein Umsetzer bereitsteht — die Engine legt für diese Rolle nichts an. */

@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react'
 import type { Goal, GoalLogEntry, ProjectAgent, Ticket } from '@shared/types'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useDocumentStore } from '../../store/documentStore'
-import { useGoalStore } from '../../store/goalStore'
+import { useGoalStore, type GoalActivity } from '../../store/goalStore'
 import { useUiStore } from '../../store/uiStore'
 import { Badge, Button, formatDateTime, useConfirm } from '../../ui'
 import { GoalLog } from './GoalLog'
 import { PhaseBar } from './PhaseBar'
 import {
   formatDuration,
+  formatElapsed,
   goalStatusLabel,
   goalStatusTone,
   isGoalActive,
@@ -17,6 +18,9 @@ import {
   ticketCounts,
   useNow,
 } from './goalHelpers'
+
+/** Stabile Leermenge, damit der Selektor ohne Aktivität nicht bei jedem Rendern neu meldet. */
+const EMPTY_ACTIVITY: Record<string, GoalActivity> = {}
 
 export interface GoalProgressProps {
   goal: Goal
@@ -38,6 +42,7 @@ export function GoalProgress({
   const cancel = useGoalStore((state) => state.cancel)
   const retry = useGoalStore((state) => state.retry)
   const selectDocument = useDocumentStore((state) => state.select)
+  const activity = useGoalStore((state) => state.activity[goal.id] ?? EMPTY_ACTIVITY)
   const setActiveSection = useUiStore((state) => state.setActiveSection)
 
   const [busy, setBusy] = useState(false)
@@ -53,6 +58,7 @@ export function GoalProgress({
   const counts = ticketCounts(goal, tickets)
   const assignments = readActiveAssignments(goal)
   const ratePause = isRateLimitPause(goal)
+  const queued = counts ? Math.max(0, counts.total - counts.done - assignments.length) : null
 
   async function run(action: () => Promise<unknown>): Promise<void> {
     setBusy(true)
@@ -164,40 +170,63 @@ export function GoalProgress({
         )}
       </header>
 
-      {assignments.length > 0 && (
+      {(assignments.length > 0 || (active && counts !== null)) && (
         <section className="shrink-0 border-b border-line px-4 py-2">
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
-            Aktive Tickets
+          <p className="mb-1.5 flex flex-wrap gap-x-3 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+            <span>Aktive Tickets</span>
+            {counts && (
+              <>
+                <span className="normal-case tracking-normal text-ink-muted">
+                  {queued} in der Warteschlange
+                </span>
+                <span className="normal-case tracking-normal text-ink-muted">
+                  {counts.done} von {counts.total} erledigt
+                </span>
+              </>
+            )}
           </p>
-          <ul className="flex flex-wrap gap-1.5">
-            {assignments.map((assignment) => {
-              const ticket = ticketById.get(assignment.ticketId)
-              const agent = assignment.agentId ? agentById.get(assignment.agentId) : null
-              return (
-                <li
-                  key={assignment.ticketId}
-                  className="flex items-center gap-2 rounded-md border border-line bg-surface px-2 py-1"
-                >
-                  <span className="font-mono text-[11px] text-ink-faint">
-                    {ticket ? `#${ticket.number}` : assignment.ticketId}
-                  </span>
-                  <span className="max-w-[220px] truncate text-xs text-ink">
-                    {ticket?.title ?? 'Unbekanntes Ticket'}
-                  </span>
-                  {agent && (
-                    <span className="flex items-center gap-1 text-[11px] text-ink-muted">
+
+          {assignments.length === 0 ? (
+            <p className="text-xs text-ink-faint">Gerade arbeitet kein Agent an einem Ticket.</p>
+          ) : (
+            <ul className="space-y-1">
+              {assignments.map((assignment) => {
+                const ticket = ticketById.get(assignment.ticketId)
+                const current = activity[assignment.ticketId]
+                const agentId = current?.agentId ?? assignment.agentId
+                const agent = agentId ? agentById.get(agentId) : null
+                return (
+                  <li
+                    key={assignment.ticketId}
+                    className="flex items-center gap-2 rounded-md border border-line bg-surface px-2 py-1 text-xs"
+                  >
+                    <span className="flex shrink-0 items-center gap-1.5">
                       <span
                         aria-hidden="true"
-                        style={{ backgroundColor: agent.color }}
-                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: agent?.color }}
+                        className="h-2 w-2 rounded-full bg-ink-faint"
                       />
-                      {agent.name}
+                      <span className="font-medium" style={{ color: agent?.color }}>
+                        {agent?.name ?? 'Unbekannter Agent'}
+                      </span>
                     </span>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
+                    <span className="shrink-0 font-mono text-[11px] text-ink-faint">
+                      {ticket ? `#${ticket.number}` : assignment.ticketId}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-ink">
+                      {ticket?.title ?? 'Unbekanntes Ticket'}
+                    </span>
+                    <span className="shrink-0 italic text-ink-muted">
+                      {current?.tool ?? 'überlegt …'}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-[11px] text-ink-faint">
+                      {current ? formatElapsed(current.since, now) : '—'}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </section>
       )}
 

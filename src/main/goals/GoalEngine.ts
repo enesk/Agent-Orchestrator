@@ -154,7 +154,19 @@ export function retry(goalId: number): Goal {
     errorMessage: null,
     completedAt: null,
     retryCount: 0,
-    checkpoint: { ...checkpointOf(goal), phase, activeTickets: [], resumeAt: null },
+    // Ein Wiederaufnehmen von Hand ist ein echter Neuanfang: Versuchszähler und
+    // liegengebliebene Tickets werden zurückgesetzt, sonst bliebe alles liegen.
+    checkpoint: {
+      ...checkpointOf(goal),
+      phase,
+      activeTickets: [],
+      resumeAt: null,
+      attempts: {},
+      triedAgents: {},
+      requeues: {},
+      stuckTicketIds: [],
+      revivedTicketIds: [],
+    },
     phase,
     status: 'pending',
   })

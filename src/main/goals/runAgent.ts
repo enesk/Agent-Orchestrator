@@ -1,4 +1,5 @@
 import { RateLimitError, run as runClaude } from '../claude'
+import { toolLabel } from '../chat'
 import { withRunContext, type GoalReport } from '../mcp'
 import { createMessage } from '../db/repositories/messages'
 import { emitEvent } from '../ipc/events'
@@ -35,6 +36,11 @@ export interface GoalRunInput {
   signal: AbortSignal
   /** Meldet eine Rate-Limit-Pause, damit sie im Protokoll und im Checkpoint landet. */
   onRateLimit?: (input: { waitMs: number; attempt: number; resumeAt: string }) => void
+  /**
+   * Meldet, was der Lauf gerade tut — `null` heißt „überlegt". Läuft nur über Ereignisse
+   * an die Oberfläche, nicht in den Checkpoint.
+   */
+  onActivity?: (tool: string | null) => void
 }
 
 export interface GoalRunResult {
@@ -103,6 +109,13 @@ function execute(
     const onAbort = (): void => claudeRun.abort()
     input.signal.addEventListener('abort', onAbort, { once: true })
 
+    if (input.onActivity) {
+      const report = input.onActivity
+      report(null)
+      claudeRun.events.on('toolStart', ({ name }) => report(toolLabel(name)))
+      claudeRun.events.on('toolEnd', () => report(null))
+    }
+
     try {
       const result = await claudeRun.done
       // Die Meldung muss geholt werden, solange das Token noch registriert ist.
@@ -117,6 +130,7 @@ function execute(
       throw error
     } finally {
       input.signal.removeEventListener('abort', onAbort)
+      claudeRun.events.removeAll()
     }
   })
 }

@@ -22,6 +22,14 @@ export interface GoalCheckpoint extends JsonObject {
   completedTickets: number
   /** Wie oft ein Ticket wegen einer Blockade zurück in die Warteschlange ging. */
   requeues: Record<string, number>
+  /** Wie oft ein Ticket schon versucht wurde — überlebt einen Neustart. */
+  attempts: Record<string, number>
+  /** Welche Agenten ein Ticket schon hatten, in der Reihenfolge der Versuche. */
+  triedAgents: Record<string, string[]>
+  /** Tickets, die vorerst nicht weiter versucht werden — die Phase läuft ohne sie weiter. */
+  stuckTicketIds: string[]
+  /** Tickets, denen als Vorbedingung anderer schon einmal ein Neuanfang gewährt wurde. */
+  revivedTicketIds: string[]
   /** Wann ein Rate-Limit-Halt frühestens weitergeht, als ISO-Zeitstempel. */
   resumeAt: string | null
 }
@@ -35,6 +43,10 @@ export function emptyCheckpoint(phase: GoalPhase): GoalCheckpoint {
     totalTickets: 0,
     completedTickets: 0,
     requeues: {},
+    attempts: {},
+    triedAgents: {},
+    stuckTicketIds: [],
+    revivedTicketIds: [],
     resumeAt: null,
   }
 }
@@ -52,6 +64,10 @@ export function readCheckpoint(raw: JsonObject | null, fallbackPhase: GoalPhase)
     totalTickets: typeof raw.totalTickets === 'number' ? raw.totalTickets : 0,
     completedTickets: typeof raw.completedTickets === 'number' ? raw.completedTickets : 0,
     requeues: counters(raw.requeues),
+    attempts: counters(raw.attempts),
+    triedAgents: stringLists(raw.triedAgents),
+    stuckTicketIds: stringArray(raw.stuckTicketIds),
+    revivedTicketIds: stringArray(raw.revivedTicketIds),
     resumeAt: typeof raw.resumeAt === 'string' ? raw.resumeAt : null,
   }
 }
@@ -75,6 +91,16 @@ function assignments(value: unknown): ActiveAssignment[] {
     if (typeof record.ticketId === 'string' && typeof record.agentId === 'string') {
       result.push({ ticketId: record.ticketId, agentId: record.agentId })
     }
+  }
+  return result
+}
+
+function stringLists(value: unknown): Record<string, string[]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const result: Record<string, string[]> = {}
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    const list = stringArray(entry)
+    if (list.length > 0) result[key] = list
   }
   return result
 }

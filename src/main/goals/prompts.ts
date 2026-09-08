@@ -108,7 +108,14 @@ export interface WorkerPromptInput {
   spec: string | null
   otherTickets: readonly Ticket[]
   dependencies: readonly Ticket[]
+  /** Der wievielte Anlauf dieses Tickets gerade beginnt; 1 ist der erste. */
+  attempt?: number
+  /** Die letzte Begründung des vorigen Agenten aus `ticket_comment`. */
+  lastComment?: string | null
 }
+
+/** So viel vom letzten Kommentar wandert in den Wiederholungs-Prompt. */
+const LAST_COMMENT_LIMIT = 1_200
 
 /**
  * Selbsttragend: der Lauf bekommt keinen Chat-Kontext, deshalb steht hier alles, was zum
@@ -116,6 +123,7 @@ export interface WorkerPromptInput {
  */
 export function buildWorkerPrompt(input: WorkerPromptInput): string {
   const { ticket, spec, otherTickets, dependencies } = input
+  const attempt = input.attempt ?? 1
   const lines = [
     `# Ticket #${ticket.number}: ${ticket.title}`,
     '',
@@ -154,6 +162,26 @@ export function buildWorkerPrompt(input: WorkerPromptInput): string {
     )
   }
 
+  if (attempt > 1) {
+    lines.push(
+      '',
+      '## Wiederholung',
+      '',
+      `Das ist Versuch ${attempt} an diesem Ticket — die vorigen Anläufe haben es nicht`,
+      'abgeschlossen. Wiederhole nicht, was schon gescheitert ist, sondern wähle einen anderen',
+      'Weg und bring das Ticket diesmal zu Ende.',
+    )
+    const last = input.lastComment?.trim()
+    if (last) {
+      lines.push(
+        '',
+        'Zuletzt hat der vorige Agent das hier hinterlassen:',
+        '',
+        clamp(last, LAST_COMMENT_LIMIT),
+      )
+    }
+  }
+
   lines.push(
     '',
     '## Regeln',
@@ -162,12 +190,16 @@ export function buildWorkerPrompt(input: WorkerPromptInput): string {
     '   `ticket_comment` — was du geändert hast und in welchen Dateien.',
     `2. Bist du fertig, rufe \`ticket_update\` mit \`number: ${ticket.number}\` und`,
     '   `status: "done"` auf. Ohne diesen Aufruf gilt das Ticket als offen.',
-    '3. Kannst du das Ticket nicht lösen, erkläre den Grund mit `ticket_comment` und setze den',
-    '   Status **nicht** auf erledigt.',
-    '4. Setzt dieses Ticket zwingend ein anderes, noch offenes Ticket voraus, rufe **sofort**',
-    '   `goal_report` mit `kind: "blocked_by"` und der Nummer des blockierenden Tickets auf und',
-    '   arbeite nicht weiter.',
-    '5. Lege keine neuen Tickets an.',
+    '3. Du entscheidest selbst und wartest nie auf Rückfragen. Gibt es mehrere vertretbare Wege,',
+    '   wähle den, der am wenigsten kaputt macht, und halte deine Annahme mit `ticket_comment`',
+    '   fest. Frage nicht nach Bestätigung — es liest niemand mit.',
+    '4. `goal_report` mit `kind: "blocked_by"` ist nur für **echte, umfangreiche** Vorbedingungen',
+    '   gedacht: ein anderes, noch offenes Ticket, dessen Arbeit erst getan sein muss. Ist die',
+    '   Vorarbeit klein und liegt in Reichweite, **erledige sie selbst** und vermerke das mit',
+    '   `ticket_comment`, statt zurückzumelden.',
+    '5. Stößt du auf notwendige Arbeit, die nicht in dieses Ticket gehört, lege dafür mit',
+    '   `ticket_create` ein eigenes Ticket an. Es wird automatisch Teil dieses Vorhabens und',
+    '   abgearbeitet.',
     '6. Führe **keine** Test-Suites und **keine** vollständigen Builds aus. Zum Absichern genügt',
     '   der günstigste Weg, etwa ein Typecheck der geänderten Datei. Tests schreibst oder',
     '   startest du nur, wenn dieses Ticket sie ausdrücklich verlangt.',

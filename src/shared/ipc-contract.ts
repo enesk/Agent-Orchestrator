@@ -616,6 +616,19 @@ export const ipcEvents = {
     action: changeActionSchema,
   }),
   'goal.log': goalLogEntrySchema,
+  /**
+   * Was ein Agent in einem Vorhaben gerade tut. Bewusst kein Checkpoint-Feld: das Ereignis
+   * kommt bei jedem Werkzeugaufruf und hat in der Datenbank nichts verloren.
+   */
+  'goal.activity': z.object({
+    goalId: z.number(),
+    ticketId: z.string().nullable(),
+    agentId: z.string(),
+    /** Beschriftung des laufenden Werkzeugs; `null`, solange der Agent überlegt. */
+    tool: z.string().nullable(),
+    /** Seit wann dieser Zustand anhält, als ISO-Zeitstempel. */
+    since: z.string(),
+  }),
   'claude.status': claudeStatusSchema,
   'log.entry': logEntrySchema,
 } as const satisfies Record<string, z.ZodType>

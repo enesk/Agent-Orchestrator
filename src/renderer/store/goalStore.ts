@@ -6,12 +6,22 @@ import { toErrorMessage } from './errorMessage'
 /** So viele Protokollzeilen werden beim Öffnen eines Vorhabens nachgeladen. */
 const LOG_LIMIT = 500
 
+/** Was ein Agent gerade an einem Ticket tut — flüchtig, steht bewusst in keinem Checkpoint. */
+export interface GoalActivity {
+  agentId: string
+  /** Beschriftung des laufenden Werkzeugs; `null`, solange der Agent überlegt. */
+  tool: string | null
+  since: string
+}
+
 interface GoalState {
   projectId: string | null
   goals: Goal[]
   selectedId: number | null
   /** Protokoll je Vorhaben, älteste Zeile zuerst. */
   logs: Record<number, GoalLogEntry[]>
+  /** Je Vorhaben und Ticket die letzte Meldung, was der Agent gerade tut. */
+  activity: Record<number, Record<string, GoalActivity>>
   /** Tickets, die das Board für ein neues Vorhaben vorgemerkt hat. */
   draftTicketIds: string[]
   loading: boolean
@@ -46,6 +56,7 @@ export const useGoalStore = create<GoalState>((set, get) => ({
   goals: [],
   selectedId: null,
   logs: {},
+  activity: {},
   draftTicketIds: [],
   loading: false,
   logLoading: false,
@@ -59,6 +70,7 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       error: null,
       goals: [],
       logs: {},
+      activity: {},
       selectedId: null,
       logError: null,
     })
@@ -125,9 +137,12 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       if (payload.action === 'removed' || !payload.goal) {
         const logs = { ...state.logs }
         delete logs[payload.goalId]
+        const activity = { ...state.activity }
+        delete activity[payload.goalId]
         set({
           goals: state.goals.filter((goal) => goal.id !== payload.goalId),
           logs,
+          activity,
           selectedId: state.selectedId === payload.goalId ? null : state.selectedId,
         })
         return
@@ -144,9 +159,31 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       set({ logs: { ...get().logs, [entry.goalId]: [...existing, entry] } })
     })
 
+    const offActivity = window.api.on('goal.activity', (payload) => {
+      if (!payload.ticketId) return
+      const state = get()
+      // Nur für Vorhaben mitschreiben, die dieses Projekt zeigt.
+      if (!state.goals.some((goal) => goal.id === payload.goalId)) return
+      const forGoal = state.activity[payload.goalId] ?? {}
+      set({
+        activity: {
+          ...state.activity,
+          [payload.goalId]: {
+            ...forGoal,
+            [payload.ticketId]: {
+              agentId: payload.agentId,
+              tool: payload.tool,
+              since: payload.since,
+            },
+          },
+        },
+      })
+    })
+
     return () => {
       offChanged()
       offLog()
+      offActivity()
     }
   },
 }))
