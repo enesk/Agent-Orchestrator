@@ -1,7 +1,7 @@
 import type { ChatMessage, ProjectAgent } from '@shared/types'
 import type { ToolEvent } from '../../store/chatStore'
 import { Spinner, cn } from '../../ui'
-import { attachmentUrl, formatTime, isImage, splitMentions } from './chatHelpers'
+import { attachmentUrl, autoMentionAgent, formatTime, isImage, splitMentions } from './chatHelpers'
 import { MessageMarkdown } from './MessageMarkdown'
 import { ThinkingBlock } from './ThinkingBlock'
 import { ToolChips } from './ToolChips'
@@ -56,6 +56,7 @@ export function MessageItem({
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system'
   const streaming = message.status === 'streaming'
+  const autoMention = isUser ? autoMentionAgent(message, agents) : null
 
   if (isSystem) {
     return (
@@ -189,6 +190,15 @@ export function MessageItem({
               <p className="mt-1 text-[11px] italic text-ink-faint">Abgebrochen</p>
             )}
           </div>
+
+          {autoMention && (
+            <p className="mt-1 text-[11px] text-ink-faint">
+              ↳ an{' '}
+              <span className="font-medium" style={{ color: autoMention.color }}>
+                {autoMention.mentionKey}
+              </span>
+            </p>
+          )}
 
           {message.attachments.length > 0 && (
             <div className={cn('mt-1.5 flex flex-wrap gap-1.5', isUser && 'justify-end')}>

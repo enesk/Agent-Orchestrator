@@ -87,6 +87,19 @@ export function mentionedAgentIds(text: string, agents: ProjectAgent[]): string[
   return ids
 }
 
+/**
+ * Der Agent, den die App im Thread selbst ergänzt hat, weil der Nutzer niemanden erwähnte.
+ * Sein Text bleibt unverändert — deshalb steht die Zuordnung in den Metadaten, nicht im Inhalt.
+ */
+export function autoMentionAgent(
+  message: ChatMessage,
+  agents: ProjectAgent[],
+): ProjectAgent | null {
+  const id = message.metadata.autoMention
+  if (typeof id !== 'string') return null
+  return agents.find((agent) => agent.id === id) ?? null
+}
+
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
 /**

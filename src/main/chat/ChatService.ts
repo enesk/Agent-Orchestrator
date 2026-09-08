@@ -40,6 +40,7 @@ import { withRunContext } from '../mcp'
 import { describeError, scopedLogger } from '../Logger'
 import { describeRunFailure } from './errors'
 import { mentionedAgents, mentionedOutsideProject, resolveMentions } from './mentions'
+import { resolveThreadTarget, type ThreadTarget } from './threadTarget'
 import { toolLabel } from './toolLabels'
 
 const log = scopedLogger('chat')
@@ -75,20 +76,30 @@ export function send(input: SendInput): ChatMessage {
   const agents = listProjectAgents(project.id)
   const mentioned = resolveMentions(agents, input.content, input.mentions)
 
+  // Im Thread ist ohne Erwähnung klar, wer gemeint ist. Der getippte Text bleibt unangetastet —
+  // der Agent landet nur in `mentions`, und `autoMention` sagt der Oberfläche, dass sie das
+  // dezent anzeigen soll.
+  const replyToId = input.replyToId ?? null
+  let target: ThreadTarget | null = null
+  if (mentioned.length === 0 && replyToId) {
+    target = resolveThreadTarget(replyToId, agents)
+    if (target?.kind === 'inProject') mentioned.push(target.agent)
+  }
+
   const created = createMessage({
     projectId: project.id,
     role: 'user',
     content: input.content,
     mentions: mentioned.map((agent) => agent.id),
-    replyToId: input.replyToId ?? null,
+    replyToId,
     status: 'done',
+    metadata: target?.kind === 'inProject' ? { autoMention: target.agent.id } : {},
   })
   if (input.attachmentIds?.length) attachToMessage(input.attachmentIds, created.id)
 
   const message = getMessage(created.id)!
   emitMessage(message, null)
 
-  const replyToId = input.replyToId ?? null
   const stopped = mentioned.filter((agent) => agent.stopped)
   if (stopped.length > 0) {
     const names = stopped.map((agent) => agent.name).join(', ')
@@ -104,7 +115,8 @@ export function send(input: SendInput): ChatMessage {
   // Eine Nachricht, auf die nichts folgt, darf nie unkommentiert bleiben — sonst sieht es aus,
   // als sei die App kaputt.
   if (mentioned.length === 0) {
-    systemMessage(project.id, unansweredNote(agents, input.content), replyToId)
+    const removed = target?.kind === 'outsideProject' ? target.agent : null
+    systemMessage(project.id, unansweredNote(agents, input.content, removed), replyToId)
   }
 
   const runnable = mentioned.filter((agent) => !agent.stopped)
@@ -130,7 +142,12 @@ export function send(input: SendInput): ChatMessage {
  * deutlich: kein Agent im Projekt, ein Agent erwähnt der nicht zum Projekt gehört, oder schlicht
  * keine Erwähnung im Text.
  */
-function unansweredNote(agents: readonly ProjectAgent[], text: string): string {
+function unansweredNote(
+  agents: readonly ProjectAgent[],
+  text: string,
+  /** Im Thread ermittelter Agent, der inzwischen nicht mehr zum Projekt gehört. */
+  removed: Agent | null = null,
+): string {
   if (agents.length === 0) {
     return (
       'Diesem Projekt ist kein Agent zugeordnet — die Nachricht steht nur im Verlauf. ' +
@@ -139,7 +156,7 @@ function unansweredNote(agents: readonly ProjectAgent[], text: string): string {
   }
 
   const keys = agents.map((agent) => agent.mentionKey).join(', ')
-  const outside = mentionedOutsideProject(agents, listAgents(), text)
+  const outside = removed ? [removed] : mentionedOutsideProject(agents, listAgents(), text)
   if (outside.length > 0) {
     const named = outside.map((agent) => `${agent.mentionKey} (${agent.name})`).join(', ')
     return (
