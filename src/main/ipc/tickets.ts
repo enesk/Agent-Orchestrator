@@ -10,6 +10,7 @@ export const ticketsHandlers: DomainHandlers<'tickets'> = {
     tickets.remove(id)
     return { ok: true }
   },
+  removeMany: ({ ids }) => tickets.removeMany(ids),
   addComment: ({ ticketId, content, authorType, agentId }) =>
     tickets.addComment({ ticketId, content, authorType, agentId }),
   setDependencies: ({ ticketId, dependsOn }) => tickets.setDependencies(ticketId, dependsOn),

@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { TICKET_CATEGORIES, type TicketCategory, type TicketStatus } from '@shared/constants'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useGoalStore } from '../../store/goalStore'
 import { useTicketStore } from '../../store/ticketStore'
 import { useUiStore } from '../../store/uiStore'
-import { Button, EmptyState, Input, Select, Spinner, useConfirm } from '../../ui'
+import { Button, Checkbox, EmptyState, Input, Select, Spinner, useConfirm } from '../../ui'
 import { PlusIcon, TicketIcon } from '../../ui/icons'
 import { CreateTicketModal } from './CreateTicketModal'
 import { ImportTicketsModal } from './ImportTicketsModal'
@@ -30,7 +30,7 @@ export function TicketsView() {
   const loadTickets = useTicketStore((state) => state.load)
   const selectTicket = useTicketStore((state) => state.select)
   const setStatus = useTicketStore((state) => state.setStatus)
-  const removeTicket = useTicketStore((state) => state.remove)
+  const removeManyTickets = useTicketStore((state) => state.removeMany)
   const subscribeTickets = useTicketStore((state) => state.subscribe)
 
   const agents = useAgentStore((state) => state.agents)
@@ -44,6 +44,8 @@ export function TicketsView() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [agentFilter, setAgentFilter] = useState('')
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
+  /** Ankerpunkt für die Bereichsauswahl per Umschalt-Klick. */
+  const lastClickedId = useRef<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -78,17 +80,76 @@ export function TicketsView() {
   }, [tickets, search, categoryFilter, agentFilter])
 
   const checkedList = useMemo(
-    () => tickets.filter((ticket) => checkedIds.has(ticket.id)),
-    [tickets, checkedIds],
+    () => visibleTickets.filter((ticket) => checkedIds.has(ticket.id)),
+    [visibleTickets, checkedIds],
   )
 
-  function toggleChecked(ticketId: string): void {
+  const allVisibleChecked = visibleTickets.length > 0 && checkedList.length === visibleTickets.length
+
+  // Was der Nutzer nach einer Filteränderung nicht mehr sieht, darf er auch nicht mehr löschen.
+  useEffect(() => {
+    const visibleIds = new Set(visibleTickets.map((ticket) => ticket.id))
+    setCheckedIds((current) => {
+      const next = new Set([...current].filter((id) => visibleIds.has(id)))
+      return next.size === current.size ? current : next
+    })
+  }, [visibleTickets])
+
+  // Escape hebt die Auswahl auf — aber nicht, während ein Dialog offen ist, der Escape
+  // selbst als „schließen" versteht.
+  useEffect(() => {
+    if (createOpen || importOpen) return
+    function onKeyDown(event: KeyboardEvent): void {
+      if (event.key !== 'Escape') return
+      setCheckedIds((current) => (current.size === 0 ? current : new Set()))
+      lastClickedId.current = null
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [createOpen, importOpen])
+
+  function toggleChecked(ticketId: string, columnIds: string[], shiftKey: boolean): void {
+    const anchor = lastClickedId.current
     setCheckedIds((current) => {
       const next = new Set(current)
+      const from = anchor === null ? -1 : columnIds.indexOf(anchor)
+      const to = columnIds.indexOf(ticketId)
+
+      // Umschalt-Klick wählt den Bereich innerhalb derselben Spalte — nur dort ist eine
+      // Reihenfolge sichtbar, über Spalten hinweg wäre „dazwischen" willkürlich.
+      if (shiftKey && from !== -1 && to !== -1) {
+        const [start, end] = from <= to ? [from, to] : [to, from]
+        for (const id of columnIds.slice(start, end + 1)) next.add(id)
+        return next
+      }
+
       if (next.has(ticketId)) next.delete(ticketId)
       else next.add(ticketId)
       return next
     })
+    lastClickedId.current = ticketId
+  }
+
+  function toggleColumn(columnIds: string[], checked: boolean): void {
+    setCheckedIds((current) => {
+      const next = new Set(current)
+      for (const id of columnIds) {
+        if (checked) next.add(id)
+        else next.delete(id)
+      }
+      return next
+    })
+    lastClickedId.current = null
+  }
+
+  function toggleAllVisible(): void {
+    setCheckedIds(allVisibleChecked ? new Set() : new Set(visibleTickets.map((t) => t.id)))
+    lastClickedId.current = null
+  }
+
+  function clearChecked(): void {
+    setCheckedIds(new Set())
+    lastClickedId.current = null
   }
 
   async function run(action: () => Promise<unknown>): Promise<void> {
@@ -104,20 +165,21 @@ export function TicketsView() {
   }
 
   async function deleteChecked(): Promise<void> {
-    if (checkedList.length === 0) return
+    const ids = checkedList.map((ticket) => ticket.id)
+    if (ids.length === 0) return
     const confirmed = await confirm({
-      title: checkedList.length === 1 ? 'Ticket löschen' : 'Tickets löschen',
+      title: ids.length === 1 ? 'Ticket löschen' : 'Tickets löschen',
       message:
-        checkedList.length === 1
-          ? 'Dieses Ticket löschen?'
-          : `${checkedList.length} Tickets löschen?`,
+        ids.length === 1
+          ? 'Dieses Ticket endgültig löschen? Kommentare und Abhängigkeiten werden mitgelöscht.'
+          : `${ids.length} Tickets endgültig löschen? Kommentare und Abhängigkeiten werden mitgelöscht.`,
       confirmLabel: 'Löschen',
       danger: true,
     })
     if (!confirmed) return
     await run(async () => {
-      for (const ticket of checkedList) await removeTicket(ticket.id)
-      setCheckedIds(new Set())
+      await removeManyTickets(ids)
+      clearChecked()
     })
   }
 
@@ -125,7 +187,7 @@ export function TicketsView() {
   function startGoal(): void {
     if (!projectId || checkedList.length === 0) return
     setDraftTickets(checkedList.map((ticket) => ticket.id))
-    setCheckedIds(new Set())
+    clearChecked()
     setActiveSection('goals')
   }
 
@@ -165,6 +227,16 @@ export function TicketsView() {
             onChange={(event) => setAgentFilter(event.target.value)}
             className="w-44"
           />
+          <label className="flex cursor-pointer select-none items-center gap-1.5 text-xs text-ink-muted">
+            <Checkbox
+              checked={allVisibleChecked}
+              indeterminate={checkedList.length > 0 && !allVisibleChecked}
+              disabled={visibleTickets.length === 0}
+              onChange={toggleAllVisible}
+            />
+            Alle auswählen
+            <span className="text-ink-faint">({visibleTickets.length})</span>
+          </label>
           <div className="flex-1" />
           {loading && <Spinner size={14} />}
           <Button onClick={() => setImportOpen(true)}>Import</Button>
@@ -181,9 +253,11 @@ export function TicketsView() {
 
         {checkedList.length > 0 && (
           <div className="flex shrink-0 items-center gap-2 border-b border-line bg-raised px-3 py-1.5">
-            <span className="text-xs text-ink-muted">{checkedList.length} ausgewählt</span>
+            <span className="text-xs text-ink-muted">
+              {checkedList.length === 1 ? '1 Ticket ausgewählt' : `${checkedList.length} Tickets ausgewählt`}
+            </span>
             <div className="flex-1" />
-            <Button size="sm" disabled={actionBusy} onClick={() => setCheckedIds(new Set())}>
+            <Button size="sm" disabled={actionBusy} onClick={clearChecked}>
               Auswahl aufheben
             </Button>
             <Button size="sm" variant="primary" disabled={actionBusy} onClick={startGoal}>
@@ -215,6 +289,7 @@ export function TicketsView() {
             checkedIds={checkedIds}
             onSelect={(ticketId) => void selectTicket(ticketId)}
             onToggleChecked={toggleChecked}
+            onToggleColumn={toggleColumn}
             onStatusChange={(ticketId, status: TicketStatus) =>
               void run(() => setStatus(ticketId, status))
             }

@@ -465,6 +465,11 @@ export const ipcContract = {
     create: { request: createTicketSchema, response: ticketSchema },
     update: { request: updateTicketSchema, response: ticketSchema },
     remove: { request: idSchema, response: okSchema },
+    /** Sammellöschen in einer Transaktion — unbekannte IDs werden übersprungen. */
+    removeMany: {
+      request: z.object({ ids: z.array(z.string()) }),
+      response: z.object({ removed: z.number().int() }),
+    },
     addComment: {
       request: z.object({
         ticketId: z.string(),
@@ -590,6 +595,8 @@ export const ipcEvents = {
   'ticket.changed': z.object({
     projectId: z.string(),
     ticketId: z.string(),
+    /** Bei Sammelaktionen alle betroffenen Tickets; `ticketId` ist dann das erste davon. */
+    ticketIds: z.array(z.string()).optional(),
     action: changeActionSchema,
   }),
   'document.changed': z.object({

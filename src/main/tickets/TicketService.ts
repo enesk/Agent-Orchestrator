@@ -4,6 +4,7 @@ import {
   addTicketComment,
   createTicket,
   deleteTicket,
+  deleteTickets,
   getTicket,
   getTicketByExternalId,
   getTicketDetail,
@@ -50,6 +51,37 @@ export function remove(id: string): void {
   const ticket = getTicket(id)
   deleteTicket(id)
   if (ticket) notify(ticket, 'removed')
+}
+
+/**
+ * Sammellöschen: eine Transaktion, ein Ereignis. Unbekannte IDs fallen still weg, damit ein
+ * veralteter Renderer-Zustand nicht die ganze Aktion scheitern lässt.
+ */
+export function removeMany(ids: string[]): { removed: number } {
+  const unique = [...new Set(ids)]
+  const known = unique.map(getTicket).filter((ticket): ticket is Ticket => ticket !== null)
+  if (known.length === 0) return { removed: 0 }
+
+  const removed = deleteTickets(known.map((ticket) => ticket.id))
+
+  // Ein gebündeltes Ereignis pro Projekt — sonst flackert das Board bei zwanzig Tickets.
+  const byProject = new Map<string, string[]>()
+  for (const ticket of known) {
+    const bucket = byProject.get(ticket.projectId)
+    if (bucket) bucket.push(ticket.id)
+    else byProject.set(ticket.projectId, [ticket.id])
+  }
+  for (const [projectId, ticketIds] of byProject) {
+    emitEvent('ticket.changed', {
+      projectId,
+      ticketId: ticketIds[0]!,
+      ticketIds,
+      action: 'removed',
+    })
+  }
+
+  log.info('Tickets gelöscht', { requested: unique.length, removed })
+  return { removed }
 }
 
 export function addComment(input: AddTicketCommentInput): TicketComment {

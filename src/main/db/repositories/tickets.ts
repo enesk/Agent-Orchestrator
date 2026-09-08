@@ -232,6 +232,22 @@ export function deleteTicket(id: string): void {
   getDb().prepare('DELETE FROM tickets WHERE id = ?').run(id)
 }
 
+/**
+ * Löscht mehrere Tickets in einer einzigen Transaktion und meldet, wie viele Zeilen wirklich
+ * verschwunden sind. Unbekannte IDs treffen einfach nichts.
+ */
+export function deleteTickets(ids: string[]): number {
+  if (ids.length === 0) return 0
+  const db = getDb()
+  const statement = db.prepare('DELETE FROM tickets WHERE id = ?')
+  const removeAll = db.transaction((): number => {
+    let removed = 0
+    for (const id of ids) removed += statement.run(id).changes
+    return removed
+  })
+  return removeAll()
+}
+
 // --- Kommentare -------------------------------------------------------------
 
 export function listTicketComments(ticketId: string): TicketComment[] {

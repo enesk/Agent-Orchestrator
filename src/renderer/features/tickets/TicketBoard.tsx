@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { TICKET_STATUS_LABELS, type TicketStatus } from '@shared/constants'
 import type { ProjectAgent, Ticket } from '@shared/types'
 import type { TicketMeta } from '../../store/ticketStore'
-import { cn } from '../../ui'
+import { Checkbox, cn } from '../../ui'
 import { TicketCard } from './TicketCard'
 
 const COLUMNS: readonly TicketStatus[] = ['open', 'in_progress', 'done']
@@ -14,7 +14,9 @@ export interface TicketBoardProps {
   selectedId: string | null
   checkedIds: Set<string>
   onSelect: (ticketId: string) => void
-  onToggleChecked: (ticketId: string) => void
+  /** `columnIds` ist die sichtbare Spalte der Karte — der Umschalt-Bereich endet dort. */
+  onToggleChecked: (ticketId: string, columnIds: string[], shiftKey: boolean) => void
+  onToggleColumn: (columnIds: string[], checked: boolean) => void
   onStatusChange: (ticketId: string, status: TicketStatus) => void
 }
 
@@ -26,6 +28,7 @@ export function TicketBoard({
   checkedIds,
   onSelect,
   onToggleChecked,
+  onToggleColumn,
   onStatusChange,
 }: TicketBoardProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -35,6 +38,10 @@ export function TicketBoard({
     <div className="grid min-h-0 flex-1 grid-cols-3 gap-3 p-3">
       {COLUMNS.map((status) => {
         const column = tickets.filter((ticket) => ticket.status === status)
+        const columnIds = column.map((ticket) => ticket.id)
+        const checkedInColumn = columnIds.filter((id) => checkedIds.has(id)).length
+        const allChecked = column.length > 0 && checkedInColumn === column.length
+
         return (
           <section
             key={status}
@@ -60,8 +67,17 @@ export function TicketBoard({
               dropTarget === status ? 'border-accent' : 'border-line',
             )}
           >
-            <header className="flex h-10 shrink-0 items-center justify-between border-b border-line px-3">
+            <header className="flex h-10 shrink-0 items-center gap-2 border-b border-line px-3">
+              <Checkbox
+                checked={allChecked}
+                indeterminate={checkedInColumn > 0 && !allChecked}
+                disabled={column.length === 0}
+                aria-label={`Alle Tickets in „${TICKET_STATUS_LABELS[status]}" auswählen`}
+                title="Alle in dieser Spalte"
+                onChange={(event) => onToggleColumn(columnIds, event.target.checked)}
+              />
               <h3 className="text-sm font-medium text-ink">{TICKET_STATUS_LABELS[status]}</h3>
+              <div className="flex-1" />
               <span className="text-xs text-ink-faint">{column.length}</span>
             </header>
 
@@ -77,9 +93,12 @@ export function TicketBoard({
                   meta={meta[ticket.id]}
                   selected={ticket.id === selectedId}
                   checked={checkedIds.has(ticket.id)}
+                  showCheckbox={checkedIds.size > 0}
                   dragging={draggingId === ticket.id}
                   onSelect={() => onSelect(ticket.id)}
-                  onToggleChecked={() => onToggleChecked(ticket.id)}
+                  onToggleChecked={(event) =>
+                    onToggleChecked(ticket.id, columnIds, event.shiftKey)
+                  }
                   onDragStart={(event) => {
                     event.dataTransfer.setData('text/ticket-id', ticket.id)
                     event.dataTransfer.effectAllowed = 'move'

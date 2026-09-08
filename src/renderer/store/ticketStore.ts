@@ -32,6 +32,7 @@ interface TicketState {
   update: (id: string, patch: IpcRequest<'tickets', 'update'>['patch']) => Promise<Ticket>
   setStatus: (id: string, status: TicketStatus) => Promise<void>
   remove: (id: string) => Promise<void>
+  removeMany: (ids: string[]) => Promise<number>
   addComment: (ticketId: string, content: string) => Promise<void>
   setDependencies: (ticketId: string, dependsOn: string[]) => Promise<void>
   importJson: (projectId: string, json: string) => Promise<TicketImportResult>
@@ -133,12 +134,14 @@ export const useTicketStore = create<TicketState>((set, get) => ({
 
   remove: async (id) => {
     await window.api.tickets.remove({ id })
-    set((state) => ({
-      tickets: state.tickets.filter((ticket) => ticket.id !== id),
-      detail: state.selectedId === id ? null : state.detail,
-      selectedId: state.selectedId === id ? null : state.selectedId,
-      error: null,
-    }))
+    set((state) => dropTickets(state, [id]))
+  },
+
+  removeMany: async (ids) => {
+    if (ids.length === 0) return 0
+    const { removed } = await window.api.tickets.removeMany({ ids })
+    set((state) => dropTickets(state, ids))
+    return removed
   },
 
   addComment: async (ticketId, content) => {
@@ -176,11 +179,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
       if (payload.projectId !== state.projectId) return
 
       if (payload.action === 'removed') {
-        set({
-          tickets: state.tickets.filter((ticket) => ticket.id !== payload.ticketId),
-          detail: state.selectedId === payload.ticketId ? null : state.detail,
-          selectedId: state.selectedId === payload.ticketId ? null : state.selectedId,
-        })
+        set(dropTickets(state, payload.ticketIds ?? [payload.ticketId]))
         return
       }
 
@@ -201,6 +200,25 @@ export const useTicketStore = create<TicketState>((set, get) => ({
         })
     }),
 }))
+
+/**
+ * Entfernt gelöschte Tickets inkrementell aus dem Zustand — die Liste wird nicht neu geladen,
+ * damit das Board beim Sammellöschen nicht flackert. War eines davon im Detail-Panel offen,
+ * schließt sich das Panel.
+ */
+function dropTickets(state: TicketState, ids: string[]): Partial<TicketState> {
+  const removed = new Set(ids)
+  const meta = { ...state.meta }
+  for (const id of removed) delete meta[id]
+  const hitSelection = state.selectedId !== null && removed.has(state.selectedId)
+  return {
+    tickets: state.tickets.filter((ticket) => !removed.has(ticket.id)),
+    meta,
+    detail: hitSelection ? null : state.detail,
+    selectedId: hitSelection ? null : state.selectedId,
+    error: null,
+  }
+}
 
 function metaOf(detail: TicketDetail): TicketMeta {
   return { comments: detail.comments.length, dependencies: detail.dependencies.length }
