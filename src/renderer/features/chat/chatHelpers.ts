@@ -1,4 +1,7 @@
-import type { AgentActivity, ChatMessage, MessageAttachment, ProjectAgent } from '@shared/types'
+import type { AgentActivity, ChatMessage, ProjectAgent } from '@shared/types'
+
+// Anhänge sind überall gleich — Chat, Ticket und Verlauf teilen sich dieselben Helfer.
+export { attachmentUrl, isImage, readFileAsBase64 } from '../attachments'
 
 export const ACTIVITY_LABELS: Record<AgentActivity, string> = {
   idle: 'untätig',
@@ -14,28 +17,6 @@ export const ACTIVITY_DOT_CLASSES: Record<AgentActivity, string> = {
   writing: 'bg-success animate-pulse',
   tool: 'bg-info animate-pulse',
   error: 'bg-danger',
-}
-
-export function attachmentUrl(attachment: MessageAttachment): string {
-  return `attachment://${attachment.relativePath}`
-}
-
-export function isImage(attachment: MessageAttachment): boolean {
-  return (attachment.mimeType ?? '').startsWith('image/')
-}
-
-/** Liest eine Datei als Base64 ohne den `data:`-Präfix, wie `chat.saveAttachment` es erwartet. */
-export function readFileAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = () => reject(reader.error ?? new Error('Datei konnte nicht gelesen werden'))
-    reader.onload = () => {
-      const result = String(reader.result ?? '')
-      const comma = result.indexOf(',')
-      resolve(comma === -1 ? result : result.slice(comma + 1))
-    }
-    reader.readAsDataURL(file)
-  })
 }
 
 function escapeRegExp(value: string): string {

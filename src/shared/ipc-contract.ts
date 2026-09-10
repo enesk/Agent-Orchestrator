@@ -565,6 +565,13 @@ export const ipcContract = {
     /** Zeigt die Datenbankdatei selbst markiert im Dateimanager. */
     showDatabaseFile: { request: z.void(), response: okSchema },
   },
+  attachments: {
+    /**
+     * Öffnet einen Anhang im Standardprogramm des Systems. Der Renderer nennt nur die ID —
+     * einen Dateisystempfad bekommt er nie in die Hand.
+     */
+    open: { request: z.object({ attachmentId: z.string() }), response: okSchema },
+  },
   claude: {
     status: { request: z.void(), response: claudeStatusSchema },
     detect: {

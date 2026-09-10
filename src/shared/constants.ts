@@ -146,3 +146,36 @@ export const AGENT_COLORS: readonly string[] = [
   '#e08a5b',
   '#7fb069',
 ]
+
+/**
+ * Dateiendungen, die als Anhang zur Prüfung durchgehen. Geprüft wird die Endung, nicht der
+ * MIME-Typ: Beim Ablegen aus dem Finder ist `File.type` für `.md` und `.log` oft leer.
+ */
+export const ATTACHMENT_EXTENSIONS: readonly string[] = [
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.svg',
+  '.md',
+  '.markdown',
+  '.txt',
+  '.html',
+  '.htm',
+  '.json',
+  '.csv',
+  '.log',
+  '.yml',
+  '.yaml',
+  '.pdf',
+]
+
+/** Wert für `accept` am Datei-Dialog. */
+export const ATTACHMENT_ACCEPT = ATTACHMENT_EXTENSIONS.join(',')
+
+/**
+ * Der Weg durch IPC läuft über Base64 im Renderer-Thread — größere Dateien würden die
+ * Oberfläche für Sekunden blockieren.
+ */
+export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024

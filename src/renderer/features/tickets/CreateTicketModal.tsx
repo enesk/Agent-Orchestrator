@@ -1,9 +1,23 @@
-import { useEffect, useState, type ClipboardEvent, type DragEvent } from 'react'
-import { TICKET_CATEGORIES, type TicketCategory } from '@shared/constants'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ClipboardEvent,
+  type DragEvent,
+} from 'react'
+import { ATTACHMENT_ACCEPT, TICKET_CATEGORIES, type TicketCategory } from '@shared/constants'
 import type { ProjectAgent } from '@shared/types'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useTicketStore } from '../../store/ticketStore'
-import { Button, Input, Modal, Select, Textarea } from '../../ui'
+import { Button, IconButton, Input, Modal, Select, Textarea } from '../../ui'
+import { PaperclipIcon } from '../../ui/icons'
+import {
+  AttachmentTile,
+  attachmentFileName,
+  attachmentKind,
+  selectAttachableFiles,
+} from '../attachments'
 import { readFileAsBase64 } from './ticketHelpers'
 
 const CATEGORY_OPTIONS = TICKET_CATEGORIES.map((option) => ({
@@ -11,9 +25,15 @@ const CATEGORY_OPTIONS = TICKET_CATEGORIES.map((option) => ({
   label: option.label,
 }))
 
-interface PendingImage {
+interface PendingFile {
   file: File
-  previewUrl: string
+  name: string
+  /** Nur Bilder bekommen eine Vorschau-Adresse; sie wird beim Entfernen wieder freigegeben. */
+  previewUrl: string | null
+}
+
+function revokePreview(pending: PendingFile): void {
+  if (pending.previewUrl) URL.revokeObjectURL(pending.previewUrl)
 }
 
 export interface CreateTicketModalProps {
@@ -31,7 +51,8 @@ export function CreateTicketModal({ open, projectId, agents, onClose }: CreateTi
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<TicketCategory>('task')
   const [assignedAgentId, setAssignedAgentId] = useState('')
-  const [images, setImages] = useState<PendingImage[]>([])
+  const [files, setFiles] = useState<PendingFile[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,21 +62,36 @@ export function CreateTicketModal({ open, projectId, agents, onClose }: CreateTi
     setDescription('')
     setCategory('task')
     setAssignedAgentId('')
-    setImages((current) => {
-      current.forEach((image) => URL.revokeObjectURL(image.previewUrl))
+    setFiles((current) => {
+      current.forEach(revokePreview)
       return []
     })
     setSaving(false)
     setError(null)
   }, [open])
 
-  function addFiles(files: FileList | File[]): void {
-    const accepted = Array.from(files).filter((file) => file.type.startsWith('image/'))
+  function addFiles(incoming: FileList | File[]): void {
+    const { accepted, error: rejection } = selectAttachableFiles(Array.from(incoming))
+    setError(rejection)
     if (accepted.length === 0) return
-    setImages((current) => [
+    setFiles((current) => [
       ...current,
-      ...accepted.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
+      ...accepted.map((file) => {
+        const name = attachmentFileName(file)
+        return {
+          file,
+          name,
+          previewUrl:
+            attachmentKind(name, file.type || null) === 'image' ? URL.createObjectURL(file) : null,
+        }
+      }),
     ])
+  }
+
+  function pickFiles(event: ChangeEvent<HTMLInputElement>): void {
+    const chosen = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (chosen.length > 0) addFiles(chosen)
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>): void {
@@ -64,8 +100,8 @@ export function CreateTicketModal({ open, projectId, agents, onClose }: CreateTi
   }
 
   function onPaste(event: ClipboardEvent<HTMLDivElement>): void {
-    const files = Array.from(event.clipboardData.files)
-    if (files.length > 0) addFiles(files)
+    const pasted = Array.from(event.clipboardData.files)
+    if (pasted.length > 0) addFiles(pasted)
   }
 
   async function submit(): Promise<void> {
@@ -82,11 +118,11 @@ export function CreateTicketModal({ open, projectId, agents, onClose }: CreateTi
         assignedAgentId: assignedAgentId || null,
       })
 
-      for (const image of images) {
+      for (const pending of files) {
         await window.api.chat.saveAttachment({
-          fileName: image.file.name || 'bild.png',
-          mimeType: image.file.type || null,
-          dataBase64: await readFileAsBase64(image.file),
+          fileName: pending.name,
+          mimeType: pending.file.type || null,
+          dataBase64: await readFileAsBase64(pending.file),
           ticketId: ticket.id,
         })
       }
@@ -156,32 +192,40 @@ export function CreateTicketModal({ open, projectId, agents, onClose }: CreateTi
         </div>
 
         <div className="rounded-md border border-dashed border-line p-3">
-          <p className="text-xs text-ink-faint">
-            Bilder hierher ziehen oder einfügen — sie hängen anschließend am Ticket.
-          </p>
-          {images.length > 0 && (
-            <div className="mt-2 grid grid-cols-4 gap-2">
-              {images.map((image, index) => (
-                <div key={image.previewUrl} className="relative">
-                  <img
-                    src={image.previewUrl}
-                    alt={image.file.name}
-                    className="h-16 w-full rounded border border-line object-cover"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Bild entfernen"
-                    className="absolute right-0.5 top-0.5 rounded bg-black/60 px-1 text-[11px] text-ink"
-                    onClick={() =>
-                      setImages((current) => {
-                        URL.revokeObjectURL(image.previewUrl)
-                        return current.filter((_, position) => position !== index)
-                      })
-                    }
-                  >
-                    ×
-                  </button>
-                </div>
+          <div className="flex items-center gap-2">
+            <p className="min-w-0 flex-1 text-xs text-ink-faint">
+              Dateien hierher ziehen, einfügen oder anhängen — sie hängen anschließend am Ticket.
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={ATTACHMENT_ACCEPT}
+              className="hidden"
+              onChange={pickFiles}
+            />
+            <IconButton
+              label="Datei anhängen"
+              icon={<PaperclipIcon />}
+              onClick={() => fileInputRef.current?.click()}
+            />
+          </div>
+          {files.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {files.map((pending, index) => (
+                <AttachmentTile
+                  key={`${pending.name}-${index}`}
+                  fileName={pending.name}
+                  size={pending.file.size}
+                  kind={attachmentKind(pending.name, pending.file.type || null)}
+                  previewUrl={pending.previewUrl}
+                  onRemove={() =>
+                    setFiles((current) => {
+                      revokePreview(pending)
+                      return current.filter((_, position) => position !== index)
+                    })
+                  }
+                />
               ))}
             </div>
           )}

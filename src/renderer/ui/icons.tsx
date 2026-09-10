@@ -120,3 +120,40 @@ export const TerminalIcon = (props: IconProps) => (
     <path d="m7 9 3 3-3 3M13 15h4" />
   </Icon>
 )
+
+export const PaperclipIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M20 11.5 12.3 19a5 5 0 0 1-7-7l7.5-7.6a3.3 3.3 0 0 1 4.7 4.7l-7.5 7.5a1.7 1.7 0 0 1-2.3-2.3l6.9-7" />
+  </Icon>
+)
+
+export const MarkdownIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M6.5 15.5v-7l2.5 3 2.5-3v7" />
+    <path d="M15.5 8.5v7M13.5 13.5l2 2 2-2" />
+  </Icon>
+)
+
+export const CodeFileIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z" />
+    <path d="M13 3v6h6" />
+    <path d="m10 13-2 2 2 2M14 13l2 2-2 2" />
+  </Icon>
+)
+
+export const TableIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M3 10h18M9 10v9M15 10v9" />
+  </Icon>
+)
+
+export const ImageIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <circle cx="8.5" cy="10" r="1.5" />
+    <path d="m5 17 4.5-4.5L13 16l2.5-2.5L21 19" />
+  </Icon>
+)

@@ -1,7 +1,8 @@
 import type { ChatMessage, ProjectAgent } from '@shared/types'
 import type { ToolEvent } from '../../store/chatStore'
 import { Spinner, cn } from '../../ui'
-import { attachmentUrl, autoMentionAgent, formatTime, isImage, splitMentions } from './chatHelpers'
+import { AttachmentList } from '../attachments'
+import { autoMentionAgent, formatTime, splitMentions } from './chatHelpers'
 import { MessageMarkdown } from './MessageMarkdown'
 import { ThinkingBlock } from './ThinkingBlock'
 import { ToolChips } from './ToolChips'
@@ -201,25 +202,11 @@ export function MessageItem({
           )}
 
           {message.attachments.length > 0 && (
-            <div className={cn('mt-1.5 flex flex-wrap gap-1.5', isUser && 'justify-end')}>
-              {message.attachments.map((attachment) =>
-                isImage(attachment) ? (
-                  <img
-                    key={attachment.id}
-                    src={attachmentUrl(attachment)}
-                    alt={attachment.fileName}
-                    className="max-h-48 rounded-md border border-line object-contain"
-                  />
-                ) : (
-                  <span
-                    key={attachment.id}
-                    className="rounded border border-line px-2 py-1 text-xs text-ink-muted"
-                  >
-                    {attachment.fileName}
-                  </span>
-                ),
-              )}
-            </div>
+            <AttachmentList
+              className={cn('mt-1.5', isUser && 'justify-end')}
+              attachments={message.attachments}
+              imagePreview="large"
+            />
           )}
 
           {replyCount > 0 && onOpenThread && (

@@ -18,7 +18,20 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.htm': 'text/html; charset=utf-8',
+  '.csv': 'text/csv; charset=utf-8',
+  '.log': 'text/plain; charset=utf-8',
+  '.yml': 'text/plain; charset=utf-8',
+  '.yaml': 'text/plain; charset=utf-8',
 }
+
+/**
+ * HTML wird im Standardbrowser geöffnet, nicht in der App. Sollte trotzdem je einmal ein
+ * `attachment://…​.html` in einem Fenster landen, hält dieser Header fremde Skripte auf —
+ * das Schema ist `standard` und `secure`, hier läuft sonst fremder Code mit App-Rechten.
+ */
+const SANDBOX_HEADER = { 'Content-Security-Policy': 'sandbox' }
 
 export function getAttachmentsRoot(): string {
   return path.join(app.getPath('userData'), 'attachments')
@@ -53,9 +66,15 @@ export function registerAttachmentProtocol(): void {
 
     try {
       const data = await readFile(resolved)
-      const mime = MIME_BY_EXTENSION[path.extname(resolved).toLowerCase()]
+      const extension = path.extname(resolved).toLowerCase()
+      const mime = MIME_BY_EXTENSION[extension]
+      const isHtml = extension === '.html' || extension === '.htm'
       return new Response(new Uint8Array(data), {
-        headers: mime ? { 'Content-Type': mime } : undefined,
+        headers: {
+          'X-Content-Type-Options': 'nosniff',
+          ...(mime ? { 'Content-Type': mime } : {}),
+          ...(isHtml ? SANDBOX_HEADER : {}),
+        },
       })
     } catch {
       return new Response('Nicht gefunden', { status: 404 })

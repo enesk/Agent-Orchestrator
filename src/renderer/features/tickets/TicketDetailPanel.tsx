@@ -20,7 +20,8 @@ import {
   formatDateTime,
 } from '../../ui'
 import { CloseIcon } from '../../ui/icons'
-import { attachmentUrl, categoryOption, isImage } from './ticketHelpers'
+import { AttachmentList } from '../attachments'
+import { categoryOption } from './ticketHelpers'
 
 const STATUS_OPTIONS = (Object.keys(TICKET_STATUS_LABELS) as TicketStatus[]).map((status) => ({
   value: status,
@@ -278,25 +279,7 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
         {detail.attachments.length > 0 && (
           <section>
             <span className="mb-1 block text-xs font-medium text-ink-muted">Anhänge</span>
-            <div className="grid grid-cols-2 gap-2">
-              {detail.attachments.map((attachment) =>
-                isImage(attachment) ? (
-                  <img
-                    key={attachment.id}
-                    src={attachmentUrl(attachment)}
-                    alt={attachment.fileName}
-                    className="h-24 w-full rounded border border-line object-cover"
-                  />
-                ) : (
-                  <span
-                    key={attachment.id}
-                    className="truncate rounded border border-line px-2 py-1 text-xs text-ink-muted"
-                  >
-                    {attachment.fileName}
-                  </span>
-                ),
-              )}
-            </div>
+            <AttachmentList attachments={detail.attachments} />
           </section>
         )}
 

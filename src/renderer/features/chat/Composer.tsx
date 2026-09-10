@@ -5,22 +5,19 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type ChangeEvent,
   type ClipboardEvent,
   type DragEvent,
   type KeyboardEvent,
 } from 'react'
+import { ATTACHMENT_ACCEPT } from '@shared/constants'
 import type { MessageAttachment, ProjectAgent } from '@shared/types'
 import { toErrorMessage } from '../../store/errorMessage'
-import { Button, Spinner, cn } from '../../ui'
-import { CloseIcon } from '../../ui/icons'
+import { Button, IconButton, Spinner, cn } from '../../ui'
+import { PaperclipIcon } from '../../ui/icons'
+import { AttachmentList, attachmentFileName, selectAttachableFiles } from '../attachments'
 import { roleLabel } from '../agents/agentHelpers'
-import {
-  attachmentUrl,
-  isImage,
-  mentionedAgentIds,
-  readFileAsBase64,
-  splitMentions,
-} from './chatHelpers'
+import { mentionedAgentIds, readFileAsBase64, splitMentions } from './chatHelpers'
 
 /** Höchsthöhe des Eingabefelds — etwa 40 % des Fensters, wie im Entwurf vorgesehen. */
 function maxComposerHeight(): number {
@@ -84,6 +81,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
   const pendingCaret = useRef<number | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [text, setText] = useState('')
   const [mention, setMention] = useState<MentionContext | null>(null)
@@ -192,15 +190,15 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   }))
 
   async function upload(files: File[]): Promise<void> {
-    const images = files.filter((file) => file.type.startsWith('image/'))
-    if (images.length === 0) return
+    const { accepted, error: rejection } = selectAttachableFiles(files)
+    setError(rejection)
+    if (accepted.length === 0) return
     setUploading(true)
-    setError(null)
     try {
-      for (const file of images) {
+      for (const file of accepted) {
         const dataBase64 = await readFileAsBase64(file)
         const saved = await window.api.chat.saveAttachment({
-          fileName: file.name || 'Bild.png',
+          fileName: attachmentFileName(file),
           mimeType: file.type || null,
           dataBase64,
         })
@@ -213,12 +211,18 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     }
   }
 
+  function pickFiles(event: ChangeEvent<HTMLInputElement>): void {
+    const files = Array.from(event.target.files ?? [])
+    // Zurücksetzen, damit dieselbe Datei direkt noch einmal gewählt werden kann.
+    event.target.value = ''
+    if (files.length > 0) void upload(files)
+  }
+
   function onPaste(event: ClipboardEvent<HTMLTextAreaElement>): void {
     const files = Array.from(event.clipboardData.files)
-    if (files.some((file) => file.type.startsWith('image/'))) {
-      event.preventDefault()
-      void upload(files)
-    }
+    if (files.length === 0) return
+    event.preventDefault()
+    void upload(files)
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>): void {
@@ -285,7 +289,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   // Ohne Zuordnung kann niemand antworten — das muss beim Tippen dastehen, nicht erst danach.
   const hint =
     text.trim().length === 0 || mentions.length > 0
-      ? 'Enter sendet · Shift+Enter für eine neue Zeile · Bilder einfügen oder ablegen'
+      ? 'Enter sendet · Shift+Enter für eine neue Zeile · Dateien ablegen, einfügen oder anhängen'
       : agents.length === 0
         ? unassignedAgents.length > 0 && onAssignAgent
           ? 'Diesem Projekt ist kein Agent zugeordnet — tippe @ und wähle einen aus, das ordnet ihn zu.'
@@ -313,37 +317,16 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         </p>
       )}
 
-      {attachments.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-2">
-          {attachments.map((attachment) => (
-            <div key={attachment.id} className="relative">
-              {isImage(attachment) ? (
-                <img
-                  src={attachmentUrl(attachment)}
-                  alt={attachment.fileName}
-                  className="h-16 w-16 rounded border border-line object-cover"
-                />
-              ) : (
-                <span className="inline-block max-w-[9rem] truncate rounded border border-line px-2 py-1 text-xs text-ink-muted">
-                  {attachment.fileName}
-                </span>
-              )}
-              <button
-                type="button"
-                aria-label={`${attachment.fileName} entfernen`}
-                onClick={() =>
-                  setAttachments((current) =>
-                    current.filter((item) => item.id !== attachment.id),
-                  )
-                }
-                className="absolute -right-1.5 -top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full border border-line bg-overlay text-ink-muted hover:text-ink"
-              >
-                <CloseIcon width={11} height={11} />
-              </button>
-            </div>
-          ))}
-          {uploading && <Spinner size={16} className="self-center text-ink-muted" />}
-        </div>
+      {(attachments.length > 0 || uploading) && (
+        <AttachmentList
+          className="mb-2"
+          attachments={attachments}
+          onRemove={(attachment) =>
+            setAttachments((current) => current.filter((item) => item.id !== attachment.id))
+          }
+        >
+          {uploading && <Spinner size={16} className="text-ink-muted" />}
+        </AttachmentList>
       )}
 
       <div className="relative">
@@ -458,6 +441,20 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       </div>
 
       <div className="mt-1.5 flex items-center gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={ATTACHMENT_ACCEPT}
+          className="hidden"
+          onChange={pickFiles}
+        />
+        <IconButton
+          label="Datei anhängen"
+          icon={<PaperclipIcon />}
+          disabled={disabled || uploading}
+          onClick={() => fileInputRef.current?.click()}
+        />
         <span className="min-w-0 flex-1 truncate text-[11px] text-ink-faint">{hint}</span>
         <Button
           variant="primary"

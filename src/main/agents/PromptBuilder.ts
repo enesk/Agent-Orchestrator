@@ -77,17 +77,25 @@ function section(title: string, body: string): string | null {
 
 /**
  * Bilder und Dateien liegen auf der Platte; die CLI liest sie mit ihrem eigenen Werkzeug.
- * Deshalb steht hier nur der absolute Pfad, nicht der Inhalt.
+ * Deshalb steht hier nur der absolute Pfad, nicht der Inhalt — eine 300 KB große HTML-Datei
+ * in den Prompt zu kopieren wäre Verschwendung, der Agent liest gezielt.
  */
 function attachmentBlock(trigger: ChatMessage | null): string | null {
   if (!trigger || trigger.attachments.length === 0) return null
   const root = getAttachmentsRoot()
-  const lines = trigger.attachments.map(
-    (attachment) => `- ${attachment.fileName}: ${path.join(root, attachment.relativePath)}`,
-  )
+  const lines = trigger.attachments.map((attachment) => {
+    const kind = (attachment.mimeType ?? '').startsWith('image/') ? ' (Bild)' : ''
+    return `- ${attachment.fileName}${kind}: ${path.join(root, attachment.relativePath)}`
+  })
   return section(
     'Anhänge der Nachricht',
-    `Die Nachricht hat Dateien angehängt. Lies sie mit deinem Read-Werkzeug, bevor du antwortest:\n${lines.join('\n')}`,
+    [
+      'Der Nutzer hat diese Dateien zur Prüfung angehängt. Die Pfade sind absolut und liegen',
+      'außerhalb des Projektverzeichnisses — lies jede Datei mit deinem Read-Werkzeug, bevor du',
+      'antwortest, und geh in deiner Antwort inhaltlich auf sie ein.',
+      '',
+      ...lines,
+    ].join('\n'),
   )
 }
 

@@ -1,5 +1,6 @@
 import { agentsHandlers } from './agents'
 import { appHandlers } from './app'
+import { attachmentsHandlers } from './attachments'
 import { chatHandlers } from './chat'
 import { claudeHandlers } from './claude'
 import { documentsHandlers } from './documents'
@@ -23,6 +24,7 @@ export function registerIpcHandlers(): void {
   registerDomain('claude', claudeHandlers)
   registerDomain('logs', logsHandlers)
   registerDomain('app', appHandlers)
+  registerDomain('attachments', attachmentsHandlers)
 }
 
 export { emitEvent } from './events'
