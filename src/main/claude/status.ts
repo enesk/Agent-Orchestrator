@@ -3,6 +3,8 @@ import { getSettings } from '../app/settings'
 import { emitEvent } from '../ipc/events'
 import { scopedLogger } from '../Logger'
 import { status as probeStatus } from './ClaudeCli'
+import { mainT } from '../app/settings'
+import { RunError } from './RunError'
 
 const log = scopedLogger('claude.cli')
 
@@ -53,5 +55,5 @@ export async function resolveClaudeBinary(): Promise<string> {
   const fresh = await refreshClaudeStatus()
   if (fresh.available && fresh.path) return fresh.path
 
-  throw new Error(fresh.error ?? 'Claude Code CLI wurde nicht gefunden.')
+  throw new RunError('cli_unavailable', fresh.error ?? mainT()('main.error.claudeMissing'))
 }

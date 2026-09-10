@@ -5,6 +5,7 @@ import { APP_NAME } from '@shared/constants'
 import { describeError, scopedLogger } from '../Logger'
 import { authorize, extractBearerToken } from './auth'
 import { registerAllTools } from './tools'
+import { mainT } from '../app/settings'
 
 const log = scopedLogger('mcp.server')
 
@@ -19,7 +20,7 @@ let port: number | null = null
 
 /** `http://127.0.0.1:<port>/mcp`, sobald der Server läuft. */
 export function getUrl(): string {
-  if (port === null) throw new Error('Der MCP-Server läuft nicht.')
+  if (port === null) throw new Error(mainT()('main.error.mcpDown'))
   return `http://${HOST}:${port}${MCP_PATH}`
 }
 
@@ -49,7 +50,7 @@ export function start(): Promise<string> {
       server.off('error', onError)
       const address = server.address()
       if (address === null || typeof address === 'string') {
-        onError(new Error('Der MCP-Server hat keinen Port bekommen.'))
+        onError(new Error(mainT()('main.error.mcpNoPort')))
         return
       }
       port = address.port

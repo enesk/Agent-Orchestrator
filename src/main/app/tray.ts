@@ -3,6 +3,7 @@ import { APP_NAME } from '@shared/constants'
 import type { ClaudeStatus } from '@shared/types'
 import { assetPath } from './paths'
 import { createMainWindow } from './window'
+import { mainT } from './settings'
 
 /**
  * Der Tray zeigt Dinge an, die woanders entstehen: den Claude-Status und die Zahl der
@@ -56,7 +57,12 @@ export function refreshTray(): void {
   const status = sources.claudeStatus()
   const available = status?.available === true
   tray.setImage(trayImage(available))
-  tray.setToolTip(available ? `${APP_NAME} — Claude bereit` : `${APP_NAME} — Claude nicht gefunden`)
+  const t = mainT()
+  tray.setToolTip(
+    available
+      ? t('main.tray.tooltipReady', { app: APP_NAME })
+      : t('main.tray.tooltipMissing', { app: APP_NAME }),
+  )
   if (process.platform === 'linux') tray.setContextMenu(buildMenu())
 }
 
@@ -66,20 +72,21 @@ export function destroyTray(): void {
 }
 
 function buildMenu(): Menu {
+  const t = mainT()
   const status = sources.claudeStatus()
   const runs = sources.activeRunCount()
 
   return Menu.buildFromTemplate([
-    { label: 'Fenster öffnen', click: () => createMainWindow() },
+    { label: t('main.tray.open'), click: () => createMainWindow() },
     { type: 'separator' },
     { label: claudeLabel(status), enabled: false },
     {
-      label: runs === 1 ? '1 Agent arbeitet' : `${runs} Agenten arbeiten`,
+      label: t('main.tray.running', { count: runs }),
       enabled: false,
     },
     { type: 'separator' },
     {
-      label: 'Beenden',
+      label: t('main.tray.quit'),
       click: () => {
         app.quit()
       },
@@ -88,9 +95,12 @@ function buildMenu(): Menu {
 }
 
 function claudeLabel(status: ClaudeStatus | null): string {
-  if (!status) return 'Claude: noch nicht geprüft'
-  if (!status.available) return 'Claude: nicht gefunden'
-  return status.version ? `Claude ${status.version}` : 'Claude: bereit'
+  const t = mainT()
+  if (!status) return t('main.tray.claudeUnchecked')
+  if (!status.available) return t('main.tray.claudeMissing')
+  return status.version
+    ? t('main.tray.claudeVersion', { version: status.version })
+    : t('main.tray.claudeReady')
 }
 
 /**

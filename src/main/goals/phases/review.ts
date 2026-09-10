@@ -5,6 +5,7 @@ import { ensureRoleAgent } from '../defaultAgents'
 import { REVIEW_ROLE_NOTE, buildReviewPrompt } from '../prompts'
 import { runGoalAgent } from '../runAgent'
 import type { Ticket } from '@shared/types'
+import { mainT } from '../../app/settings'
 
 export type ReviewOutcome = 'complete' | 'retry'
 
@@ -24,7 +25,7 @@ export async function runReviewPhase(ctx: GoalContext): Promise<ReviewOutcome> {
 
   const spec = goal.specDocumentId ? (getDocument(goal.specDocumentId)?.content ?? null) : null
 
-  ctx.log({ message: 'Abnahme läuft', phase: 'review', agentId: agent.id })
+  ctx.log({ message: mainT()('main.goalLog.reviewStart'), phase: 'review', agentId: agent.id })
 
   const result = await runGoalAgent({
     goalId: goal.id,
@@ -33,7 +34,7 @@ export async function runReviewPhase(ctx: GoalContext): Promise<ReviewOutcome> {
     roleNote: REVIEW_ROLE_NOTE,
     prompt: buildReviewPrompt({ goal, spec, done, open, blocked }),
     label: 'goal-review',
-    chatLine: `Prüft das Ergebnis von „${goal.title}"`,
+    chatLine: mainT()('main.goal.chat.review', { title: goal.title }),
     signal: ctx.signal,
     onRateLimit: reportRateLimit(ctx, 'review', agent.id, 'die Abnahme'),
   })
@@ -43,7 +44,7 @@ export async function runReviewPhase(ctx: GoalContext): Promise<ReviewOutcome> {
   const report = result.report
   if (report?.kind === 'complete') {
     ctx.log({
-      message: report.summary ?? 'Abnahme bestanden',
+      message: report.summary ?? mainT()('main.goalLog.reviewPassed'),
       phase: 'review',
       agentId: agent.id,
       status: 'success',
@@ -53,7 +54,7 @@ export async function runReviewPhase(ctx: GoalContext): Promise<ReviewOutcome> {
 
   if (report?.kind === 'retry') {
     ctx.log({
-      message: report.summary ?? 'Abnahme verlangt Nacharbeit',
+      message: report.summary ?? mainT()('main.goalLog.reviewRetry'),
       phase: 'review',
       agentId: agent.id,
       status: 'failed',
@@ -67,7 +68,7 @@ export async function runReviewPhase(ctx: GoalContext): Promise<ReviewOutcome> {
   )
   if (remaining.length === 0) {
     ctx.log({
-      message: 'Keine Meldung aus der Abnahme — alle Tickets sind erledigt',
+      message: mainT()('main.goalLog.reviewSilentDone'),
       phase: 'review',
       agentId: agent.id,
       status: 'success',
@@ -76,7 +77,7 @@ export async function runReviewPhase(ctx: GoalContext): Promise<ReviewOutcome> {
   }
 
   ctx.log({
-    message: `Keine Meldung aus der Abnahme — ${remaining.length} Ticket(s) sind noch offen`,
+    message: mainT()('main.goalLog.reviewSilentOpen', { count: remaining.length }),
     phase: 'review',
     agentId: agent.id,
     status: 'failed',

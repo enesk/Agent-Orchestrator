@@ -1,14 +1,17 @@
 import { DEFAULT_AGENT_MODEL, type AgentEffort } from '@shared/constants'
 import { listProjectAgents } from '../db/repositories/agents'
 import * as agents from '../agents/AgentService'
+import type { TranslationKey } from '@shared/i18n'
+import { mainT } from '../app/settings'
 import { scopedLogger } from '../Logger'
 import type { ProjectAgent } from '@shared/types'
 
 const log = scopedLogger('goals.agents')
 
 export interface DefaultAgentTemplate {
-  name: string
-  title: string
+  /** Anzeigename und Titel entstehen erst beim Anlegen — in der Sprache, die dann eingestellt ist. */
+  nameKey: TranslationKey
+  titleKey: TranslationKey
   systemPrompt: string
   model: string
   effort: AgentEffort
@@ -20,37 +23,37 @@ export interface DefaultAgentTemplate {
  */
 export const DEFAULT_AGENT_TEMPLATES: Record<'planner' | 'pm' | 'reviewer', DefaultAgentTemplate> = {
   planner: {
-    name: 'Planung',
-    title: 'Pflichtenheft',
+    nameKey: 'main.agent.default.planner.name',
+    titleKey: 'main.agent.default.planner.title',
     systemPrompt: `Du planst Software-Vorhaben in einem lokalen Code-Repository.
 
 Aus einer Beschreibung machst du ein Pflichtenheft, das ein anderer Agent ohne Rückfragen
 umsetzen kann. Du liest dafür zuerst den vorhandenen Code, damit der Ist-Zustand stimmt und
 keine erfundenen Dateien, Bibliotheken oder Konventionen darin stehen.
 
-Du schreibst nüchtern, auf Deutsch, in kurzen Sätzen. Anforderungen sind prüfbar formuliert und
+Du schreibst nüchtern und in kurzen Sätzen. Anforderungen sind prüfbar formuliert und
 durchnummeriert. Was du nicht sicher weißt, kommt als offene Frage ans Ende, statt geraten zu
 werden. Du änderst keinen Code und legst keine Tickets an.`,
     model: DEFAULT_AGENT_MODEL,
     effort: 'high',
   },
   pm: {
-    name: 'Projektleitung',
-    title: 'Ticketschnitt',
+    nameKey: 'main.agent.default.pm.name',
+    titleKey: 'main.agent.default.pm.title',
     systemPrompt: `Du zerlegst ein Pflichtenheft in Tickets für ein lokales Code-Repository.
 
 Jedes Ticket ist ein abgeschlossenes Arbeitspaket: eine Person kann es in einem Zug erledigen,
 ohne auf ein anderes offenes Ticket zu warten. Jedes Ticket nennt die betroffenen Dateien oder
 Bereiche und hat Akzeptanzkriterien, an denen sich prüfen lässt, ob es fertig ist.
 
-Du schneidest lieber wenige, tragfähige Tickets als viele winzige. Du schreibst auf Deutsch,
-änderst keinen Code und legst Tickets ausschließlich über das Werkzeug an.`,
+Du schneidest lieber wenige, tragfähige Tickets als viele winzige. Du änderst keinen Code und
+legst Tickets ausschließlich über das Werkzeug an.`,
     model: DEFAULT_AGENT_MODEL,
     effort: 'high',
   },
   reviewer: {
-    name: 'Review',
-    title: 'Abnahme',
+    nameKey: 'main.agent.default.reviewer.name',
+    titleKey: 'main.agent.default.reviewer.title',
     systemPrompt: `Du prüfst die Arbeit anderer Agenten in einem lokalen Code-Repository.
 
 Du glaubst keiner Statusmeldung, sondern schaust in den Code: Ist umgesetzt, was das
@@ -58,8 +61,8 @@ Pflichtenheft verlangt? Halten die Akzeptanzkriterien der Tickets? Gibt es Platz
 Funktionsrümpfe oder Reste, die nichts tun?
 
 Du führst keine Test-Suites und keine vollständigen Builds aus. Du änderst selbst keinen Code.
-Du schreibst auf Deutsch, benennst Mängel konkret mit Datei und Stelle und meldest das Ergebnis
-ausschließlich über das dafür vorgesehene Werkzeug.`,
+Du benennst Mängel konkret mit Datei und Stelle und meldest das Ergebnis ausschließlich über
+das dafür vorgesehene Werkzeug.`,
     model: DEFAULT_AGENT_MODEL,
     effort: 'high',
   },
@@ -74,9 +77,10 @@ export function ensureRoleAgent(projectId: string, role: 'planner' | 'pm' | 'rev
   if (existing) return existing
 
   const template = DEFAULT_AGENT_TEMPLATES[role]
+  const t = mainT()
   const created = agents.create({
-    name: template.name,
-    title: template.title,
+    name: t(template.nameKey),
+    title: t(template.titleKey),
     role,
     systemPrompt: template.systemPrompt,
     model: template.model,
@@ -109,9 +113,5 @@ export function resolveWorkers(projectId: string, selectedAgentIds: readonly str
 /** Meldung, wenn kein Umsetzer bereitsteht — die Engine legt für diese Rolle nichts an. */
 export function missingWorkerMessage(projectId: string): string {
   const any = listProjectAgents(projectId).some((agent) => agent.role === 'worker')
-  return any
-    ? 'Alle Agenten mit der Rolle „Umsetzung" sind gestoppt oder nicht ausgewählt. ' +
-        'Gib mindestens einen frei, damit das Vorhaben arbeiten kann.'
-    : 'Diesem Projekt ist kein Agent mit der Rolle „Umsetzung" zugeordnet. ' +
-        'Lege einen an, bevor du ein Vorhaben startest.'
+  return any ? mainT()('main.goal.workersStopped') : mainT()('main.goal.workersMissing')
 }

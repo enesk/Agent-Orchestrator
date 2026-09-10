@@ -13,6 +13,7 @@ import { registerAttachmentProtocol, registerAttachmentSchemePrivileges } from '
 import { getSettings } from './settings'
 import { createTray, destroyTray, refreshTray, setTrayStatusSources } from './tray'
 import { createMainWindow, getMainWindow, isQuitting, setQuitting } from './window'
+import { mainT } from './settings'
 
 // Eigener Datenordner: v1 heißt ebenfalls `orchestrator-agent` und legt dort eine
 // `orchestrator.db` in einem völlig anderen Schema ab. Muss vor jedem `app.getPath('userData')`
@@ -53,7 +54,9 @@ async function bootstrap(): Promise<void> {
     logger.error('app', 'Datenbank konnte nicht geöffnet werden', describeError(error))
     // Ein stiller Schemabruch ist der schlechteste Ausgang: lieber sichtbar abbrechen.
     dialog.showErrorBox(
-      error instanceof SchemaMismatchError ? 'Datenbank passt nicht' : 'Datenbank nicht lesbar',
+      error instanceof SchemaMismatchError
+        ? mainT()('main.dialog.schemaMismatch')
+        : mainT()('main.dialog.databaseUnreadable'),
       error instanceof Error ? error.message : String(error),
     )
     app.exit(1)

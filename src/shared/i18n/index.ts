@@ -6,7 +6,17 @@ import type { Language, Message, MessageParams, PluralForms } from './types'
 
 export type { Language, Message, MessageParams, PluralForms } from './types'
 export type { Catalog, TranslationKey } from './de'
-export * from './format'
+export {
+  LOCALES,
+  formatBytes,
+  formatDate,
+  formatDateTime,
+  formatDuration,
+  formatNumber,
+  formatRelativeTime,
+  formatTime,
+  formatTimeWithSeconds,
+} from './format'
 
 export const LANGUAGES: readonly Language[] = ['de', 'en', 'tr']
 
@@ -19,7 +29,22 @@ export const LANGUAGE_LABELS: Record<Language, string> = {
   tr: 'Türkçe',
 }
 
+/**
+ * Die Namen der Sprachen auf Deutsch. Die Anweisungen an die Agenten bleiben deutsch — nur der
+ * eine Satz, der die Antwortsprache nennt, greift auf diese Namen zurück.
+ */
+export const LANGUAGE_NAMES_DE: Record<Language, string> = {
+  de: 'Deutsch',
+  en: 'Englisch',
+  tr: 'Türkisch',
+}
+
 const CATALOGS: Record<Language, Catalog> = { de, en, tr }
+
+/** Prüft einen zur Laufzeit gebauten Schlüssel, bevor er an `t()` geht. */
+export function isTranslationKey(value: string): value is TranslationKey {
+  return Object.hasOwn(de, value)
+}
 
 export function isLanguage(value: unknown): value is Language {
   return typeof value === 'string' && (LANGUAGES as readonly string[]).includes(value)

@@ -1,5 +1,5 @@
 import { Notification } from 'electron'
-import { getSettings } from './settings'
+import { getSettings, mainT } from './settings'
 import { createMainWindow, getMainWindow } from './window'
 
 export interface NotifyOptions {
@@ -31,7 +31,7 @@ export function notify(options: NotifyOptions): void {
 
 /** Ein Agent ist mit seinem Lauf fertig. */
 export function notifyAgentDone(agentName: string, summary: string): void {
-  notify({ title: `${agentName} ist fertig`, body: shorten(summary) })
+  notify({ title: mainT()('main.notify.done', { name: agentName }), body: shorten(summary) })
 }
 
 /** Etwas ist schiefgegangen und der Nutzer sollte es erfahren, auch außerhalb des Fensters. */

@@ -45,6 +45,7 @@ import { describeRunFailure } from './errors'
 import { mentionedAgents, mentionedOutsideProject, resolveMentions } from './mentions'
 import { resolveThreadTarget, type ThreadTarget } from './threadTarget'
 import { toolLabel } from './toolLabels'
+import { mainT } from '../app/settings'
 
 const log = scopedLogger('chat')
 
@@ -74,7 +75,7 @@ export interface SendInput {
  */
 export function send(input: SendInput): ChatMessage {
   const project = getProject(input.projectId)
-  if (!project) throw new Error('Dieses Projekt existiert nicht mehr.')
+  if (!project) throw new Error(mainT()('main.error.projectGone'))
 
   const agents = listProjectAgents(project.id)
   const mentioned = resolveMentions(agents, input.content, input.mentions)
@@ -108,9 +109,7 @@ export function send(input: SendInput): ChatMessage {
     const names = stopped.map((agent) => agent.name).join(', ')
     systemMessage(
       project.id,
-      stopped.length === 1
-        ? `⏹ ${names} ist gestoppt und wurde nicht gestartet.`
-        : `⏹ ${names} sind gestoppt und wurden nicht gestartet.`,
+      mainT()('main.system.stopped', { count: stopped.length, names }),
       replyToId,
     )
   }
@@ -151,24 +150,17 @@ function unansweredNote(
   /** Im Thread ermittelter Agent, der inzwischen nicht mehr zum Projekt gehört. */
   removed: Agent | null = null,
 ): string {
-  if (agents.length === 0) {
-    return (
-      'Diesem Projekt ist kein Agent zugeordnet — die Nachricht steht nur im Verlauf. ' +
-      'Ordne dem Projekt unter „Agenten" mindestens einen Agenten zu.'
-    )
-  }
+  const t = mainT()
+  if (agents.length === 0) return t('main.system.noAgents')
 
   const keys = agents.map((agent) => agent.mentionKey).join(', ')
   const outside = removed ? [removed] : mentionedOutsideProject(agents, listAgents(), text)
   if (outside.length > 0) {
     const named = outside.map((agent) => `${agent.mentionKey} (${agent.name})`).join(', ')
-    return (
-      `${named} gehört nicht zu diesem Projekt und wurde deshalb nicht gestartet. ` +
-      `Ordne den Agenten dem Projekt zu oder erwähne: ${keys}`
-    )
+    return t('main.system.outsideProject', { named, keys })
   }
 
-  return `Niemand wurde erwähnt — die Nachricht steht nur im Verlauf. Verfügbar: ${keys}`
+  return t('main.system.noMention', { keys })
 }
 
 // ---------------------------------------------------------------------------
@@ -349,7 +341,7 @@ async function execute(
     })
     emitMessage(done, null)
     emitStatus(project.id, agent.id, 'idle', null, null)
-    notifyAgentDone(agent.name, done.content || 'Der Lauf ist beendet.')
+    notifyAgentDone(agent.name, done.content || mainT()('main.notify.doneFallback'))
 
     chain(options, done, depth, visited)
     return done
@@ -372,7 +364,7 @@ async function execute(
     })
     emitMessage(failed, null)
     emitStatus(project.id, agent.id, 'error', failure.message, message.id)
-    notifyError(`${agent.name} ist gescheitert`, failure.message)
+    notifyError(mainT()('main.notify.failed', { name: agent.name }), failure.message)
     log.error('Agentenlauf fehlgeschlagen', {
       projectId: project.id,
       agentId: agent.id,
@@ -407,7 +399,7 @@ function buildTask(projectId: string, trigger: ChatMessage): string {
 }
 
 function appendStopNote(text: string): string {
-  const note = '_⏹ Vom Nutzer gestoppt_'
+  const note = mainT()('main.system.stoppedByUser')
   const trimmed = text.trim()
   return trimmed ? `${trimmed}\n\n${note}` : note
 }
@@ -430,7 +422,7 @@ function chain(
   if (targets.length === 0) return
 
   if (depth + 1 > MAX_CHAIN_DEPTH) {
-    systemMessage(project.id, 'Maximale Agenten-Kette erreicht.', answer.replyToId)
+    systemMessage(project.id, mainT()('main.system.chainLimit'), answer.replyToId)
     return
   }
 
@@ -484,26 +476,26 @@ export function stopAgentRuns(projectId: string, agentId: string): void {
 /** Verwirft die fehlgeschlagene Antwort und startet denselben Agenten noch einmal. */
 export function retryMessage(messageId: string): ChatMessage {
   const message = getMessage(messageId)
-  if (!message) throw new Error('Diese Nachricht existiert nicht mehr.')
+  if (!message) throw new Error(mainT()('main.error.messageGone'))
   if (message.role !== 'agent' || !message.agentId) {
-    throw new Error('Nur Antworten eines Agenten lassen sich wiederholen.')
+    throw new Error(mainT()('main.error.retryAgentOnly'))
   }
   if (activeRuns.has(messageId)) {
-    throw new Error('Dieser Lauf läuft noch — stoppe ihn zuerst.')
+    throw new Error(mainT()('main.error.stillRunning'))
   }
 
   const project = getProject(message.projectId)
-  if (!project) throw new Error('Dieses Projekt existiert nicht mehr.')
+  if (!project) throw new Error(mainT()('main.error.projectGone'))
 
   const agent = listProjectAgents(project.id).find((candidate) => candidate.id === message.agentId)
-  if (!agent) throw new Error('Dieser Agent gehört nicht mehr zum Projekt.')
+  if (!agent) throw new Error(mainT()('main.error.agentLeftProject'))
   if (agent.stopped) throw new Error(`${agent.name} ist gestoppt.`)
 
   const triggerId = message.metadata.triggerMessageId
   const trigger =
     (typeof triggerId === 'string' ? getMessage(triggerId) : null) ??
     (message.replyToId ? getMessage(message.replyToId) : null)
-  if (!trigger) throw new Error('Die auslösende Nachricht gibt es nicht mehr.')
+  if (!trigger) throw new Error(mainT()('main.error.triggerGone'))
 
   const started = startAgentRun({
     project,

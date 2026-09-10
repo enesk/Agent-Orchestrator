@@ -1,7 +1,9 @@
 import { AGENT_ROLES, type AgentRole } from '@shared/constants'
+import { LANGUAGE_NAMES_DE } from '@shared/i18n'
+import { getLanguage, mainT } from '../app/settings'
 
 /**
- * Erzeugt aus einer Kurzbeschreibung einen deutschen Systemprompt. Der eigentliche
+ * Erzeugt aus einer Kurzbeschreibung einen Systemprompt in der eingestellten Sprache. Der eigentliche
  * Claude-Aufruf gehört dem ClaudeRunner — es gibt genau eine Stelle, die die CLI startet.
  * Deshalb wird hier nur ein Ausführer angemeldet; solange keiner da ist, schlägt die
  * Erzeugung mit einer sprechenden Meldung fehl.
@@ -45,29 +47,30 @@ const PROMPT_MARKER = 'PROMPT:'
  * Anführungszeichen durcheinander, und ein einziges unmaskiertes `"` machte die Antwort
  * unlesbar — dann landete der Rohtext im Feld des Nutzers.
  */
-const META_PROMPT = `Du schreibst Systemprompts für KI-Agenten, die in einer lokalen
+function metaPrompt(): string {
+  const language = LANGUAGE_NAMES_DE[getLanguage()]
+  return `Du schreibst Systemprompts für KI-Agenten, die in einer lokalen
 Entwicklungs-App an echten Code-Repositories arbeiten.
 
 Antworte in genau diesem Format, ohne Einleitung, ohne Code-Zäune:
 
-${TITLE_MARKER} <kurze deutsche Rollenbezeichnung, höchstens vier Wörter>
+${TITLE_MARKER} <kurze Rollenbezeichnung auf ${language}, höchstens vier Wörter>
 ${PROMPT_MARKER}
 <der Systemprompt>
 
-Der Systemprompt ist deutsch, in zweiter Person, 120 bis 250 Wörter, und beschreibt Aufgabe,
-Arbeitsweise, Grenzen und Tonfall des Agenten. Erfinde keine Werkzeuge und keine Namen von
-Kolleginnen oder Kollegen.`
+Titel und Systemprompt sind auf ${language} — der Nutzer liest beides. Der Systemprompt steht
+in zweiter Person, umfasst 120 bis 250 Wörter und beschreibt Aufgabe, Arbeitsweise, Grenzen und
+Tonfall des Agenten. Erfinde keine Werkzeuge und keine Namen von Kolleginnen oder Kollegen.`
+}
 
 export async function generateAgentPrompt(
   request: PromptGenerationRequest,
 ): Promise<PromptGenerationResult> {
   if (!runner) {
-    throw new Error(
-      'Die Claude-Anbindung ist noch nicht bereit — der Systemprompt kann gerade nicht erzeugt werden.',
-    )
+    throw new Error(mainT()('main.error.promptUnavailable'))
   }
 
-  const answer = await runner({ prompt: buildUserPrompt(request), systemPrompt: META_PROMPT })
+  const answer = await runner({ prompt: buildUserPrompt(request), systemPrompt: metaPrompt() })
   return parseAnswer(answer, request)
 }
 
@@ -95,7 +98,7 @@ function parseAnswer(answer: string, request: PromptGenerationRequest): PromptGe
   if (json) return json
 
   if (!text) {
-    throw new Error(`Claude hat keinen Systemprompt für "${request.description}" geliefert.`)
+    throw new Error(mainT()('main.error.promptEmpty', { description: request.description }))
   }
   return { systemPrompt: text, title: null }
 }

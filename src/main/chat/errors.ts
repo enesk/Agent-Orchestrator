@@ -1,4 +1,5 @@
-import { RateLimitError } from '../claude'
+import { RateLimitError, RunError } from '../claude'
+import { mainT } from '../app/settings'
 
 export interface RunFailure {
   code: string
@@ -15,26 +16,12 @@ export function describeRunFailure(error: unknown): RunFailure {
     return { code: 'rate_limit', message: error.message }
   }
 
+  // Der Code kommt vom Werfenden, nicht aus einem Textmuster: die Meldungen stehen in der
+  // eingestellten Sprache und ließen sich sonst nicht mehr einordnen.
+  if (error instanceof RunError) {
+    return { code: error.code, message: error.message }
+  }
+
   const message = error instanceof Error ? error.message : String(error)
-
-  if (/nicht gestartet werden/i.test(message)) {
-    return {
-      code: 'cli_unavailable',
-      message: `${message} Prüfe den Pfad zur Claude-CLI in den Einstellungen.`,
-    }
-  }
-  if (/Projektpfad/i.test(message)) {
-    return { code: 'project_path', message }
-  }
-  if (/nicht geantwortet/i.test(message)) {
-    return { code: 'timeout', message }
-  }
-  if (/gespeicherte Claude-Session/i.test(message)) {
-    return { code: 'session_lost', message }
-  }
-  if (/beendet/i.test(message)) {
-    return { code: 'process_failed', message }
-  }
-
-  return { code: 'unknown', message: message || 'Der Agent hat nicht geantwortet.' }
+  return { code: 'unknown', message: message || mainT()('chat.message.noAnswer') }
 }

@@ -23,6 +23,7 @@ import { runWorkPhase } from './WorkerPool'
 import { GoalAbortedError, throwIfAborted } from './runAgent'
 import { emptyCheckpoint, readCheckpoint, type GoalCheckpoint, type GoalPhase } from './types'
 import type { Goal, GoalLogEntry, Project, Ticket } from '@shared/types'
+import { mainT } from '../app/settings'
 
 const log = scopedLogger('goals')
 
@@ -94,7 +95,7 @@ export function startFromTickets(input: StartFromTicketsInput): Goal {
     .map((id) => getTicket(id))
     .filter((ticket): ticket is Ticket => ticket !== null && ticket.projectId === project.id)
   if (chosen.length === 0) {
-    throw new Error('Keines der ausgewählten Tickets gehört zu diesem Projekt.')
+    throw new Error(mainT()('main.error.goalTicketsForeign'))
   }
 
   const goal = withTransaction(() => {
@@ -146,7 +147,7 @@ export function cancel(goalId: number): Goal {
 export function retry(goalId: number): Goal {
   const goal = getGoal(goalId)
   if (!goal) throw new Error(`Vorhaben ${goalId} existiert nicht.`)
-  if (running.has(goalId)) throw new Error('Dieses Vorhaben läuft bereits.')
+  if (running.has(goalId)) throw new Error(mainT()('main.error.goalAlreadyRunning'))
 
   const phase = resumePhase(goal)
   const updated = updateGoal(goalId, {
@@ -260,7 +261,7 @@ async function drive(ctx: GoalContext): Promise<void> {
             `Die Abnahme verlangt nach ${MAX_REVIEW_CYCLES} Durchläufen immer noch Nacharbeit.`,
           )
         }
-        ctx.log({ message: `Nacharbeit, Runde ${cycle}`, phase: 'review' })
+        ctx.log({ message: mainT()('main.goalLog.reworkRound', { round: cycle }), phase: 'review' })
         phase = 'work'
         break
       }
@@ -288,7 +289,11 @@ function finish(ctx: GoalContext): void {
     }),
   )
   emitGoalChanged(goal)
-  ctx.log({ message: `Vorhaben abgeschlossen — ${done} Tickets erledigt`, phase: 'done', status: 'success' })
+  ctx.log({
+    message: mainT()('main.goalLog.goalDone', { count: done }),
+    phase: 'done',
+    status: 'success',
+  })
   log.info('Vorhaben abgeschlossen', { goalId: ctx.goalId })
 }
 
@@ -337,7 +342,7 @@ function requireProject(projectId: string): Project {
   if (!project) throw new Error(`Projekt ${projectId} existiert nicht.`)
 
   const warning = projects.checkPath(project.path)
-  if (warning) throw new Error(`${warning} Ohne gültigen Projektpfad kann kein Vorhaben laufen.`)
+  if (warning) throw new Error(mainT()('main.error.goalNoPath', { warning }))
   return project
 }
 

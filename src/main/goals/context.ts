@@ -3,6 +3,8 @@ import { appendGoalLog, getGoal, updateGoal } from '../db/repositories/goals'
 import { emitEvent } from '../ipc/events'
 import { readCheckpoint, type GoalCheckpoint, type GoalPhase } from './types'
 import type { Goal, GoalLogStatus, Project } from '@shared/types'
+import { formatTimeWithSeconds } from '@shared/i18n'
+import { getLanguage, mainT } from '../app/settings'
 
 export interface GoalLogInput {
   message: string
@@ -122,7 +124,11 @@ export function reportRateLimit(
   return ({ resumeAt, attempt }) => {
     ctx.patchCheckpoint({ resumeAt })
     ctx.log({
-      message: `Rate-Limit — ${what} wird um ${formatTime(resumeAt)} fortgesetzt (Versuch ${attempt})`,
+      message: mainT()('main.goalLog.rateLimit', {
+        what,
+        time: formatTime(resumeAt),
+        attempt,
+      }),
       phase,
       agentId,
     })
@@ -144,6 +150,5 @@ export function reportActivity(
 }
 
 function formatTime(iso: string): string {
-  const date = new Date(iso)
-  return Number.isNaN(date.getTime()) ? iso : date.toLocaleTimeString('de-DE')
+  return formatTimeWithSeconds(getLanguage(), iso)
 }

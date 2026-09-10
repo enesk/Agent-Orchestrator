@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GoalLogEntry, ProjectAgent, Ticket } from '@shared/types'
+import { isTranslationKey } from '@shared/i18n'
 import { useFormat, useT } from '../../i18n'
 import { Button, Spinner, cn } from '../../ui'
 
@@ -84,7 +85,11 @@ interface LogRowProps {
 }
 
 function LogRow({ entry, agentName, ticketNumber }: LogRowProps) {
+  const t = useT()
   const format = useFormat()
+  // Die Engine schreibt feste Phasenkürzel; alles Unbekannte steht unverändert da.
+  const phaseKey = `goal.phase.${entry.phase}`
+  const phase = entry.phase && isTranslationKey(phaseKey) ? t(phaseKey) : entry.phase
   return (
     <li className="flex items-start gap-2 px-3 py-1.5">
       <StatusMark status={entry.status} />
@@ -95,7 +100,7 @@ function LogRow({ entry, agentName, ticketNumber }: LogRowProps) {
         <p className="whitespace-pre-wrap break-words text-xs text-ink">{entry.message}</p>
         {(entry.phase || agentName || ticketNumber !== null) && (
           <p className="mt-0.5 flex flex-wrap gap-x-2 text-[11px] text-ink-faint">
-            {entry.phase && <span>{entry.phase}</span>}
+            {phase && <span>{phase}</span>}
             {agentName && <span>{agentName}</span>}
             {ticketNumber !== null && <span>#{ticketNumber}</span>}
           </p>

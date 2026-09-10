@@ -1,3 +1,4 @@
+export { RunError } from './RunError'
 export {
   augmentedPath,
   buildClaudeArgs,

@@ -5,6 +5,7 @@ import { emitGoalChanged, reportRateLimit, type GoalContext } from '../context'
 import { ensureRoleAgent } from '../defaultAgents'
 import { SPEC_ROLE_NOTE, buildSpecPrompt, specDocumentTitle } from '../prompts'
 import { runGoalAgent } from '../runAgent'
+import { mainT } from '../../app/settings'
 
 /**
  * Der Agent mit der Rolle `planner` schreibt das Pflichtenheft und legt es über `doc_save` ab.
@@ -16,7 +17,7 @@ export async function runSpecPhase(ctx: GoalContext): Promise<string> {
   const agent = ensureRoleAgent(ctx.project.id, 'planner')
   const title = specDocumentTitle(goal)
 
-  ctx.log({ message: 'Pflichtenheft wird geschrieben', phase: 'spec', agentId: agent.id })
+  ctx.log({ message: mainT()('main.goalLog.specStart'), phase: 'spec', agentId: agent.id })
 
   const result = await runGoalAgent({
     goalId: goal.id,
@@ -25,7 +26,7 @@ export async function runSpecPhase(ctx: GoalContext): Promise<string> {
     roleNote: SPEC_ROLE_NOTE,
     prompt: buildSpecPrompt(goal),
     label: 'goal-spec',
-    chatLine: `Schreibt das Pflichtenheft für „${goal.title}"`,
+    chatLine: mainT()('main.goal.chat.spec', { title: goal.title }),
     signal: ctx.signal,
     onRateLimit: reportRateLimit(ctx, 'spec', agent.id, 'das Pflichtenheft'),
   })
@@ -33,7 +34,7 @@ export async function runSpecPhase(ctx: GoalContext): Promise<string> {
   let document = findDocumentByTitle(ctx.project.id, title)
   if (!document) {
     if (!result.text.trim()) {
-      throw new Error('Die Planung hat kein Pflichtenheft geliefert.')
+      throw new Error(mainT()('main.error.goalNoSpec'))
     }
     document = documents.save({
       projectId: ctx.project.id,
@@ -42,7 +43,7 @@ export async function runSpecPhase(ctx: GoalContext): Promise<string> {
       agentId: agent.id,
     })
     ctx.log({
-      message: 'Das Pflichtenheft kam nicht über das Werkzeug — die Antwort wurde gesichert',
+      message: mainT()('main.goalLog.specSalvaged'),
       phase: 'spec',
       agentId: agent.id,
       status: 'running',
@@ -52,7 +53,7 @@ export async function runSpecPhase(ctx: GoalContext): Promise<string> {
   emitGoalChanged(updateGoal(goal.id, { specDocumentId: document.id }))
   ctx.patchCheckpoint({ resumeAt: null })
   ctx.log({
-    message: `Pflichtenheft steht: „${document.title}"`,
+    message: mainT()('main.goalLog.specDone', { title: document.title }),
     phase: 'spec',
     agentId: agent.id,
     status: 'success',

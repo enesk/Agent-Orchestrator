@@ -1,21 +1,14 @@
+import { isTranslationKey } from '@shared/i18n'
 import { MCP_TOOL_PREFIX } from '../mcp'
+import { mainT } from '../app/settings'
 
-/** Deutsche Beschriftung der eigenen Werkzeuge; alles andere behält seinen CLI-Namen. */
-const LABELS: Record<string, string> = {
-  ticket_create: 'Ticket anlegen',
-  ticket_update: 'Ticket ändern',
-  ticket_comment: 'Ticket kommentieren',
-  ticket_list: 'Tickets lesen',
-  ticket_get: 'Ticket lesen',
-  doc_save: 'Dokument speichern',
-  doc_get: 'Dokument lesen',
-  doc_list: 'Dokumente auflisten',
-  memory_save: 'Merken',
-  memory_delete: 'Erinnerung löschen',
-  goal_report: 'Rückmeldung',
-}
-
+/**
+ * Beschriftung der eigenen Werkzeuge in der eingestellten Sprache; alles andere behält seinen
+ * CLI-Namen. Die Beschriftung wird beim Schreiben festgehalten — ältere Nachrichten behalten
+ * deshalb die Sprache, in der sie entstanden sind.
+ */
 export function toolLabel(name: string): string {
   const short = name.startsWith(MCP_TOOL_PREFIX) ? name.slice(MCP_TOOL_PREFIX.length) : name
-  return LABELS[short] ?? short
+  const key = `main.tool.${short}`
+  return isTranslationKey(key) ? mainT()(key) : short
 }

@@ -2,6 +2,7 @@ import { TICKET_CATEGORIES, TICKET_STATUS_LABELS } from '@shared/constants'
 import { TOOL_INSTRUCTIONS } from '../mcp'
 import * as memory from '../memory/MemoryService'
 import type { Agent, Goal, Ticket } from '@shared/types'
+import { mainT } from '../app/settings'
 
 /** So viel Pflichtenheft passt in einen Worker-Prompt, ohne ihn zu sprengen. */
 const SPEC_EXCERPT_LIMIT = 2_000
@@ -213,7 +214,7 @@ export function buildWorkerPrompt(input: WorkerPromptInput): string {
 
 /** Die kurze Zeile, die im Chat-Verlauf erscheint — der volle Prompt bleibt draußen. */
 export function workerChatLine(ticket: Ticket): string {
-  return `Arbeite Ticket #${ticket.number} ab: ${ticket.title}`
+  return mainT()('main.goal.chat.worker', { number: ticket.number, title: ticket.title })
 }
 
 // --- Review -----------------------------------------------------------------

@@ -12,8 +12,11 @@ import {
   type SessionScope,
 } from './SessionCache'
 import { StreamParser, detectRateLimit, type RateLimitHint } from './StreamParser'
+import { RunError } from './RunError'
 import { resolveClaudeBinary } from './status'
 import { describeError, scopedLogger } from '../Logger'
+import { LANGUAGE_NAMES_DE } from '@shared/i18n'
+import { getLanguage, mainT } from '../app/settings'
 
 const log = scopedLogger('claude.runner')
 
@@ -165,7 +168,7 @@ export function killAllRuns(): number {
 
 function assertUsableCwd(cwd: string): void {
   if (!cwd || !cwd.trim()) {
-    throw new Error('Für dieses Projekt ist kein Projektpfad hinterlegt.')
+    throw new RunError('project_path', mainT()('main.error.noProjectPath'))
   }
   let stat
   try {
@@ -184,6 +187,20 @@ function assertUsableCwd(cwd: string): void {
  * Repository an, statt das vorhandene zu ändern. Steht hier und nicht in den Prompt-Bausteinen,
  * weil jeder Lauf — Chat wie Vorhaben — durch diesen Runner geht.
  */
+/**
+ * Der einzige Satz, den die Spracheinstellung im Prompt bekommt. Die Anweisungen selbst
+ * bleiben deutsch: sie sind abgestimmt, Claude versteht alle drei Sprachen, und eine
+ * Übersetzung würde erprobtes Verhalten ohne Not verändern.
+ */
+function languageRule(): string {
+  const name = LANGUAGE_NAMES_DE[getLanguage()]
+  return [
+    '## Sprache',
+    `Antworte auf ${name} und schreibe auch Ticket-Kommentare, Dokumente und Erinnerungen auf ${name} —`,
+    'unabhängig davon, in welcher Sprache dieser Prompt verfasst ist.',
+  ].join('\n')
+}
+
 function workspaceRule(cwd: string): string {
   return [
     '## Arbeitsordner',
@@ -263,7 +280,7 @@ export function run(request: RunRequest): RunHandle {
       model: request.model,
       effort: request.effort,
       resumeId,
-      systemPromptAppend: [workspaceRule(request.cwd), request.systemPromptAppend]
+      systemPromptAppend: [workspaceRule(request.cwd), languageRule(), request.systemPromptAppend]
         .filter((part): part is string => Boolean(part?.trim()))
         .join('\n\n'),
       mcp: request.mcp,
@@ -329,7 +346,14 @@ export function run(request: RunRequest): RunHandle {
           stdio: ['pipe', 'pipe', 'pipe'],
         }) as ChildProcessWithoutNullStreams
       } catch (error) {
-        fail(new Error(`Claude-CLI konnte nicht gestartet werden: ${String(describeError(error).message)}`))
+        fail(
+          new RunError(
+            'cli_unavailable',
+            mainT()('main.error.cliStartFailed', {
+              reason: String(describeError(error).message),
+            }),
+          ),
+        )
         return
       }
       child = proc
@@ -393,7 +417,12 @@ export function run(request: RunRequest): RunHandle {
       })
 
       proc.on('error', (error) => {
-        fail(new Error(`Claude-CLI konnte nicht gestartet werden: ${error.message}`))
+        fail(
+          new RunError(
+            'cli_unavailable',
+            mainT()('main.error.cliStartFailed', { reason: error.message }),
+          ),
+        )
       })
 
       proc.on('close', (code) => {
@@ -421,7 +450,7 @@ export function run(request: RunRequest): RunHandle {
               durationMs,
             })
           } else {
-            fail(new Error('Claude hat 15 Minuten lang nicht geantwortet und wurde beendet.'))
+            fail(new RunError('timeout', mainT()('main.error.claudeTimeout')))
           }
           return
         }
@@ -476,23 +505,22 @@ export function run(request: RunRequest): RunHandle {
     if (rateLimit) {
       log.warn('Rate-Limit erkannt', { id, scopeKey, retryAfterMs: rateLimit.retryAfterMs })
       return new RateLimitError(
-        `Claude ist am Limit. Nächster Versuch in ${Math.round(rateLimit.retryAfterMs / 1000)} Sekunden.`,
+        mainT()('main.error.rateLimit', { seconds: Math.round(rateLimit.retryAfterMs / 1000) }),
         rateLimit.retryAfterMs,
       )
     }
 
     if (discardOnResumeFailure(scopeKey, owned, combined)) {
-      return new Error(
-        'Die gespeicherte Claude-Session war nicht mehr gültig. Der nächste Versuch startet neu.',
-      )
+      return new RunError('session_lost', mainT()('main.error.sessionLost'))
     }
 
     const detail = tail(combined) || (partialText.trim() ? tail(partialText) : '')
     log.error('Lauf fehlgeschlagen', { id, scopeKey, code, detail })
-    return new Error(
+    return new RunError(
+      'process_failed',
       detail
-        ? `Claude wurde mit Code ${code ?? '?'} beendet: ${detail}`
-        : `Claude wurde ohne Ergebnis mit Code ${code ?? '?'} beendet.`,
+        ? mainT()('main.error.exitWithDetail', { code: code ?? '?', detail })
+        : mainT()('main.error.exitWithoutResult', { code: code ?? '?' }),
     )
   }
 }

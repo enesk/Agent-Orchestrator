@@ -13,6 +13,7 @@ import { missingWorkerMessage, resolveWorkerCandidates, resolveWorkers } from '.
 import { WORKER_ROLE_NOTE, buildWorkerPrompt, workerChatLine } from './prompts'
 import { GoalAbortedError, runGoalAgent, sleep, throwIfAborted } from './runAgent'
 import type { ProjectAgent, Ticket } from '@shared/types'
+import { mainT } from '../app/settings'
 
 /** So viele Tickets laufen gleichzeitig. Mehr bringt nichts und macht die Ausgabe unlesbar. */
 const MAX_PARALLEL = 3
@@ -73,11 +74,14 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
   let waitingLogged = false
 
   absorb(false)
-  if (workset.size === 0) throw new Error('Dem Vorhaben ist kein Ticket zugeordnet.')
+  if (workset.size === 0) throw new Error(mainT()('main.error.goalNoTickets'))
 
   saveCheckpoint()
   ctx.log({
-    message: `Arbeitsphase gestartet: ${workset.size - done.size} von ${workset.size} Tickets offen`,
+    message: mainT()('main.goalLog.workStart', {
+      open: workset.size - done.size,
+      total: workset.size,
+    }),
     phase: 'work',
   })
 
@@ -123,7 +127,7 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
   }
 
   ctx.log({
-    message: `Arbeitsphase beendet: ${done.size} von ${workset.size} Tickets erledigt`,
+    message: mainT()('main.goalLog.workEnd', { done: done.size, total: workset.size }),
     phase: 'work',
     status: done.size === workset.size ? 'success' : 'failed',
   })
@@ -145,7 +149,10 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
 
       if (announce) {
         ctx.log({
-          message: `Ticket #${ticket.number} „${ticket.title}" kam neu dazu und wurde in die Warteschlange aufgenommen`,
+          message: mainT()('main.goalLog.ticketQueued', {
+            number: ticket.number,
+            title: ticket.title,
+          }),
           phase: 'work',
           ticketId: ticket.id,
         })
@@ -228,7 +235,7 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
   async function waitForAgent(): Promise<void> {
     if (!waitingLogged) {
       ctx.log({
-        message: 'Warte auf einen freien Agenten — alle sind gestoppt',
+        message: mainT()('main.goalLog.waitingForAgent'),
         phase: 'work',
       })
       waitingLogged = true
@@ -253,8 +260,15 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
     ctx.log({
       message:
         attempt === 1
-          ? `Ticket #${current.number} „${current.title}" wird bearbeitet`
-          : `Ticket #${current.number} „${current.title}" wird erneut bearbeitet (Versuch ${attempt})`,
+          ? mainT()('main.goalLog.ticketStarted', {
+              number: current.number,
+              title: current.title,
+            })
+          : mainT()('main.goalLog.ticketRetried', {
+              number: current.number,
+              title: current.title,
+              attempt,
+            }),
       phase: 'work',
       agentId: agent.id,
       ticketId: current.id,
@@ -295,7 +309,7 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
           agentId: agent.id,
           kind: 'blocked',
           blockingTicketNumber: report.blockingTicketNumber,
-          message: report.summary ?? `Ticket #${ticket.number} ist blockiert`,
+          message: report.summary ?? mainT()('main.goalLog.ticketBlocked', { number: ticket.number }),
         }
       }
 
@@ -307,7 +321,7 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
           agentId: agent.id,
           kind: 'done',
           blockingTicketNumber: null,
-          message: `Ticket #${ticket.number} erledigt`,
+          message: mainT()('main.goalLog.ticketDone', { number: ticket.number }),
         }
       }
 
@@ -316,7 +330,7 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
         agentId: agent.id,
         kind: 'unfinished',
         blockingTicketNumber: null,
-        message: `Ticket #${ticket.number} wurde nicht als erledigt gemeldet`,
+        message: mainT()('main.goalLog.ticketUnfinished', { number: ticket.number }),
       }
     } catch (error) {
       return {
@@ -326,8 +340,11 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
         blockingTicketNumber: null,
         message:
           error instanceof GoalAbortedError
-            ? `Ticket #${ticket.number} abgebrochen`
-            : `Ticket #${ticket.number} fehlgeschlagen: ${(error as Error).message}`,
+            ? mainT()('main.goalLog.ticketAborted', { number: ticket.number })
+            : mainT()('main.goalLog.ticketFailed', {
+                number: ticket.number,
+                reason: (error as Error).message,
+              }),
       }
     }
   }
@@ -385,7 +402,7 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
     }
 
     ctx.log({
-      message: `${message} — Versuch ${count} von ${MAX_ATTEMPTS}, das Ticket geht zurück in die Warteschlange`,
+      message: mainT()('main.goalLog.attempt', { message, count, max: MAX_ATTEMPTS }),
       phase: 'work',
       agentId,
       ticketId: ticket.id,
@@ -397,7 +414,11 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
     stuck.add(ticket.id)
     reopen(ticket.id)
     ctx.log({
-      message: `Ticket #${ticket.number} „${ticket.title}" bleibt vorerst liegen: ${reason}. Die Arbeitsphase läuft mit den übrigen Tickets weiter.`,
+      message: mainT()('main.goalLog.ticketParked', {
+        number: ticket.number,
+        title: ticket.title,
+        reason,
+      }),
       phase: 'work',
       agentId,
       ticketId: ticket.id,
@@ -423,7 +444,10 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
       if (blocking.goalId !== goal.id) tickets.update(blocking.id, { goalId: goal.id })
       if (blocking.status === 'done') done.add(blocking.id)
       ctx.log({
-        message: `Ticket #${blocking.number} „${blocking.title}" kommt als Vorbedingung dazu`,
+        message: mainT()('main.goalLog.blockerAdded', {
+          number: blocking.number,
+          title: blocking.title,
+        }),
         phase: 'work',
         ticketId: blocking.id,
       })
@@ -449,7 +473,11 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
     }
 
     ctx.log({
-      message: `Ticket #${ticket.number} wartet auf #${blocking.number} (Wiedervorlage ${count})`,
+      message: mainT()('main.goalLog.ticketWaits', {
+        number: ticket.number,
+        blocking: blocking.number,
+        count,
+      }),
       phase: 'work',
       agentId: outcome.agentId,
       ticketId: ticket.id,
@@ -482,7 +510,11 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
         workset.set(dep.id, dep)
         if (dep.goalId !== goal.id) tickets.update(dep.id, { goalId: goal.id })
         ctx.log({
-          message: `Ticket #${dep.number} „${dep.title}" ist Vorbedingung von #${ticket.number} und wurde ins Vorhaben geholt`,
+          message: mainT()('main.goalLog.dependencyPulled', {
+            number: dep.number,
+            title: dep.title,
+            target: ticket.number,
+          }),
           phase: 'work',
           ticketId: dep.id,
         })
@@ -502,7 +534,11 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
         tried[depId] = []
         requeues[depId] = 0
         ctx.log({
-          message: `Vorbedingung #${dep.number} „${dep.title}" lag liegen und bekommt Vorrang — sie blockiert Ticket #${ticket.number}`,
+          message: mainT()('main.goalLog.dependencyPrioritised', {
+            number: dep.number,
+            title: dep.title,
+            target: ticket.number,
+          }),
           phase: 'work',
           ticketId: dep.id,
         })
@@ -577,9 +613,12 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
     dropDependency(
       weakest,
       successorId,
-      `Ringschluss aufgelöst: ${ring} → #${members[0]?.number ?? ''} warten gegenseitig aufeinander. ` +
-        `Die Abhängigkeit von #${weakest.number} auf #${successor?.number ?? successorId} wurde entfernt, ` +
-        'weil dieses Ticket im Ring die wenigsten offenen Vorbedingungen hat.',
+      mainT()('main.goalLog.cycleBroken', {
+        ring,
+        first: members[0]?.number ?? '',
+        from: weakest.number,
+        to: successor?.number ?? successorId,
+      }),
     )
   }
 
@@ -594,7 +633,11 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
   function reportStuck(open: readonly Ticket[]): void {
     const list = open.map((ticket) => `#${ticket.number} „${ticket.title}"`).join(', ')
     ctx.log({
-      message: `Arbeitsphase endet mit ${open.length} liegengebliebenen Ticket(s): ${list}. Sie wurden je bis zu ${MAX_ATTEMPTS} Mal mit allen freigegebenen Agenten versucht.`,
+      message: mainT()('main.goalLog.stuck', {
+        count: open.length,
+        list,
+        max: MAX_ATTEMPTS,
+      }),
       phase: 'work',
       status: 'failed',
     })
@@ -607,11 +650,15 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
           .map((id) => getTicket(id))
           .filter((entry): entry is Ticket => entry !== null && entry.status !== 'done')
           .map((entry) => `#${entry.number}`)
-        return `#${ticket.number} „${ticket.title}" wartet auf ${blockers.join(', ') || 'nichts Auffindbares'}`
+        return mainT()('main.goalLog.waitsFor', {
+          number: ticket.number,
+          title: ticket.title,
+          blockers: blockers.join(', ') || mainT()('main.goalLog.nothingFound'),
+        })
       })
       .join('; ')
     ctx.log({
-      message: `Arbeitsphase endet: ${list}. Die Vorbedingungen sind liegengeblieben und ließen sich nicht weiter einplanen.`,
+      message: mainT()('main.goalLog.unresolved', { list }),
       phase: 'work',
       status: 'failed',
     })

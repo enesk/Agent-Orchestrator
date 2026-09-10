@@ -1,5 +1,5 @@
 import { dialog } from 'electron'
-import { getSettings, saveSettings } from '../app/settings'
+import { getSettings, mainT, saveSettings } from '../app/settings'
 import { refreshTray } from '../app/tray'
 import { getMainWindow } from '../app/window'
 import { refreshClaudeStatus } from '../claude'
@@ -18,8 +18,8 @@ export const settingsHandlers: DomainHandlers<'settings'> = {
   pickClaudePath: async () => {
     const window = getMainWindow()
     const options: Electron.OpenDialogOptions = {
-      title: 'Claude-CLI auswählen',
-      buttonLabel: 'Auswählen',
+      title: mainT()('main.dialog.pickClaudeTitle'),
+      buttonLabel: mainT()('main.dialog.pickClaudeButton'),
       defaultPath: getSettings().claudePath ?? '/usr/local/bin',
       properties: ['openFile', 'showHiddenFiles', 'dontAddToRecent'],
     }
