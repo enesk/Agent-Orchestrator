@@ -1,4 +1,6 @@
 export {
+  clearHistory,
+  countHistory,
   deleteMessage,
   history,
   retryMessage,
@@ -9,6 +11,7 @@ export {
   stopAgentRuns,
   stopMessage,
   thread,
+  type ClearHistoryInput,
   type RunAgentOptions,
   type SaveAttachmentInput,
   type SendInput,

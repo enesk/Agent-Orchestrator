@@ -19,6 +19,10 @@ export interface MessageListProps {
   onStop: (messageId: string) => void
   onDelete: (messageId: string) => void
   onOpenThread: ((messageId: string) => void) | null
+  /** Es liegen ältere Nachrichten bereit, die noch niemand geladen hat. */
+  hasOlder: boolean
+  loadingOlder: boolean
+  onLoadOlder: () => void
   className?: string
 }
 
@@ -34,10 +38,18 @@ export function MessageList({
   onStop,
   onDelete,
   onOpenThread,
+  hasOlder,
+  loadingOlder,
+  onLoadOlder,
   className,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [atBottom, setAtBottom] = useState(true)
+  /**
+   * Abstand zum unteren Ende, gemerkt kurz bevor oben Nachrichten eingefügt werden. Danach
+   * wird er wiederhergestellt — sonst spränge die Ansicht um die Höhe der neuen Nachrichten.
+   */
+  const restoreDistance = useRef<number | null>(null)
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
     const container = containerRef.current
@@ -56,10 +68,25 @@ export function MessageList({
   // Dem wachsenden Text folgen, solange der Nutzer unten steht — scrollt er hoch, bleibt
   // die Ansicht stehen und der Knopf „Nach unten" erscheint.
   useLayoutEffect(() => {
-    if (!atBottom) return
     const container = containerRef.current
-    if (container) container.scrollTop = container.scrollHeight
+    if (!container) return
+
+    const distance = restoreDistance.current
+    if (distance !== null) {
+      restoreDistance.current = null
+      container.scrollTop = container.scrollHeight - distance
+      return
+    }
+
+    if (!atBottom) return
+    container.scrollTop = container.scrollHeight
   }, [messages, atBottom])
+
+  function loadOlder(): void {
+    const container = containerRef.current
+    restoreDistance.current = container ? container.scrollHeight - container.scrollTop : null
+    onLoadOlder()
+  }
 
   useEffect(() => {
     scrollToBottom()
@@ -69,6 +96,21 @@ export function MessageList({
   return (
     <div className={cn('relative min-h-0 flex-1', className)}>
       <div ref={containerRef} onScroll={onScroll} className="h-full overflow-auto py-3">
+        {hasOlder && (
+          <div className="mb-2 flex justify-center px-4">
+            <button
+              type="button"
+              onClick={loadOlder}
+              disabled={loadingOlder}
+              className={cn(
+                'rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-muted',
+                'transition-colors hover:bg-raised hover:text-ink disabled:opacity-50',
+              )}
+            >
+              {loadingOlder ? 'Wird geladen …' : 'Ältere Nachrichten laden'}
+            </button>
+          </div>
+        )}
         {messages.map((message, index) => {
           const previous = messages[index - 1]
           const newDay = !previous || !isSameDay(previous.createdAt, message.createdAt)
@@ -90,10 +132,10 @@ export function MessageList({
                 tools={tools[message.id] ?? NO_TOOLS}
                 startsGroup={newDay || startsGroup(message, previous)}
                 replyCount={replyCounts[message.id] ?? 0}
-                onRetry={() => onRetry(message.id)}
-                onStop={() => onStop(message.id)}
-                onDelete={() => onDelete(message.id)}
-                onOpenThread={onOpenThread ? () => onOpenThread(message.id) : null}
+                onRetry={onRetry}
+                onStop={onStop}
+                onDelete={onDelete}
+                onOpenThread={onOpenThread}
               />
             </div>
           )

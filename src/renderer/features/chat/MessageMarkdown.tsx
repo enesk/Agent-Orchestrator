@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Components } from 'react-markdown'
 import { Markdown } from '../../ui'
 
@@ -37,7 +37,15 @@ export interface MessageMarkdownProps {
   className?: string
 }
 
-/** Markdown einer Chat-Nachricht — wie überall, nur mit Kopier-Knopf an Codeblöcken. */
+/**
+ * Markdown einer Chat-Nachricht — wie überall, nur mit Kopier-Knopf an Codeblöcken.
+ *
+ * Das Ergebnis hängt am Inhalt: Rendert die Nachricht aus einem anderen Grund neu, wird das
+ * Markdown nicht noch einmal geparst — das Teuerste, was die Liste tut.
+ */
 export function MessageMarkdown({ content, className }: MessageMarkdownProps) {
-  return <Markdown content={content} className={className} components={COMPONENTS} />
+  return useMemo(
+    () => <Markdown content={content} className={className} components={COMPONENTS} />,
+    [content, className],
+  )
 }

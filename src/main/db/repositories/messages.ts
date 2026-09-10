@@ -226,6 +226,75 @@ export function deleteProjectMessages(projectId: string): void {
   getDb().prepare('DELETE FROM messages WHERE project_id = ?').run(projectId)
 }
 
+export interface ClearHistoryOptions {
+  projectId: string
+  /** ISO-Zeitstempel; nur ältere Nachrichten werden gelöscht. `null` löscht alles. */
+  before?: string | null
+}
+
+/** Wie viele Nachrichten ein Bereinigen mit denselben Angaben träfe. */
+export function countMessagesToClear(options: ClearHistoryOptions): number {
+  const db = getDb()
+  const row = options.before
+    ? db
+        .prepare<[string, string], { count: number }>(
+          'SELECT COUNT(*) AS count FROM messages WHERE project_id = ? AND created_at < ?',
+        )
+        .get(options.projectId, options.before)
+    : db
+        .prepare<[string], { count: number }>(
+          'SELECT COUNT(*) AS count FROM messages WHERE project_id = ?',
+        )
+        .get(options.projectId)
+  return row?.count ?? 0
+}
+
+export interface ClearHistoryResult {
+  deleted: number
+  /** IDs der gelöschten Nachrichten — der Aufrufer bricht damit laufende Läufe ab. */
+  messageIds: string[]
+  /** `relative_path` der Anhänge, deren Dateien jetzt niemand mehr braucht. */
+  attachmentPaths: string[]
+}
+
+/**
+ * Löscht den Verlauf eines Projekts in einer Transaktion. Die Anhänge fallen per
+ * `ON DELETE CASCADE` mit, ihre Pfade werden vorher gesammelt — die Dateien auf der Platte
+ * räumt der Aufrufer weg, denn das Dateisystem kennt kein Rollback.
+ */
+export function clearProjectMessages(options: ClearHistoryOptions): ClearHistoryResult {
+  const db = getDb()
+  const clause = options.before
+    ? 'project_id = ? AND created_at < ?'
+    : 'project_id = ?'
+  const params: string[] = options.before
+    ? [options.projectId, options.before]
+    : [options.projectId]
+
+  const run = db.transaction((): ClearHistoryResult => {
+    const messageIds = db
+      .prepare<string[], { id: string }>(`SELECT id FROM messages WHERE ${clause}`)
+      .all(...params)
+      .map((row) => row.id)
+    if (messageIds.length === 0) return { deleted: 0, messageIds: [], attachmentPaths: [] }
+
+    // Nur Anhänge, die an keinem Ticket hängen — Tickets bleiben unberührt.
+    const attachmentPaths = db
+      .prepare<string[], { relative_path: string }>(
+        `SELECT relative_path FROM attachments
+          WHERE ticket_id IS NULL
+            AND message_id IN (SELECT id FROM messages WHERE ${clause})`,
+      )
+      .all(...params)
+      .map((row) => row.relative_path)
+
+    const deleted = db.prepare(`DELETE FROM messages WHERE ${clause}`).run(...params).changes
+    return { deleted, messageIds, attachmentPaths }
+  })
+
+  return run()
+}
+
 /** Nachrichten, die beim letzten Beenden mitten im Stream hingen. */
 export function markStaleStreamingMessages(): number {
   const result = getDb()

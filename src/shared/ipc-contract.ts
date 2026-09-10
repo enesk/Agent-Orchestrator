@@ -439,6 +439,22 @@ export const ipcContract = {
       request: z.object({ messageId: z.string() }),
       response: z.array(chatMessageSchema),
     },
+    /** Wie viele Nachrichten ein `clearHistory` mit denselben Angaben treffen würde. */
+    countHistory: {
+      request: z.object({
+        projectId: z.string(),
+        olderThanDays: z.number().int().positive().optional(),
+      }),
+      response: z.object({ count: z.number() }),
+    },
+    /** Ohne `olderThanDays` verschwindet der gesamte Verlauf des Projekts. */
+    clearHistory: {
+      request: z.object({
+        projectId: z.string(),
+        olderThanDays: z.number().int().positive().optional(),
+      }),
+      response: z.object({ deleted: z.number() }),
+    },
     saveAttachment: {
       request: z.object({
         fileName: z.string().min(1),
@@ -599,6 +615,11 @@ export const ipcEvents = {
     delta: z.string().nullable(),
   }),
   'chat.agentStatus': agentStatusUpdateSchema,
+  /** Ein gebündeltes Ereignis für das Bereinigen — nicht eines je gelöschter Nachricht. */
+  'chat.historyCleared': z.object({
+    projectId: z.string(),
+    deleted: z.number(),
+  }),
   'ticket.changed': z.object({
     projectId: z.string(),
     ticketId: z.string(),

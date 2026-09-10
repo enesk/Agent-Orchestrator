@@ -1,4 +1,6 @@
 import {
+  clearHistory,
+  countHistory,
   deleteMessage,
   history,
   retryMessage,
@@ -30,6 +32,10 @@ export const chatHandlers: DomainHandlers<'chat'> = {
     return { ok: true }
   },
   thread: (input) => thread(input.messageId),
+  countHistory: (input) =>
+    countHistory({ projectId: input.projectId, olderThanDays: input.olderThanDays ?? null }),
+  clearHistory: (input) =>
+    clearHistory({ projectId: input.projectId, olderThanDays: input.olderThanDays ?? null }),
   saveAttachment: (input) =>
     saveAttachment({
       fileName: input.fileName,

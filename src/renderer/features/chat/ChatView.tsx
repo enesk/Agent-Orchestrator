@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ProjectAgent } from '@shared/types'
 import { useAgentStore } from '../../store/agentStore'
 import { useChatStore } from '../../store/chatStore'
@@ -8,6 +8,7 @@ import { Button, EmptyState, Spinner, useConfirm } from '../../ui'
 import { AgentIcon, ChatIcon } from '../../ui/icons'
 import { AgentBar } from './AgentBar'
 import { Composer, type ComposerHandle } from './Composer'
+import { HistoryMenu, type ClearScope } from './HistoryMenu'
 import { MessageList } from './MessageList'
 import { ThreadPanel } from './ThreadPanel'
 
@@ -18,6 +19,9 @@ export function ChatView() {
   const tools = useChatStore((state) => state.tools)
   const activity = useChatStore((state) => state.activity)
   const loading = useChatStore((state) => state.loading)
+  const hasOlder = useChatStore((state) => state.hasOlder)
+  const loadingOlder = useChatStore((state) => state.loadingOlder)
+  const loadOlder = useChatStore((state) => state.loadOlder)
   const storeError = useChatStore((state) => state.error)
   const threadRootId = useChatStore((state) => state.threadRootId)
   const threadMessages = useChatStore((state) => state.threadMessages)
@@ -29,6 +33,7 @@ export function ChatView() {
   const retryMessage = useChatStore((state) => state.retry)
   const stopMessage = useChatStore((state) => state.stop)
   const removeMessage = useChatStore((state) => state.remove)
+  const clearHistory = useChatStore((state) => state.clearHistory)
   const openThread = useChatStore((state) => state.openThread)
 
   const agents = useAgentStore((state) => state.agents)
@@ -44,6 +49,8 @@ export function ChatView() {
   const composerRef = useRef<ComposerHandle>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [stopBusy, setStopBusy] = useState<Set<string>>(new Set())
+  const [clearBusy, setClearBusy] = useState(false)
+  const [clearNote, setClearNote] = useState<string | null>(null)
   const { confirm, dialog } = useConfirm()
 
   useEffect(() => {
@@ -91,14 +98,18 @@ export function ChatView() {
     [threadMessages, threadRootId],
   )
 
-  async function run(action: () => Promise<unknown>): Promise<void> {
+  /**
+   * Die Rückrufe unten hängen alle an `run` und müssen ihre Identität behalten: `MessageItem`
+   * ist memoisiert und würde bei einer neuen Funktion je Renderdurchlauf trotzdem neu rendern.
+   */
+  const run = useCallback(async (action: () => Promise<unknown>): Promise<void> => {
     setActionError(null)
     try {
       await action()
     } catch (caught) {
       setActionError(toErrorMessage(caught))
     }
-  }
+  }, [])
 
   async function toggleStopped(agent: ProjectAgent): Promise<void> {
     if (!projectId) return
@@ -118,15 +129,73 @@ export function ChatView() {
     })
   }
 
-  async function deleteMessage(messageId: string): Promise<void> {
-    const confirmed = await confirm({
-      title: 'Nachricht löschen',
-      message: 'Diese Nachricht löschen?',
-      confirmLabel: 'Löschen',
-      danger: true,
-    })
-    if (!confirmed) return
-    void run(() => removeMessage(messageId))
+  const handleDelete = useCallback(
+    (messageId: string): void => {
+      void (async () => {
+        const confirmed = await confirm({
+          title: 'Nachricht löschen',
+          message: 'Diese Nachricht löschen?',
+          confirmLabel: 'Löschen',
+          danger: true,
+        })
+        if (!confirmed) return
+        void run(() => removeMessage(messageId))
+      })()
+    },
+    [confirm, run, removeMessage],
+  )
+
+  const handleRetry = useCallback(
+    (messageId: string): void => void run(() => retryMessage(messageId)),
+    [run, retryMessage],
+  )
+
+  const handleStop = useCallback(
+    (messageId: string): void => void run(() => stopMessage(messageId)),
+    [run, stopMessage],
+  )
+
+  const handleOpenThread = useCallback(
+    (messageId: string): void => void openThread(messageId),
+    [openThread],
+  )
+
+  const handleLoadOlder = useCallback((): void => void loadOlder(), [loadOlder])
+
+  const scopeLabel = (scope: ClearScope): string =>
+    scope === null ? 'den gesamten Verlauf dieses Projekts' : `alles, was älter als ${scope} Tage ist`
+
+  async function clearScope(scope: ClearScope): Promise<void> {
+    if (!projectId) return
+    setClearNote(null)
+    setClearBusy(true)
+    try {
+      const { count } = await window.api.chat.countHistory({
+        projectId,
+        ...(scope === null ? {} : { olderThanDays: scope }),
+      })
+      if (count === 0) {
+        setClearNote('Es gibt nichts zu bereinigen.')
+        return
+      }
+
+      const confirmed = await confirm({
+        title: 'Verlauf bereinigen',
+        message: `${count === 1 ? '1 Nachricht' : `${count} Nachrichten`} werden gelöscht — ${scopeLabel(scope)}. Anhänge dieser Nachrichten verschwinden von der Platte, und die gespeicherten Claude-Sitzungen des Projekts werden verworfen. Tickets, Dokumente, Erinnerungen und Vorhaben bleiben unberührt.`,
+        confirmLabel: 'Löschen',
+        danger: true,
+      })
+      if (!confirmed) return
+
+      const deleted = await clearHistory(scope)
+      setClearNote(
+        deleted === 1 ? '1 Nachricht gelöscht.' : `${deleted} Nachrichten gelöscht.`,
+      )
+    } catch (caught) {
+      setActionError(toErrorMessage(caught))
+    } finally {
+      setClearBusy(false)
+    }
   }
 
   if (!projectId) {
@@ -142,13 +211,26 @@ export function ChatView() {
   return (
     <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        <AgentBar
-          agents={agents}
-          activity={activity}
-          busyIds={stopBusy}
-          onMention={(agent) => composerRef.current?.insertMention(agent.mentionKey)}
-          onToggleStopped={(agent) => void toggleStopped(agent)}
-        />
+        <div className="flex shrink-0 items-start gap-2 border-b border-line pr-3">
+          <div className="min-w-0 flex-1">
+            <AgentBar
+              agents={agents}
+              activity={activity}
+              busyIds={stopBusy}
+              onMention={(agent) => composerRef.current?.insertMention(agent.mentionKey)}
+              onToggleStopped={(agent) => void toggleStopped(agent)}
+            />
+          </div>
+          <div className="py-2">
+            <HistoryMenu busy={clearBusy} onSelect={(scope) => void clearScope(scope)} />
+          </div>
+        </div>
+
+        {clearNote && (
+          <p className="shrink-0 border-b border-line bg-surface px-3 py-1.5 text-xs text-ink-muted">
+            {clearNote}
+          </p>
+        )}
 
         {(storeError || actionError) && (
           <p className="shrink-0 border-b border-danger/30 bg-danger/10 px-3 py-1.5 text-xs text-danger">
@@ -199,10 +281,13 @@ export function ChatView() {
             agentById={agentById}
             tools={tools}
             replyCounts={replyCounts}
-            onRetry={(messageId) => void run(() => retryMessage(messageId))}
-            onStop={(messageId) => void run(() => stopMessage(messageId))}
-            onDelete={(id) => void deleteMessage(id)}
-            onOpenThread={(messageId) => void openThread(messageId)}
+            onRetry={handleRetry}
+            onStop={handleStop}
+            onDelete={handleDelete}
+            onOpenThread={handleOpenThread}
+            hasOlder={hasOlder}
+            loadingOlder={loadingOlder}
+            onLoadOlder={handleLoadOlder}
           />
         )}
 
@@ -233,9 +318,9 @@ export function ChatView() {
           loading={threadLoading}
           error={threadError}
           onClose={() => void openThread(null)}
-          onRetry={(messageId) => void run(() => retryMessage(messageId))}
-          onStop={(messageId) => void run(() => stopMessage(messageId))}
-          onDelete={(id) => void deleteMessage(id)}
+          onRetry={handleRetry}
+          onStop={handleStop}
+          onDelete={handleDelete}
           onSend={(input) =>
             sendMessage({
               content: input.content,

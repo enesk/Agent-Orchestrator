@@ -1,4 +1,5 @@
-import type { ChatMessage, ProjectAgent } from '@shared/types'
+import { memo } from 'react'
+import type { ChatMessage, MessageAttachment, ProjectAgent } from '@shared/types'
 import type { ToolEvent } from '../../store/chatStore'
 import { Spinner, cn } from '../../ui'
 import { AttachmentList } from '../attachments'
@@ -15,10 +16,15 @@ export interface MessageItemProps {
   /** Erste Nachricht einer Absenderfolge — nur sie zeigt Name und Uhrzeit. */
   startsGroup: boolean
   replyCount: number
-  onRetry: () => void
-  onStop: () => void
-  onDelete: () => void
-  onOpenThread: (() => void) | null
+  /**
+   * Die Rückrufe bekommen die Nachrichten-ID übergeben, statt sie zu schließen: Eine
+   * Pfeilfunktion je Nachricht und Renderdurchlauf hätte bei jedem Streaming-Ereignis eine
+   * neue Identität — `memo` unten liefe damit ins Leere.
+   */
+  onRetry: (messageId: string) => void
+  onStop: (messageId: string) => void
+  onDelete: (messageId: string) => void
+  onOpenThread: ((messageId: string) => void) | null
 }
 
 /** Fehlertext einer fehlgeschlagenen Nachricht — die Engine legt ihn in die Metadaten. */
@@ -42,7 +48,7 @@ function visibleErrorText(message: ChatMessage): string | null {
   return text
 }
 
-export function MessageItem({
+function MessageItemComponent({
   message,
   agent,
   agents,
@@ -70,25 +76,37 @@ export function MessageItem({
   const actions = (
     <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100">
       {streaming && (
-        <button type="button" onClick={onStop} className="text-[11px] text-ink-faint hover:text-ink">
+        <button
+          type="button"
+          onClick={() => onStop(message.id)}
+          className="text-[11px] text-ink-faint hover:text-ink"
+        >
           Stoppen
         </button>
       )}
       {message.status === 'error' && (
-        <button type="button" onClick={onRetry} className="text-[11px] text-ink-faint hover:text-ink">
+        <button
+          type="button"
+          onClick={() => onRetry(message.id)}
+          className="text-[11px] text-ink-faint hover:text-ink"
+        >
           Wiederholen
         </button>
       )}
       {onOpenThread && (
         <button
           type="button"
-          onClick={onOpenThread}
+          onClick={() => onOpenThread(message.id)}
           className="text-[11px] text-ink-faint hover:text-ink"
         >
           Im Thread antworten
         </button>
       )}
-      <button type="button" onClick={onDelete} className="text-[11px] text-ink-faint hover:text-danger">
+      <button
+        type="button"
+        onClick={() => onDelete(message.id)}
+        className="text-[11px] text-ink-faint hover:text-danger"
+      >
         Löschen
       </button>
     </div>
@@ -179,7 +197,7 @@ export function MessageItem({
                 </span>
                 <button
                   type="button"
-                  onClick={onRetry}
+                  onClick={() => onRetry(message.id)}
                   className="shrink-0 rounded border border-danger/40 px-1.5 py-0.5 text-[11px] text-danger hover:bg-danger/10"
                 >
                   Wiederholen
@@ -212,7 +230,7 @@ export function MessageItem({
           {replyCount > 0 && onOpenThread && (
             <button
               type="button"
-              onClick={onOpenThread}
+              onClick={() => onOpenThread(message.id)}
               className="mt-1 text-[11px] text-accent hover:underline"
             >
               {replyCount === 1 ? '1 Antwort' : `${replyCount} Antworten`}
@@ -225,3 +243,42 @@ export function MessageItem({
     </div>
   )
 }
+
+function sameAttachments(a: MessageAttachment[], b: MessageAttachment[]): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  return a.every((attachment, index) => attachment.id === b[index]!.id)
+}
+
+/**
+ * Verglichen wird nur, was die Darstellung bestimmt. Während ein Agent streamt, trifft alle
+ * 60 ms ein Ereignis ein und der ganze Verlauf rendert erneut — ohne diesen Vergleich würde
+ * dabei auch jede unveränderte Nachricht ihr Markdown noch einmal parsen.
+ */
+function areEqual(previous: MessageItemProps, next: MessageItemProps): boolean {
+  const a = previous.message
+  const b = next.message
+  return (
+    a.id === b.id &&
+    a.content === b.content &&
+    a.thinking === b.thinking &&
+    a.status === b.status &&
+    a.errorCode === b.errorCode &&
+    a.role === b.role &&
+    a.agentId === b.agentId &&
+    a.createdAt === b.createdAt &&
+    a.metadata === b.metadata &&
+    sameAttachments(a.attachments, b.attachments) &&
+    previous.agent === next.agent &&
+    previous.agents === next.agents &&
+    previous.tools === next.tools &&
+    previous.startsGroup === next.startsGroup &&
+    previous.replyCount === next.replyCount &&
+    previous.onRetry === next.onRetry &&
+    previous.onStop === next.onStop &&
+    previous.onDelete === next.onDelete &&
+    previous.onOpenThread === next.onOpenThread
+  )
+}
+
+export const MessageItem = memo(MessageItemComponent, areEqual)

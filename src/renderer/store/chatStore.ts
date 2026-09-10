@@ -21,6 +21,9 @@ interface ChatState {
   messages: ChatMessage[]
   loading: boolean
   error: string | null
+  /** Es liegen noch ältere Nachrichten in der Datenbank, die niemand geladen hat. */
+  hasOlder: boolean
+  loadingOlder: boolean
 
   /** Letzter Statuswert je Agent, Schlüssel ist die Agent-ID. */
   activity: Record<string, AgentStatusUpdate>
@@ -33,15 +36,19 @@ interface ChatState {
   threadError: string | null
 
   load: (projectId: string | null) => Promise<void>
+  /** Holt die nächste Seite älterer Nachrichten und stellt sie voran. */
+  loadOlder: () => Promise<void>
   send: (input: SendInput) => Promise<ChatMessage>
   retry: (messageId: string) => Promise<void>
   stop: (messageId: string) => Promise<void>
   remove: (messageId: string) => Promise<void>
+  clearHistory: (olderThanDays: number | null) => Promise<number>
   openThread: (messageId: string | null) => Promise<void>
   subscribe: () => () => void
 }
 
-const HISTORY_LIMIT = 300
+/** So viele Nachrichten hängen anfangs im Baum — der Rest kommt auf Knopfdruck. */
+const PAGE_SIZE = 60
 
 /**
  * Nur nach Zeitstempel, und `sort` ist stabil: Nachrichten aus derselben Millisekunde behalten
@@ -52,13 +59,27 @@ function sortMessages(messages: ChatMessage[]): ChatMessage[] {
   return [...messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 }
 
-/** Einzelne Nachricht einfügen oder ersetzen — der Verlauf wird nie komplett neu geladen. */
+/**
+ * Einzelne Nachricht einfügen oder ersetzen — der Verlauf wird nie komplett neu geladen.
+ *
+ * Bewusst **ohne** Neusortierung: Während eines Streams trifft alle 60 ms dieselbe Nachricht
+ * am Ende der Liste ein. Würde hier jedes Mal das ganze Array neu sortiert, bekäme jede
+ * Nachricht eine neue Identität und die gesamte Liste renderte neu. Gesucht wird deshalb von
+ * hinten, ersetzt wird an Ort und Stelle, und sortiert nur im Ausnahmefall einer Nachricht,
+ * die zeitlich vor der letzten liegt.
+ */
 function upsert(messages: ChatMessage[], message: ChatMessage): ChatMessage[] {
-  const index = messages.findIndex((item) => item.id === message.id)
-  if (index === -1) return sortMessages([...messages, message])
-  const next = [...messages]
-  next[index] = message
-  return next
+  for (let index = messages.length - 1; index >= 0; index--) {
+    if (messages[index]!.id !== message.id) continue
+    if (messages[index] === message) return messages
+    const next = [...messages]
+    next[index] = message
+    return next
+  }
+
+  const last = messages[messages.length - 1]
+  if (!last || last.createdAt <= message.createdAt) return [...messages, message]
+  return sortMessages([...messages, message])
 }
 
 function markToolsDone(tools: ToolEvent[]): ToolEvent[] {
@@ -99,6 +120,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   loading: false,
   error: null,
+  hasOlder: false,
+  loadingOlder: false,
   activity: {},
   tools: {},
   threadRootId: null,
@@ -112,6 +135,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       loading: true,
       error: null,
       messages: [],
+      hasOlder: false,
+      loadingOlder: false,
       activity: {},
       tools: {},
       threadRootId: null,
@@ -123,12 +148,42 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return
     }
     try {
-      const messages = await window.api.chat.history({ projectId, limit: HISTORY_LIMIT })
+      const messages = await window.api.chat.history({ projectId, limit: PAGE_SIZE })
       if (get().projectId !== projectId) return
-      set({ messages: sortMessages(messages), loading: false })
+      set({
+        messages: sortMessages(messages),
+        loading: false,
+        hasOlder: messages.length >= PAGE_SIZE,
+      })
     } catch (error) {
       if (get().projectId !== projectId) return
       set({ messages: [], loading: false, error: toErrorMessage(error) })
+    }
+  },
+
+  loadOlder: async () => {
+    const { projectId, messages, hasOlder, loadingOlder } = get()
+    const oldest = messages[0]
+    if (!projectId || !oldest || !hasOlder || loadingOlder) return
+    set({ loadingOlder: true })
+    try {
+      const older = await window.api.chat.history({
+        projectId,
+        limit: PAGE_SIZE,
+        before: oldest.id,
+      })
+      if (get().projectId !== projectId) return
+      // Zwischenzeitlich eingetroffene Nachrichten stehen schon in der Liste — nichts doppeln.
+      const known = new Set(get().messages.map((message) => message.id))
+      const fresh = older.filter((message) => !known.has(message.id))
+      set({
+        messages: [...sortMessages(fresh), ...get().messages],
+        hasOlder: older.length >= PAGE_SIZE,
+        loadingOlder: false,
+      })
+    } catch (error) {
+      if (get().projectId !== projectId) return
+      set({ loadingOlder: false, error: toErrorMessage(error) })
     }
   },
 
@@ -179,6 +234,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     })
   },
 
+  clearHistory: async (olderThanDays) => {
+    const projectId = get().projectId
+    if (!projectId) return 0
+    const { deleted } = await window.api.chat.clearHistory({
+      projectId,
+      ...(olderThanDays == null ? {} : { olderThanDays }),
+    })
+    // Neu geladen wird nicht hier, sondern auf `chat.historyCleared` — dasselbe Ereignis
+    // erreicht auch eine Ansicht, die das Bereinigen nicht selbst ausgelöst hat.
+    return deleted
+  },
+
   openThread: async (messageId) => {
     set({ threadRootId: messageId, threadMessages: [], threadError: null })
     if (!messageId) return
@@ -214,6 +281,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       })
     })
 
+    const offCleared = window.api.on('chat.historyCleared', (payload) => {
+      if (payload.projectId !== get().projectId) return
+      void get().load(payload.projectId)
+    })
+
     const offStatus = window.api.on('chat.agentStatus', (update) => {
       const state = get()
       if (update.projectId !== state.projectId) return
@@ -225,6 +297,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     return () => {
       offMessage()
+      offCleared()
       offStatus()
     }
   },

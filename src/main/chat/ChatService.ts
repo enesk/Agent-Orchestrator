@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type {
   Agent,
@@ -13,6 +13,7 @@ import type {
 import { buildFull, buildResume } from '../agents/PromptBuilder'
 import { isStopped } from '../agents/AgentService'
 import { getAttachmentsRoot } from '../app/attachments'
+import { resolveAttachmentPath } from '../app/attachment-path'
 import { notifyAgentDone, notifyError } from '../app/notifications'
 import {
   RateLimitError,
@@ -24,6 +25,8 @@ import {
 import { listAgents, listProjectAgents } from '../db/repositories/agents'
 import {
   attachToMessage,
+  clearProjectMessages,
+  countMessagesToClear,
   createAttachment,
   createMessage,
   deleteMessage as deleteMessageRow,
@@ -34,7 +37,7 @@ import {
   type ListMessagesOptions,
 } from '../db/repositories/messages'
 import { getProject } from '../db/repositories/projects'
-import { getSession } from '../db/repositories/sessions'
+import { deleteSessionsForProject, getSession } from '../db/repositories/sessions'
 import { emitEvent } from '../ipc/events'
 import { withRunContext } from '../mcp'
 import { describeError, scopedLogger } from '../Logger'
@@ -520,6 +523,79 @@ export function retryMessage(messageId: string): ChatMessage {
 export function deleteMessage(messageId: string): void {
   activeRuns.get(messageId)?.abort()
   deleteMessageRow(messageId)
+}
+
+export interface ClearHistoryInput {
+  projectId: string
+  /** Ohne Angabe wird der gesamte Verlauf des Projekts gelöscht. */
+  olderThanDays?: number | null
+}
+
+/** Der Zeitpunkt, vor dem gelöscht wird — `null`, wenn alles weg soll. */
+function clearCutoff(olderThanDays: number | null | undefined): string | null {
+  if (olderThanDays == null) return null
+  return new Date(Date.now() - olderThanDays * 86_400_000).toISOString()
+}
+
+/** Wie viele Nachrichten `clearHistory` mit denselben Angaben löschen würde. */
+export function countHistory(input: ClearHistoryInput): { count: number } {
+  return {
+    count: countMessagesToClear({
+      projectId: input.projectId,
+      before: clearCutoff(input.olderThanDays),
+    }),
+  }
+}
+
+/**
+ * Räumt den Chatverlauf eines Projekts weg. Mit den Nachrichten müssen zwei Dinge mit, die
+ * sonst als Rest zurückblieben: die Anhangsdateien auf der Platte und die gespeicherten
+ * CLI-Sessions — sonst setzte der nächste `--resume`-Lauf auf einem Transkript auf, dessen
+ * sichtbarer Verlauf gerade verschwunden ist.
+ */
+export async function clearHistory(input: ClearHistoryInput): Promise<{ deleted: number }> {
+  const result = clearProjectMessages({
+    projectId: input.projectId,
+    before: clearCutoff(input.olderThanDays),
+  })
+
+  if (result.deleted === 0) return { deleted: 0 }
+
+  for (const messageId of result.messageIds) activeRuns.get(messageId)?.abort()
+  deleteSessionsForProject(input.projectId)
+  await removeAttachmentFolders(result.attachmentPaths)
+
+  log.info('Chatverlauf bereinigt', {
+    projectId: input.projectId,
+    deleted: result.deleted,
+    attachments: result.attachmentPaths.length,
+  })
+
+  emitEvent('chat.historyCleared', { projectId: input.projectId, deleted: result.deleted })
+  return { deleted: result.deleted }
+}
+
+/** Entfernt die Ordner `userData/attachments/<uuid>/` der gelöschten Anhänge. */
+async function removeAttachmentFolders(relativePaths: string[]): Promise<void> {
+  const root = getAttachmentsRoot()
+  const folders = new Set<string>()
+  for (const relativePath of relativePaths) {
+    const folder = relativePath.split('/')[0]
+    if (folder) folders.add(folder)
+  }
+
+  for (const folder of folders) {
+    const resolved = resolveAttachmentPath(root, folder)
+    if (!resolved) {
+      log.warn('Anhangsordner außerhalb des Verzeichnisses übersprungen', { folder })
+      continue
+    }
+    try {
+      await rm(resolved, { recursive: true, force: true })
+    } catch (error) {
+      log.warn('Anhangsordner ließ sich nicht löschen', { folder, ...describeError(error) })
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

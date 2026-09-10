@@ -25,6 +25,9 @@ export interface ThreadPanelProps {
   }) => Promise<unknown>
 }
 
+/** Eine geteilte leere Liste — ein frisches `[]` je Renderdurchlauf bräche `memo`. */
+const NO_TOOLS: ToolEvent[] = []
+
 export function ThreadPanel({
   root,
   replies,
@@ -58,12 +61,12 @@ export function ThreadPanel({
               message={root}
               agent={root.agentId ? agentById.get(root.agentId) ?? null : null}
               agents={agents}
-              tools={tools[root.id] ?? []}
+              tools={tools[root.id] ?? NO_TOOLS}
               startsGroup
               replyCount={0}
-              onRetry={() => onRetry(root.id)}
-              onStop={() => onStop(root.id)}
-              onDelete={() => onDelete(root.id)}
+              onRetry={onRetry}
+              onStop={onStop}
+              onDelete={onDelete}
               onOpenThread={null}
             />
 
@@ -96,12 +99,12 @@ export function ThreadPanel({
                 message={reply}
                 agent={reply.agentId ? agentById.get(reply.agentId) ?? null : null}
                 agents={agents}
-                tools={tools[reply.id] ?? []}
+                tools={tools[reply.id] ?? NO_TOOLS}
                 startsGroup={startsGroup(reply, replies[index - 1])}
                 replyCount={0}
-                onRetry={() => onRetry(reply.id)}
-                onStop={() => onStop(reply.id)}
-                onDelete={() => onDelete(reply.id)}
+                onRetry={onRetry}
+                onStop={onStop}
+                onDelete={onDelete}
                 onOpenThread={null}
               />
             ))}

@@ -13,14 +13,14 @@ export interface AgentBarProps {
 export function AgentBar({ agents, activity, busyIds, onMention, onToggleStopped }: AgentBarProps) {
   if (agents.length === 0) {
     return (
-      <div className="shrink-0 border-b border-line px-3 py-2 text-xs text-ink-faint">
+      <div className="px-3 py-2 text-xs text-ink-faint">
         Diesem Projekt ist noch kein Agent zugeordnet.
       </div>
     )
   }
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-line px-3 py-2">
+    <div className="flex flex-wrap items-center gap-1.5 px-3 py-2">
       {agents.map((agent) => {
         const status = activity[agent.id]
         const state = agent.stopped ? null : status?.activity ?? 'idle'
