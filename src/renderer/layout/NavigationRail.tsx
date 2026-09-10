@@ -31,7 +31,7 @@ export function NavigationRail() {
   const setActiveSection = useUiStore((state) => state.setActiveSection)
 
   return (
-    <nav className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-surface pb-2">
+    <nav className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-base pb-2">
       <div className="drag-region h-11 w-full" />
 
       <div className="flex w-full flex-col items-center gap-1 px-2">

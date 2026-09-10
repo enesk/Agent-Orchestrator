@@ -56,7 +56,7 @@ export function App() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         <div className="flex min-h-0 flex-1">
-          <main className="min-w-0 flex-1 overflow-auto">
+          <main className="min-w-0 flex-1 overflow-auto bg-canvas">
             <View />
           </main>
         </div>

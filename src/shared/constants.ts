@@ -6,7 +6,7 @@ export const WINDOW_MIN_WIDTH = 1040
 export const WINDOW_MIN_HEIGHT = 680
 
 /** Hintergrundfarbe des Fensters, muss zur Tailwind-Farbe `base` passen. */
-export const WINDOW_BACKGROUND = '#0d1013'
+export const WINDOW_BACKGROUND = '#0b0b0d'
 
 export type AgentModelGroup = 'Opus' | 'Sonnet' | 'Haiku'
 

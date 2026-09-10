@@ -6,12 +6,13 @@ module.exports = {
     extend: {
       colors: {
         // Flächen — von tief nach hoch gestapelt
-        base: '#0d1013',
-        surface: '#14181d',
-        raised: '#1b2027',
-        overlay: '#232932',
-        line: '#2b323c',
-        'line-strong': '#3a424f',
+        base: '#0b0b0d',
+        canvas: '#0f0f11',
+        surface: '#17171a',
+        raised: '#1e1e22',
+        overlay: '#26262b',
+        line: '#2e2e34',
+        'line-strong': '#3d3d45',
         // Text
         ink: '#e8ecf1',
         'ink-muted': '#9aa5b3',

@@ -45,7 +45,7 @@ export function ThreadPanel({
 }: ThreadPanelProps) {
   const t = useT()
   return (
-    <aside className="flex w-[420px] shrink-0 flex-col border-l border-line bg-surface">
+    <aside className="flex w-[420px] shrink-0 flex-col border-l border-line bg-canvas">
       <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-line px-3">
         <span className="text-sm font-medium text-ink">{t('chat.thread.title')}</span>
         <IconButton label={t('chat.thread.close')} icon={<CloseIcon />} onClick={onClose} />
