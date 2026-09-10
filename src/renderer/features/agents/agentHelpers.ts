@@ -1,4 +1,5 @@
-import { AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentRole } from '@shared/constants'
+import { AGENT_MODELS, type AgentEffort, type AgentRole } from '@shared/constants'
+import type { TranslationKey } from '@shared/i18n'
 
 /**
  * Vorschau der Normalisierung, die der Main-Prozess vornimmt. Die Eindeutigkeit prüft
@@ -14,12 +15,12 @@ export function previewMentionKey(raw: string): string {
   return `@${base}`
 }
 
-export function roleLabel(role: AgentRole): string {
-  return AGENT_ROLES.find((option) => option.value === role)?.label ?? role
+export function roleLabelKey(role: AgentRole): TranslationKey {
+  return `agent.role.${role}`
 }
 
-export function roleDescription(role: AgentRole): string {
-  return AGENT_ROLES.find((option) => option.value === role)?.description ?? ''
+export function roleDescriptionKey(role: AgentRole): TranslationKey {
+  return `agent.role.${role}.description`
 }
 
 /** Kurzform des Modells für Listen — freie IDs werden unverändert gezeigt. */
@@ -27,8 +28,8 @@ export function modelLabel(model: string): string {
   return AGENT_MODELS.find((option) => option.value === model)?.label ?? model
 }
 
-export function effortLabel(effort: string): string {
-  return AGENT_EFFORTS.find((option) => option.value === effort)?.label ?? effort
+export function effortLabelKey(effort: AgentEffort): TranslationKey {
+  return `agent.effort.${effort}`
 }
 
 /** Zwei Buchstaben aus dem Namen, wenn kein Avatar hinterlegt ist. */

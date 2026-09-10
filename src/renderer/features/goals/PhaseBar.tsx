@@ -1,4 +1,5 @@
 import type { Goal } from '@shared/types'
+import { useT } from '../../i18n'
 import { cn } from '../../ui'
 import { CheckIcon } from '../../ui/icons'
 import { GOAL_PHASES, isGoalActive, resolvePhase } from './goalHelpers'
@@ -8,6 +9,7 @@ export interface PhaseBarProps {
 }
 
 export function PhaseBar({ goal }: PhaseBarProps) {
+  const t = useT()
   const currentKey = resolvePhase(goal)
   const currentIndex = GOAL_PHASES.findIndex((phase) => phase.key === currentKey)
   const finished = goal.status === 'done'
@@ -43,7 +45,7 @@ export function PhaseBar({ goal }: PhaseBarProps) {
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
                 ) : null}
               </span>
-              <span className="truncate text-xs font-medium">{phase.label}</span>
+              <span className="truncate text-xs font-medium">{t(phase.labelKey)}</span>
             </div>
             {index < GOAL_PHASES.length - 1 && (
               <span

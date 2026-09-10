@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from 'react'
 import type { ProjectAgent, Ticket } from '@shared/types'
+import { useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useGoalStore } from '../../store/goalStore'
 import { Button, Input, Textarea, cn } from '../../ui'
@@ -32,6 +33,7 @@ export function NewGoalView({
   draftTicketIds,
   onClose,
 }: NewGoalViewProps) {
+  const t = useT()
   const startFromDescription = useGoalStore((state) => state.startFromDescription)
   const startFromTickets = useGoalStore((state) => state.startFromTickets)
   const setDraftTickets = useGoalStore((state) => state.setDraftTickets)
@@ -124,10 +126,10 @@ export function NewGoalView({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2">
-        <h2 className="text-sm font-medium text-ink">Neues Vorhaben</h2>
+        <h2 className="text-sm font-medium text-ink">{t('goals.new.title')}</h2>
         <div className="flex-1" />
         <Button size="sm" onClick={onClose}>
-          Abbrechen
+          {t('common.cancel')}
         </Button>
         <Button
           size="sm"
@@ -136,7 +138,7 @@ export function NewGoalView({
           disabled={!canSubmit}
           onClick={() => void submit()}
         >
-          Starten
+          {t('goals.new.start')}
         </Button>
       </header>
 
@@ -151,25 +153,25 @@ export function NewGoalView({
           {draftTickets.length > 0 && (
             <div className="flex gap-1 rounded-md border border-line bg-surface p-1">
               <ModeTab active={mode === 'tickets'} onClick={() => setMode('tickets')}>
-                Aus Tickets
+                {t('goals.new.fromTickets')}
               </ModeTab>
               <ModeTab active={mode === 'description'} onClick={() => setMode('description')}>
-                Aus Beschreibung
+                {t('goals.new.fromDescription')}
               </ModeTab>
             </div>
           )}
 
           <Input
-            label="Titel (optional)"
+            label={t('goals.new.titleField')}
             value={title}
-            placeholder="Wird sonst aus der Beschreibung abgeleitet"
+            placeholder={t('goals.new.titlePlaceholder')}
             onChange={(event) => setTitle(event.target.value)}
           />
 
           {mode === 'tickets' ? (
             <section>
               <p className="mb-1 text-xs font-medium text-ink-muted">
-                {draftTickets.length} Tickets werden abgearbeitet
+                {t('goals.new.ticketCount', { count: draftTickets.length })}
               </p>
               <ul className="space-y-1">
                 {draftTickets.map((ticket) => (
@@ -183,7 +185,7 @@ export function NewGoalView({
                     <span className="min-w-0 flex-1 truncate text-xs text-ink">{ticket.title}</span>
                     <button
                       type="button"
-                      aria-label="Ticket entfernen"
+                      aria-label={t('goals.new.removeTicket')}
                       className="shrink-0 text-ink-faint transition-colors hover:text-ink"
                       onClick={() =>
                         setDraftTickets(draftTicketIds.filter((id) => id !== ticket.id))
@@ -198,11 +200,11 @@ export function NewGoalView({
           ) : (
             <>
               <Textarea
-                label="Beschreibung"
+                label={t('goals.new.description')}
                 rows={12}
                 autoFocus
                 value={description}
-                placeholder="Was soll entstehen? Je genauer, desto besser wird das Pflichtenheft."
+                placeholder={t('goals.new.descriptionPlaceholder')}
                 onChange={(event) => setDescription(event.target.value)}
               />
 
@@ -220,7 +222,7 @@ export function NewGoalView({
               >
                 <div className="flex items-center gap-3">
                   <label className="inline-flex h-7 cursor-pointer items-center rounded-md border border-line bg-raised px-2.5 text-xs text-ink hover:bg-overlay">
-                    Dateien wählen
+                    {t('goals.new.pickFiles')}
                     <input
                       type="file"
                       multiple
@@ -229,9 +231,7 @@ export function NewGoalView({
                       onChange={onPick}
                     />
                   </label>
-                  <p className="text-xs text-ink-faint">
-                    Oder .md/.txt hierher ziehen — der Inhalt wird unter dem Dateinamen angehängt.
-                  </p>
+                  <p className="text-xs text-ink-faint">{t('goals.new.dropHint')}</p>
                 </div>
 
                 {files.length > 0 && (
@@ -245,11 +245,11 @@ export function NewGoalView({
                           {file.name}
                         </span>
                         <span className="shrink-0 text-[11px] text-ink-faint">
-                          {file.content.length} Zeichen
+                          {t('goals.new.characters', { count: file.content.length })}
                         </span>
                         <button
                           type="button"
-                          aria-label="Datei entfernen"
+                          aria-label={t('goals.new.removeFile')}
                           className="shrink-0 text-ink-faint transition-colors hover:text-ink"
                           onClick={() =>
                             setFiles((current) =>
@@ -268,7 +268,7 @@ export function NewGoalView({
           )}
 
           <section>
-            <p className="mb-1 text-xs font-medium text-ink-muted">Eingesetzte Agenten</p>
+            <p className="mb-1 text-xs font-medium text-ink-muted">{t('goals.new.agents')}</p>
             <AgentPicker
               agents={agents}
               selectedIds={selectedAgentIds}

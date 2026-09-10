@@ -1,5 +1,7 @@
 import { ATTACHMENT_EXTENSIONS, MAX_ATTACHMENT_BYTES } from '@shared/constants'
+import { formatBytes, type Translator } from '@shared/i18n'
 import type { MessageAttachment } from '@shared/types'
+import { activeT } from '../../i18n/active'
 
 export type AttachmentKind = 'image' | 'markdown' | 'html' | 'table' | 'document'
 
@@ -43,27 +45,12 @@ export function kindOf(attachment: MessageAttachment): AttachmentKind {
   return attachmentKind(attachment.fileName, attachment.mimeType)
 }
 
-const SIZE_FORMAT = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 })
-
-/** Größe in lesbarer Form, deutsch formatiert — etwa `12,4 KB`. */
-export function formatFileSize(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return ''
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB']
-  let value = bytes / 1024
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit += 1
-  }
-  return `${SIZE_FORMAT.format(value)} ${units[unit]}`
-}
-
 /** Liest eine Datei als Base64 ohne den `data:`-Präfix, wie `chat.saveAttachment` es erwartet. */
 export function readFileAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onerror = () => reject(reader.error ?? new Error('Datei konnte nicht gelesen werden'))
+    reader.onerror = () =>
+      reject(reader.error ?? new Error(activeT()('attachment.readFailed')))
     reader.onload = () => {
       const result = String(reader.result ?? '')
       const comma = result.indexOf(',')
@@ -72,8 +59,6 @@ export function readFileAsBase64(file: File): Promise<string> {
     reader.readAsDataURL(file)
   })
 }
-
-const ALLOWED_LIST = 'Bilder, Markdown, Text, HTML, JSON, CSV, Log, YAML und PDF'
 
 const EXTENSION_BY_IMAGE_MIME: Record<string, string> = {
   'image/png': '.png',
@@ -88,11 +73,12 @@ const EXTENSION_BY_IMAGE_MIME: Record<string, string> = {
  * an — beides würde sonst an der Endungsprüfung scheitern.
  */
 export function attachmentFileName(file: File): string {
+  const t = activeT()
   const name = file.name?.trim() ?? ''
   if (name && extensionOf(name)) return name
   const extension = EXTENSION_BY_IMAGE_MIME[file.type] ?? ''
-  if (!extension) return name || 'Datei'
-  return `${name || 'Bild'}${extension}`
+  if (!extension) return name || t('attachment.fallbackName')
+  return `${name || t('attachment.fallbackImageName')}${extension}`
 }
 
 export interface FileSelection {
@@ -105,19 +91,23 @@ export interface FileSelection {
  * Trennt anhängbare von abgelehnten Dateien. Abgelehntes wird nie stillschweigend verworfen —
  * der Aufrufer zeigt `error` an.
  */
-export function selectAttachableFiles(files: Iterable<File>): FileSelection {
+export function selectAttachableFiles(files: Iterable<File>, t: Translator): FileSelection {
   const accepted: File[] = []
   const rejected: string[] = []
 
   for (const file of files) {
     const name = attachmentFileName(file)
     if (!ATTACHMENT_EXTENSIONS.includes(extensionOf(name))) {
-      rejected.push(`„${name}" hat einen nicht unterstützten Dateityp`)
+      rejected.push(t('attachment.unsupported', { name }))
       continue
     }
     if (file.size > MAX_ATTACHMENT_BYTES) {
       rejected.push(
-        `„${name}" ist ${formatFileSize(file.size)} groß — erlaubt sind höchstens ${formatFileSize(MAX_ATTACHMENT_BYTES)} je Datei`,
+        t('attachment.tooLarge', {
+          name,
+          size: formatBytes(t.language, file.size),
+          max: formatBytes(t.language, MAX_ATTACHMENT_BYTES),
+        }),
       )
       continue
     }
@@ -126,6 +116,12 @@ export function selectAttachableFiles(files: Iterable<File>): FileSelection {
 
   return {
     accepted,
-    error: rejected.length === 0 ? null : `${rejected.join('. ')}. Möglich sind ${ALLOWED_LIST}.`,
+    error:
+      rejected.length === 0
+        ? null
+        : t('attachment.rejected', {
+            reasons: rejected.join('. '),
+            allowed: t('attachment.allowedList'),
+          }),
   }
 }

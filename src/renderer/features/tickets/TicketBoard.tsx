@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { TICKET_STATUS_LABELS, type TicketStatus } from '@shared/constants'
+import type { TicketStatus } from '@shared/constants'
 import type { ProjectAgent, Ticket } from '@shared/types'
+import { useT } from '../../i18n'
 import type { TicketMeta } from '../../store/ticketStore'
 import { Checkbox, cn } from '../../ui'
 import { TicketCard } from './TicketCard'
+import { statusLabelKey } from './ticketHelpers'
 
 const COLUMNS: readonly TicketStatus[] = ['open', 'in_progress', 'done']
 
@@ -31,6 +33,7 @@ export function TicketBoard({
   onToggleColumn,
   onStatusChange,
 }: TicketBoardProps) {
+  const t = useT()
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<TicketStatus | null>(null)
 
@@ -41,6 +44,7 @@ export function TicketBoard({
         const columnIds = column.map((ticket) => ticket.id)
         const checkedInColumn = columnIds.filter((id) => checkedIds.has(id)).length
         const allChecked = column.length > 0 && checkedInColumn === column.length
+        const statusLabel = t(statusLabelKey(status))
 
         return (
           <section
@@ -72,18 +76,20 @@ export function TicketBoard({
                 checked={allChecked}
                 indeterminate={checkedInColumn > 0 && !allChecked}
                 disabled={column.length === 0}
-                aria-label={`Alle Tickets in „${TICKET_STATUS_LABELS[status]}" auswählen`}
-                title="Alle in dieser Spalte"
+                aria-label={t('ticket.board.selectColumn', { status: statusLabel })}
+                title={t('ticket.board.selectColumnTitle')}
                 onChange={(event) => onToggleColumn(columnIds, event.target.checked)}
               />
-              <h3 className="text-sm font-medium text-ink">{TICKET_STATUS_LABELS[status]}</h3>
+              <h3 className="text-sm font-medium text-ink">{statusLabel}</h3>
               <div className="flex-1" />
               <span className="text-xs text-ink-faint">{column.length}</span>
             </header>
 
             <div className="min-h-0 flex-1 space-y-2 overflow-auto p-2">
               {column.length === 0 && (
-                <p className="px-1 py-4 text-center text-xs text-ink-faint">Keine Tickets</p>
+                <p className="px-1 py-4 text-center text-xs text-ink-faint">
+                  {t('ticket.board.emptyColumn')}
+                </p>
               )}
               {column.map((ticket) => (
                 <TicketCard

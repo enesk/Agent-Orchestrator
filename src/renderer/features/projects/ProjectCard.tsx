@@ -1,5 +1,6 @@
 import type { Project } from '@shared/types'
-import { Button, cn, formatDateTime } from '../../ui'
+import { useFormat, useT } from '../../i18n'
+import { Button, cn } from '../../ui'
 import { AgentIcon, TicketIcon } from '../../ui/icons'
 
 export interface ProjectStats {
@@ -26,6 +27,8 @@ export function ProjectCard({
   onEdit,
   onDelete,
 }: ProjectCardProps) {
+  const t = useT()
+  const format = useFormat()
   return (
     <article
       className={cn(
@@ -36,7 +39,7 @@ export function ProjectCard({
       <button type="button" onClick={onOpen} className="min-w-0 text-left">
         <h3 className="truncate text-sm font-medium text-ink">{project.name}</h3>
         <p className="mt-1 line-clamp-2 h-8 text-xs text-ink-muted">
-          {project.description ?? 'Keine Beschreibung'}
+          {project.description ?? t('project.card.noDescription')}
         </p>
         <p
           className={cn(
@@ -45,28 +48,28 @@ export function ProjectCard({
           )}
           title={pathWarning ?? project.path ?? undefined}
         >
-          {project.path ?? 'Kein Projektpfad hinterlegt'}
+          {project.path ?? t('project.card.noPath')}
         </p>
       </button>
 
       <div className="mt-3 flex items-center gap-3 text-[11px] text-ink-faint">
         <span className="inline-flex items-center gap-1">
           <AgentIcon width={13} height={13} />
-          {stats ? stats.agents : '–'} Agenten
+          {stats ? stats.agents : '–'} {t('project.card.agents', { count: stats?.agents ?? 0 })}
         </span>
         <span className="inline-flex items-center gap-1">
           <TicketIcon width={13} height={13} />
-          {stats ? stats.openTickets : '–'} offen
+          {stats ? stats.openTickets : '–'} {t('project.card.openTickets')}
         </span>
-        <span className="ml-auto truncate">{formatDateTime(project.updatedAt)}</span>
+        <span className="ml-auto truncate">{format.dateTime(project.updatedAt)}</span>
       </div>
 
       <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         <Button size="sm" onClick={onEdit}>
-          Bearbeiten
+          {t('common.edit')}
         </Button>
         <Button size="sm" variant="ghost" onClick={onDelete}>
-          Löschen
+          {t('common.delete')}
         </Button>
       </div>
     </article>

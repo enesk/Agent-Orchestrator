@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useT } from '../i18n'
 import { Button } from './Button'
 import { Modal } from './Modal'
 
@@ -21,12 +22,13 @@ export function ConfirmDialog({
   open,
   title,
   message,
-  confirmLabel = 'Bestätigen',
-  cancelLabel = 'Abbrechen',
+  confirmLabel,
+  cancelLabel,
   danger = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const t = useT()
   return (
     <Modal
       open={open}
@@ -36,10 +38,10 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="ghost" onClick={onCancel}>
-            {cancelLabel}
+            {cancelLabel ?? t('common.cancel')}
           </Button>
           <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} autoFocus>
-            {confirmLabel}
+            {confirmLabel ?? t('common.confirm')}
           </Button>
         </>
       }

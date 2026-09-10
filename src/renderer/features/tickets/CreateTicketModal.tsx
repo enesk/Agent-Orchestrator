@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -8,6 +9,7 @@ import {
 } from 'react'
 import { ATTACHMENT_ACCEPT, TICKET_CATEGORIES, type TicketCategory } from '@shared/constants'
 import type { ProjectAgent } from '@shared/types'
+import { useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useTicketStore } from '../../store/ticketStore'
 import { Button, IconButton, Input, Modal, Select, Textarea } from '../../ui'
@@ -18,12 +20,7 @@ import {
   attachmentKind,
   selectAttachableFiles,
 } from '../attachments'
-import { readFileAsBase64 } from './ticketHelpers'
-
-const CATEGORY_OPTIONS = TICKET_CATEGORIES.map((option) => ({
-  value: option.value,
-  label: option.label,
-}))
+import { categoryLabelKey, readFileAsBase64 } from './ticketHelpers'
 
 interface PendingFile {
   file: File
@@ -44,6 +41,15 @@ export interface CreateTicketModalProps {
 }
 
 export function CreateTicketModal({ open, projectId, agents, onClose }: CreateTicketModalProps) {
+  const t = useT()
+  const categoryOptions = useMemo(
+    () =>
+      TICKET_CATEGORIES.map((option) => ({
+        value: option.value,
+        label: t(categoryLabelKey(option.value)),
+      })),
+    [t],
+  )
   const create = useTicketStore((state) => state.create)
   const select = useTicketStore((state) => state.select)
 
@@ -71,7 +77,7 @@ export function CreateTicketModal({ open, projectId, agents, onClose }: CreateTi
   }, [open])
 
   function addFiles(incoming: FileList | File[]): void {
-    const { accepted, error: rejection } = selectAttachableFiles(Array.from(incoming))
+    const { accepted, error: rejection } = selectAttachableFiles(Array.from(incoming), t)
     setError(rejection)
     if (accepted.length === 0) return
     setFiles((current) => [
@@ -139,13 +145,13 @@ export function CreateTicketModal({ open, projectId, agents, onClose }: CreateTi
   return (
     <Modal
       open={open}
-      title="Neues Ticket"
+      title={t('ticketCreate.title')}
       onClose={onClose}
       footer={
         <>
-          <Button onClick={onClose}>Abbrechen</Button>
+          <Button onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant="primary" loading={saving} disabled={!title.trim()} onClick={() => void submit()}>
-            Anlegen
+            {t('common.create')}
           </Button>
         </>
       }
@@ -158,32 +164,32 @@ export function CreateTicketModal({ open, projectId, agents, onClose }: CreateTi
         )}
 
         <Input
-          label="Titel"
+          label={t('ticketCreate.ticketTitle')}
           autoFocus
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          placeholder="Kurz und eindeutig"
+          placeholder={t('ticketCreate.titlePlaceholder')}
         />
 
         <Textarea
-          label="Beschreibung"
+          label={t('ticketCreate.description')}
           rows={8}
           value={description}
           onChange={(event) => setDescription(event.target.value)}
-          placeholder="Markdown wird unterstützt."
+          placeholder={t('ticketCreate.descriptionPlaceholder')}
         />
 
         <div className="grid grid-cols-2 gap-3">
           <Select
-            label="Kategorie"
-            options={CATEGORY_OPTIONS}
+            label={t('ticketCreate.category')}
+            options={categoryOptions}
             value={category}
             onChange={(event) => setCategory(event.target.value as TicketCategory)}
           />
           <Select
-            label="Zuweisung"
+            label={t('ticketCreate.assignee')}
             options={[
-              { value: '', label: 'Nicht zugewiesen' },
+              { value: '', label: t('ticket.card.unassigned') },
               ...agents.map((agent) => ({ value: agent.id, label: agent.name })),
             ]}
             value={assignedAgentId}
@@ -193,9 +199,7 @@ export function CreateTicketModal({ open, projectId, agents, onClose }: CreateTi
 
         <div className="rounded-md border border-dashed border-line p-3">
           <div className="flex items-center gap-2">
-            <p className="min-w-0 flex-1 text-xs text-ink-faint">
-              Dateien hierher ziehen, einfügen oder anhängen — sie hängen anschließend am Ticket.
-            </p>
+            <p className="min-w-0 flex-1 text-xs text-ink-faint">{t('ticketCreate.dropHint')}</p>
             <input
               ref={fileInputRef}
               type="file"
@@ -205,7 +209,7 @@ export function CreateTicketModal({ open, projectId, agents, onClose }: CreateTi
               onChange={pickFiles}
             />
             <IconButton
-              label="Datei anhängen"
+              label={t('attachment.attach')}
               icon={<PaperclipIcon />}
               onClick={() => fileInputRef.current?.click()}
             />

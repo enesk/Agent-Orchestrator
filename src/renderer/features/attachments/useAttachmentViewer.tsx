@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { MessageAttachment } from '@shared/types'
+import { useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { Markdown, Modal, Spinner } from '../../ui'
 import { attachmentUrl, kindOf } from './attachmentHelpers'
@@ -22,6 +23,7 @@ export interface AttachmentViewer {
  * Nutzer nur prüfen lassen wollte. Dafür ist der Standardbrowser die richtige Grenze.
  */
 export function useAttachmentViewer(): AttachmentViewer {
+  const t = useT()
   const [image, setImage] = useState<MessageAttachment | null>(null)
   const [markdown, setMarkdown] = useState<MarkdownView | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -39,7 +41,7 @@ export function useAttachmentViewer(): AttachmentViewer {
       setMarkdown({ attachment, content: null })
       void fetch(attachmentUrl(attachment))
         .then((response) => {
-          if (!response.ok) throw new Error('Die Datei konnte nicht gelesen werden.')
+          if (!response.ok) throw new Error(t('attachment.notReadable'))
           return response.text()
         })
         .then((content) => setMarkdown({ attachment, content }))
@@ -53,7 +55,7 @@ export function useAttachmentViewer(): AttachmentViewer {
     void window.api.attachments
       .open({ attachmentId: attachment.id })
       .catch((caught: unknown) => setError(toErrorMessage(caught)))
-  }, [])
+  }, [t])
 
   useEffect(() => {
     if (!image) return
@@ -78,7 +80,7 @@ export function useAttachmentViewer(): AttachmentViewer {
             onMouseDown={(event) => event.stopPropagation()}
           />
           <p className="pointer-events-none absolute bottom-4 left-0 right-0 text-center text-xs text-white/70">
-            {image.fileName} · Escape schließt
+            {t('attachment.escapeCloses', { name: image.fileName })}
           </p>
         </div>
       )}
@@ -99,7 +101,7 @@ export function useAttachmentViewer(): AttachmentViewer {
       )}
 
       {error && (
-        <Modal open width="sm" title="Anhang konnte nicht geöffnet werden" onClose={() => setError(null)}>
+        <Modal open width="sm" title={t('attachment.openFailed')} onClose={() => setError(null)}>
           <p className="text-sm text-ink-muted">{error}</p>
         </Modal>
       )}

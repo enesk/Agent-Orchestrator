@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useT } from '../../i18n'
 import { useAgentStore } from '../../store/agentStore'
 import { useGoalStore, useSelectedGoal } from '../../store/goalStore'
 import { useTicketStore } from '../../store/ticketStore'
@@ -11,6 +12,7 @@ import { NewGoalView } from './NewGoalView'
 import { isGoalActive, useNow } from './goalHelpers'
 
 export function GoalsView() {
+  const t = useT()
   const projectId = useUiStore((state) => state.activeProjectId)
 
   const goals = useGoalStore((state) => state.goals)
@@ -57,8 +59,8 @@ export function GoalsView() {
   if (!projectId) {
     return (
       <EmptyState
-        title="Kein Projekt ausgewählt"
-        description="Wähle links ein Projekt, um dessen Vorhaben zu sehen."
+        title={t('goals.noProject.title')}
+        description={t('goals.noProject.description')}
         icon={<GoalIcon />}
       />
     )
@@ -68,7 +70,7 @@ export function GoalsView() {
     <div className="flex h-full min-h-0">
       <aside className="flex w-[320px] shrink-0 flex-col border-r border-line bg-surface">
         <header className="flex h-11 shrink-0 items-center gap-2 border-b border-line px-3">
-          <h2 className="text-sm font-medium text-ink">Vorhaben</h2>
+          <h2 className="text-sm font-medium text-ink">{t('goals.title')}</h2>
           {loading && <Spinner size={12} />}
           <div className="flex-1" />
           <Button
@@ -77,7 +79,7 @@ export function GoalsView() {
             icon={<PlusIcon width={14} height={14} />}
             onClick={() => setCreating(true)}
           >
-            Neues Vorhaben
+            {t('goals.new')}
           </Button>
         </header>
 
@@ -90,8 +92,8 @@ export function GoalsView() {
         <div className="min-h-0 flex-1 overflow-auto">
           {goals.length === 0 && !loading ? (
             <EmptyState
-              title="Noch keine Vorhaben"
-              description="Beschreibe ein Vorhaben — daraus entstehen Pflichtenheft, Tickets und deren Umsetzung."
+              title={t('goals.empty.title')}
+              description={t('goals.empty.description')}
               icon={<GoalIcon />}
             />
           ) : (
@@ -132,12 +134,12 @@ export function GoalsView() {
           />
         ) : (
           <EmptyState
-            title="Kein Vorhaben ausgewählt"
-            description="Wähle links ein Vorhaben oder starte ein neues."
+            title={t('goals.none.title')}
+            description={t('goals.none.description')}
             icon={<GoalIcon />}
             action={
               <Button variant="primary" onClick={() => setCreating(true)}>
-                Neues Vorhaben
+                {t('goals.new')}
               </Button>
             }
           />

@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react'
 import type { Project, ProjectAgent } from '@shared/types'
+import { useT } from '../../i18n'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { Badge, Button, EmptyState, IconButton, Select, Switch, useConfirm } from '../../ui'
 import { AgentIcon, ChevronDownIcon, CloseIcon } from '../../ui/icons'
 import { AgentAvatar } from './AgentAvatar'
-import { modelLabel, roleLabel } from './agentHelpers'
+import { modelLabel, roleLabelKey } from './agentHelpers'
 
 export interface ProjectAgentsPanelProps {
   project: Project
 }
 
 export function ProjectAgentsPanel({ project }: ProjectAgentsPanelProps) {
+  const t = useT()
   const agents = useAgentStore((state) => state.agents)
   const allAgents = useAgentStore((state) => state.allAgents)
   const addToProject = useAgentStore((state) => state.addToProject)
@@ -43,9 +45,9 @@ export function ProjectAgentsPanel({ project }: ProjectAgentsPanelProps) {
 
   async function remove(agent: ProjectAgent): Promise<void> {
     const confirmed = await confirm({
-      title: 'Agent entfernen',
-      message: `„${agent.name}" aus dem Projekt „${project.name}" entfernen?`,
-      confirmLabel: 'Entfernen',
+      title: t('projectAgents.remove.title'),
+      message: t('projectAgents.remove.message', { agent: agent.name, project: project.name }),
+      confirmLabel: t('projectAgents.remove.confirm'),
       danger: true,
     })
     if (!confirmed) return
@@ -58,12 +60,17 @@ export function ProjectAgentsPanel({ project }: ProjectAgentsPanelProps) {
         <header className="flex items-end gap-2">
           <div className="min-w-0 flex-1">
             <Select
-              label={`Agent zu „${project.name}" hinzufügen`}
+              label={t('projectAgents.addLabel', { project: project.name })}
               options={[
-                { value: '', label: available.length ? 'Agent wählen …' : 'Alle Agenten sind zugeordnet' },
+                {
+                  value: '',
+                  label: available.length
+                    ? t('projectAgents.choose')
+                    : t('projectAgents.allAssigned'),
+                },
                 ...available.map((agent) => ({
                   value: agent.id,
-                  label: `${agent.name} — ${roleLabel(agent.role)}`,
+                  label: `${agent.name} — ${t(roleLabelKey(agent.role))}`,
                 })),
               ]}
               value={pending}
@@ -81,7 +88,7 @@ export function ProjectAgentsPanel({ project }: ProjectAgentsPanelProps) {
               })
             }
           >
-            Hinzufügen
+            {t('projectAgents.add')}
           </Button>
         </header>
 
@@ -93,8 +100,8 @@ export function ProjectAgentsPanel({ project }: ProjectAgentsPanelProps) {
 
         {agents.length === 0 ? (
           <EmptyState
-            title="Diesem Projekt ist noch kein Agent zugeordnet"
-            description="Ordne oben einen der globalen Agenten zu, damit er im Chat antworten kann."
+            title={t('projectAgents.empty.title')}
+            description={t('projectAgents.empty.description')}
             icon={<AgentIcon />}
           />
         ) : (
@@ -104,14 +111,14 @@ export function ProjectAgentsPanel({ project }: ProjectAgentsPanelProps) {
                 <div className="flex items-center gap-2">
                   <div className="flex shrink-0 flex-col">
                     <IconButton
-                      label="Nach oben"
+                      label={t('projectAgents.moveUp')}
                       disabled={index === 0 || busy}
                       icon={<ChevronDownIcon className="rotate-180" width={14} height={14} />}
                       className="h-5 w-6"
                       onClick={() => void run(() => move(project.id, agent.id, -1))}
                     />
                     <IconButton
-                      label="Nach unten"
+                      label={t('projectAgents.moveDown')}
                       disabled={index === agents.length - 1 || busy}
                       icon={<ChevronDownIcon width={14} height={14} />}
                       className="h-5 w-6"
@@ -122,15 +129,16 @@ export function ProjectAgentsPanel({ project }: ProjectAgentsPanelProps) {
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-1.5 text-sm text-ink">
                       <span className="truncate font-medium">{agent.name}</span>
-                      <Badge>{roleLabel(agent.role)}</Badge>
-                      {agent.stopped && <Badge tone="warning">Gestoppt</Badge>}
+                      <Badge>{t(roleLabelKey(agent.role))}</Badge>
+                      {agent.stopped && <Badge tone="warning">{t('projectAgents.stopped')}</Badge>}
                     </p>
                     <p className="mt-0.5 truncate text-[11px] text-ink-faint">
-                      {agent.mentionKey} · {agent.title ?? 'Ohne Titel'} · {modelLabel(agent.model)}
+                      {agent.mentionKey} · {agent.title ?? t('projectAgents.noTitle')} ·{' '}
+                      {modelLabel(agent.model)}
                     </p>
                   </div>
                   <IconButton
-                    label="Aus Projekt entfernen"
+                    label={t('projectAgents.removeFromProject')}
                     icon={<CloseIcon width={16} height={16} />}
                     disabled={busy}
                     onClick={() => void remove(agent)}
@@ -141,8 +149,8 @@ export function ProjectAgentsPanel({ project }: ProjectAgentsPanelProps) {
                   className="mt-2 border-t border-line pt-2"
                   checked={agent.stopped}
                   disabled={busy}
-                  label="Gestoppt — bekommt keine neuen Aufgaben"
-                  hint="Laufende Antworten werden abgebrochen; die Einstellung überlebt den Neustart."
+                  label={t('projectAgents.stoppedSwitch')}
+                  hint={t('projectAgents.stoppedHint')}
                   onChange={(checked) => void run(() => setStopped(project.id, agent.id, checked))}
                 />
               </li>

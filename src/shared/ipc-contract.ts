@@ -215,6 +215,7 @@ export const appSettingsSchema = z.object({
   claudePath: z.string().nullable(),
   minimizeToTray: z.boolean(),
   notificationsEnabled: z.boolean(),
+  language: z.enum(['de', 'en', 'tr']),
 })
 
 export const appInfoSchema = z.object({

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ChatMessage, ProjectAgent } from '@shared/types'
+import { useT } from '../../i18n'
 import type { ToolEvent } from '../../store/chatStore'
 import { cn } from '../../ui'
 import { ChevronDownIcon } from '../../ui/icons'
@@ -46,6 +47,7 @@ export function MessageList({
   contentClassName,
   className,
 }: MessageListProps) {
+  const t = useT()
   const containerRef = useRef<HTMLDivElement>(null)
   const [atBottom, setAtBottom] = useState(true)
   /**
@@ -111,7 +113,7 @@ export function MessageList({
                   'transition-colors hover:bg-raised hover:text-ink disabled:opacity-50',
                 )}
               >
-                {loadingOlder ? 'Wird geladen …' : 'Ältere Nachrichten laden'}
+                {loadingOlder ? t('chat.list.loadingOlder') : t('chat.list.loadOlder')}
               </button>
             </div>
           )}
@@ -124,7 +126,7 @@ export function MessageList({
                   <div className="my-3 flex items-center gap-3 px-4">
                     <span className="h-px flex-1 bg-line" />
                     <span className="text-[11px] text-ink-faint">
-                      {formatDaySeparator(message.createdAt)}
+                      {formatDaySeparator(message.createdAt, t)}
                     </span>
                     <span className="h-px flex-1 bg-line" />
                   </div>
@@ -158,7 +160,7 @@ export function MessageList({
           )}
         >
           <ChevronDownIcon width={14} height={14} />
-          Nach unten
+          {t('chat.list.toBottom')}
         </button>
       )}
     </div>

@@ -1,10 +1,12 @@
 import { memo } from 'react'
+import type { Translator } from '@shared/i18n'
 import type { ChatMessage, MessageAttachment, ProjectAgent } from '@shared/types'
+import { useFormat, useT } from '../../i18n'
 import type { ToolEvent } from '../../store/chatStore'
 import { IconButton, Spinner, Tooltip, cn } from '../../ui'
 import { RetryIcon, StopIcon, ThreadIcon, TrashIcon } from '../../ui/icons'
 import { AttachmentList } from '../attachments'
-import { autoMentionAgent, formatTime, splitMentions } from './chatHelpers'
+import { autoMentionAgent, splitMentions } from './chatHelpers'
 import { MessageMarkdown } from './MessageMarkdown'
 import { ThinkingBlock } from './ThinkingBlock'
 import { ToolChips } from './ToolChips'
@@ -29,11 +31,11 @@ export interface MessageItemProps {
 }
 
 /** Fehlertext einer fehlgeschlagenen Nachricht — die Engine legt ihn in die Metadaten. */
-function errorText(message: ChatMessage): string {
+function errorText(message: ChatMessage, t: Translator): string {
   const fromMetadata = message.metadata.error
   if (typeof fromMetadata === 'string' && fromMetadata.trim()) return fromMetadata
   if (message.errorCode) return message.errorCode
-  return 'Der Agent hat nicht geantwortet.'
+  return t('chat.message.noAnswer')
 }
 
 /** Die Aktionsleiste sitzt eng an der Nachricht — kleiner als der Standard-Symbolknopf. */
@@ -45,8 +47,8 @@ const squash = (value: string): string => value.replace(/\s+/g, ' ').trim().toLo
  * Bricht die CLI ab, steht ihre Meldung oft schon als Teiltext im Stream. Dann wäre der rote
  * Kasten nur eine Wiederholung — die Schaltfläche „Wiederholen" bleibt trotzdem stehen.
  */
-function visibleErrorText(message: ChatMessage): string | null {
-  const text = errorText(message)
+function visibleErrorText(message: ChatMessage, t: Translator): string | null {
+  const text = errorText(message, t)
   const content = squash(message.content)
   if (content && content.includes(squash(text))) return null
   return text
@@ -64,6 +66,10 @@ function MessageItemComponent({
   onDelete,
   onOpenThread,
 }: MessageItemProps) {
+  // `useT`/`useFormat` liefern pro Sprache dieselbe Identität — die Memoisierung unten
+  // bleibt dadurch beim Streaming wirksam, und ein Sprachwechsel rendert trotzdem neu.
+  const t = useT()
+  const format = useFormat()
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system'
   const streaming = message.status === 'streaming'
@@ -80,9 +86,9 @@ function MessageItemComponent({
   const actions = (
     <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100">
       {streaming && (
-        <Tooltip label="Stoppen">
+        <Tooltip label={t('chat.message.stop')}>
           <IconButton
-            label="Stoppen"
+            label={t('chat.message.stop')}
             // Der gestaltete Tooltip steht schon da — der native würde ihn doppeln.
             title=""
             icon={<StopIcon width={15} height={15} />}
@@ -92,9 +98,9 @@ function MessageItemComponent({
         </Tooltip>
       )}
       {message.status === 'error' && (
-        <Tooltip label="Wiederholen">
+        <Tooltip label={t('chat.message.retry')}>
           <IconButton
-            label="Wiederholen"
+            label={t('chat.message.retry')}
             title=""
             icon={<RetryIcon width={15} height={15} />}
             className={ACTION_BUTTON}
@@ -103,9 +109,9 @@ function MessageItemComponent({
         </Tooltip>
       )}
       {onOpenThread && (
-        <Tooltip label="Im Thread antworten">
+        <Tooltip label={t('chat.message.replyInThread')}>
           <IconButton
-            label="Im Thread antworten"
+            label={t('chat.message.replyInThread')}
             title=""
             icon={<ThreadIcon width={15} height={15} />}
             className={ACTION_BUTTON}
@@ -113,9 +119,9 @@ function MessageItemComponent({
           />
         </Tooltip>
       )}
-      <Tooltip label="Löschen">
+      <Tooltip label={t('common.delete')}>
         <IconButton
-          label="Löschen"
+          label={t('common.delete')}
           title=""
           tone="danger"
           icon={<TrashIcon width={15} height={15} />}
@@ -144,18 +150,20 @@ function MessageItemComponent({
               )}
             >
               {isUser ? (
-                <span className="font-medium text-ink-muted">Du</span>
+                <span className="font-medium text-ink-muted">{t('chat.message.you')}</span>
               ) : (
                 <>
                   <span
                     className="h-2 w-2 shrink-0 rounded-full"
                     style={{ backgroundColor: agent?.color ?? '#6b7583' }}
                   />
-                  <span className="font-medium text-ink">{agent?.name ?? 'Agent'}</span>
+                  <span className="font-medium text-ink">
+                    {agent?.name ?? t('chat.message.agent')}
+                  </span>
                   {agent?.title && <span className="text-ink-faint">{agent.title}</span>}
                 </>
               )}
-              <span className="text-ink-faint">{formatTime(message.createdAt)}</span>
+              <span className="text-ink-faint">{format.time(message.createdAt)}</span>
             </div>
           )}
 
@@ -194,10 +202,10 @@ function MessageItemComponent({
             ) : streaming ? (
               <span className="inline-flex items-center gap-2 text-xs text-ink-faint">
                 <Spinner size={12} />
-                schreibt …
+                {t('chat.message.writing')}
               </span>
             ) : (
-              <span className="text-xs italic text-ink-faint">Keine Antwort</span>
+              <span className="text-xs italic text-ink-faint">{t('chat.message.empty')}</span>
             )}
 
             {streaming && message.content && (
@@ -207,26 +215,26 @@ function MessageItemComponent({
             {message.status === 'error' && (
               <div className="mt-2 flex items-center gap-2 border-t border-danger/30 pt-2">
                 <span className="min-w-0 flex-1 text-xs text-danger">
-                  {visibleErrorText(message)}
+                  {visibleErrorText(message, t)}
                 </span>
                 <button
                   type="button"
                   onClick={() => onRetry(message.id)}
                   className="shrink-0 rounded border border-danger/40 px-1.5 py-0.5 text-[11px] text-danger hover:bg-danger/10"
                 >
-                  Wiederholen
+                  {t('chat.message.retry')}
                 </button>
               </div>
             )}
 
             {message.status === 'stopped' && (
-              <p className="mt-1 text-[11px] italic text-ink-faint">Abgebrochen</p>
+              <p className="mt-1 text-[11px] italic text-ink-faint">{t('chat.message.stopped')}</p>
             )}
           </div>
 
           {autoMention && (
             <p className="mt-1 text-[11px] text-ink-faint">
-              ↳ an{' '}
+              {t('chat.message.autoMention')}{' '}
               <span className="font-medium" style={{ color: autoMention.color }}>
                 {autoMention.mentionKey}
               </span>
@@ -247,7 +255,7 @@ function MessageItemComponent({
               onClick={() => onOpenThread(message.id)}
               className="mt-1 text-[11px] text-accent hover:underline"
             >
-              {replyCount === 1 ? '1 Antwort' : `${replyCount} Antworten`}
+              {t('chat.message.replies', { count: replyCount })}
             </button>
           )}
         </div>

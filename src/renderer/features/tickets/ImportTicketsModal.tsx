@@ -1,6 +1,7 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import type { Ticket } from '@shared/types'
 import { isSupportedSchemaVersion, ticketImportFileSchema } from '@shared/ticketImport'
+import { useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useTicketStore, type TicketImportResult } from '../../store/ticketStore'
 import { Button, Modal, Textarea } from '../../ui'
@@ -19,6 +20,7 @@ export interface ImportTicketsModalProps {
 }
 
 export function ImportTicketsModal({ open, projectId, tickets, onClose }: ImportTicketsModalProps) {
+  const t = useT()
   const importJson = useTicketStore((state) => state.importJson)
 
   const [json, setJson] = useState('')
@@ -48,17 +50,18 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
         created: 0,
         updated: 0,
         issues: checked.error.issues.map(
-          (issue) => `${issue.path.length ? issue.path.join('.') : 'Wurzel'}: ${issue.message}`,
+          (issue) =>
+            `${issue.path.length ? issue.path.join('.') : t('ticketImport.root')}: ${issue.message}`,
         ),
       }
     }
 
     const issues: string[] = []
     if (!isSupportedSchemaVersion(checked.data.meta.schema_version)) {
-      issues.push('meta.schema_version: Es werden nur Versionen 1.x.x unterstützt')
+      issues.push(t('ticketImport.unsupportedVersion'))
     }
     if (checked.data.tickets.length === 0) {
-      issues.push('tickets: Die Datei enthält keine Tickets')
+      issues.push(t('ticketImport.noTickets'))
     }
     if (issues.length > 0) return { created: 0, updated: 0, issues }
 
@@ -69,7 +72,7 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
       else created += 1
     }
     return { created, updated, issues: [] }
-  }, [json, knownExternalIds])
+  }, [json, knownExternalIds, t])
 
   function reset(): void {
     setJson('')
@@ -106,7 +109,7 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
   return (
     <Modal
       open={open}
-      title="Tickets importieren"
+      title={t('ticketImport.title')}
       width="lg"
       onClose={() => {
         reset()
@@ -120,7 +123,7 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
               onClose()
             }}
           >
-            {result ? 'Schließen' : 'Abbrechen'}
+            {result ? t('common.close') : t('common.cancel')}
           </Button>
           {!result && (
             <Button
@@ -129,7 +132,7 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
               disabled={!importable}
               onClick={() => void runImport()}
             >
-              Importieren
+              {t('ticketImport.run')}
             </Button>
           )}
         </>
@@ -138,7 +141,7 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
       <div className="space-y-3">
         <div className="flex items-center gap-3">
           <label className="inline-flex h-9 cursor-pointer items-center rounded-md border border-line bg-raised px-3 text-sm text-ink hover:bg-overlay">
-            Datei wählen
+            {t('ticketImport.pickFile')}
             <input
               type="file"
               accept="application/json,.json"
@@ -147,7 +150,7 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
             />
           </label>
           <span className="truncate text-xs text-ink-faint">
-            {fileName ?? 'Oder JSON unten einfügen'}
+            {fileName ?? t('ticketImport.orPaste')}
           </span>
         </div>
 
@@ -166,7 +169,7 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
 
         {preview && preview.issues.length > 0 && (
           <div className="rounded-md border border-danger/40 bg-danger/10 p-2">
-            <p className="mb-1 text-xs font-medium text-danger">Die Datei ist nicht gültig:</p>
+            <p className="mb-1 text-xs font-medium text-danger">{t('ticketImport.invalid')}</p>
             <ul className="space-y-0.5">
               {preview.issues.map((issue) => (
                 <li key={issue} className="font-mono text-[11px] text-danger">
@@ -179,7 +182,7 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
 
         {importable && !result && (
           <p className="rounded-md border border-line bg-raised px-2 py-1.5 text-xs text-ink-muted">
-            {preview.created} neu, {preview.updated} aktualisiert
+            {t('ticketImport.preview', { created: preview.created, updated: preview.updated })}
           </p>
         )}
 
@@ -192,7 +195,7 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
         {result && (
           <div className="space-y-2 rounded-md border border-line bg-raised p-2">
             <p className="text-xs text-ink">
-              Import abgeschlossen: {result.created} neu, {result.updated} aktualisiert.
+              {t('ticketImport.done', { created: result.created, updated: result.updated })}
             </p>
             {result.warnings.length > 0 && (
               <ul className="space-y-0.5">

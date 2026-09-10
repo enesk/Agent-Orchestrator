@@ -1,10 +1,7 @@
-import { AGENT_ROLES } from '@shared/constants'
 import type { ProjectAgent } from '@shared/types'
+import { useT } from '../../i18n'
 import { cn } from '../../ui'
-
-function roleLabel(role: ProjectAgent['role']): string {
-  return AGENT_ROLES.find((option) => option.value === role)?.label ?? role
-}
+import { roleLabelKey } from '../agents/agentHelpers'
 
 export interface AgentPickerProps {
   agents: ProjectAgent[]
@@ -14,6 +11,8 @@ export interface AgentPickerProps {
 
 /** Mehrfachauswahl der Agenten, die als Worker eingesetzt werden dürfen. */
 export function AgentPicker({ agents, selectedIds, onChange }: AgentPickerProps) {
+  const t = useT()
+
   function toggle(agentId: string): void {
     onChange(
       selectedIds.includes(agentId)
@@ -25,7 +24,7 @@ export function AgentPicker({ agents, selectedIds, onChange }: AgentPickerProps)
   if (agents.length === 0) {
     return (
       <p className="rounded-md border border-line bg-raised px-2 py-1.5 text-xs text-ink-muted">
-        Dem Projekt ist kein Agent zugeordnet. Lege im Bereich „Agenten" mindestens einen an.
+        {t('goals.picker.noAgents')}
       </p>
     )
   }
@@ -54,7 +53,7 @@ export function AgentPicker({ agents, selectedIds, onChange }: AgentPickerProps)
               className="h-2 w-2 shrink-0 rounded-full"
             />
             <span className="min-w-0 flex-1 truncate text-xs text-ink">{agent.name}</span>
-            <span className="shrink-0 text-[11px] text-ink-faint">{roleLabel(agent.role)}</span>
+            <span className="shrink-0 text-[11px] text-ink-faint">{t(roleLabelKey(agent.role))}</span>
           </label>
         )
       })}

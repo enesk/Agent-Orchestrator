@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ProjectAgent } from '@shared/types'
+import { useT } from '../../i18n'
 import { useAgentStore } from '../../store/agentStore'
 import { useChatStore } from '../../store/chatStore'
 import { toErrorMessage } from '../../store/errorMessage'
@@ -14,6 +15,7 @@ import { MessageList } from './MessageList'
 import { ThreadPanel } from './ThreadPanel'
 
 export function ChatView() {
+  const t = useT()
   const projectId = useUiStore((state) => state.activeProjectId)
 
   const messages = useChatStore((state) => state.messages)
@@ -134,16 +136,16 @@ export function ChatView() {
     (messageId: string): void => {
       void (async () => {
         const confirmed = await confirm({
-          title: 'Nachricht löschen',
-          message: 'Diese Nachricht löschen?',
-          confirmLabel: 'Löschen',
+          title: t('chat.delete.title'),
+          message: t('chat.delete.message'),
+          confirmLabel: t('common.delete'),
           danger: true,
         })
         if (!confirmed) return
         void run(() => removeMessage(messageId))
       })()
     },
-    [confirm, run, removeMessage],
+    [confirm, run, removeMessage, t],
   )
 
   const handleRetry = useCallback(
@@ -164,7 +166,7 @@ export function ChatView() {
   const handleLoadOlder = useCallback((): void => void loadOlder(), [loadOlder])
 
   const scopeLabel = (scope: ClearScope): string =>
-    scope === null ? 'den gesamten Verlauf dieses Projekts' : `alles, was älter als ${scope} Tage ist`
+    scope === null ? t('chat.clear.scope.all') : t('chat.clear.scope.days', { days: scope })
 
   async function clearScope(scope: ClearScope): Promise<void> {
     if (!projectId) return
@@ -176,22 +178,20 @@ export function ChatView() {
         ...(scope === null ? {} : { olderThanDays: scope }),
       })
       if (count === 0) {
-        setClearNote('Es gibt nichts zu bereinigen.')
+        setClearNote(t('chat.clear.nothing'))
         return
       }
 
       const confirmed = await confirm({
-        title: 'Verlauf bereinigen',
-        message: `${count === 1 ? '1 Nachricht' : `${count} Nachrichten`} werden gelöscht — ${scopeLabel(scope)}. Anhänge dieser Nachrichten verschwinden von der Platte, und die gespeicherten Claude-Sitzungen des Projekts werden verworfen. Tickets, Dokumente, Erinnerungen und Vorhaben bleiben unberührt.`,
-        confirmLabel: 'Löschen',
+        title: t('chat.clear.title'),
+        message: t('chat.clear.message', { count, scope: scopeLabel(scope) }),
+        confirmLabel: t('common.delete'),
         danger: true,
       })
       if (!confirmed) return
 
       const deleted = await clearHistory(scope)
-      setClearNote(
-        deleted === 1 ? '1 Nachricht gelöscht.' : `${deleted} Nachrichten gelöscht.`,
-      )
+      setClearNote(t('chat.clear.done', { count: deleted }))
     } catch (caught) {
       setActionError(toErrorMessage(caught))
     } finally {
@@ -202,8 +202,8 @@ export function ChatView() {
   if (!projectId) {
     return (
       <EmptyState
-        title="Kein Projekt ausgewählt"
-        description="Wähle links ein Projekt, um mit seinen Agenten zu sprechen."
+        title={t('chat.noProject.title')}
+        description={t('chat.noProject.description')}
         icon={<ChatIcon />}
       />
     )
@@ -246,12 +246,12 @@ export function ChatView() {
         ) : rootMessages.length === 0 && !storeError && !agentsLoading && agents.length === 0 ? (
           <div className="flex min-h-0 flex-1 items-center justify-center">
             <EmptyState
-              title="Diesem Projekt ist kein Agent zugeordnet"
-              description="Erwähnungen werden nur gegen die Agenten dieses Projekts aufgelöst — ohne Zuordnung antwortet niemand."
+              title={t('chat.noAgents.title')}
+              description={t('chat.noAgents.description')}
               icon={<AgentIcon />}
               action={
                 <Button variant="primary" onClick={() => openAgents('project')}>
-                  Agenten zuordnen
+                  {t('chat.noAgents.action')}
                 </Button>
               }
             />
@@ -259,17 +259,15 @@ export function ChatView() {
         ) : rootMessages.length === 0 ? (
           <div className="flex min-h-0 flex-1 items-center justify-center">
             <EmptyState
-              title={storeError ? 'Verlauf nicht verfügbar' : 'Noch keine Nachrichten'}
+              title={storeError ? t('chat.unavailable.title') : t('chat.empty.title')}
               description={
-                storeError
-                  ? 'Der Verlauf konnte nicht geladen werden.'
-                  : 'Erwähne einen Agenten mit @ und stelle deine erste Frage.'
+                storeError ? t('chat.unavailable.description') : t('chat.empty.description')
               }
               icon={<ChatIcon />}
               action={
                 storeError ? (
                   <Button size="sm" onClick={() => void loadChat(projectId)}>
-                    Erneut versuchen
+                    {t('common.retry')}
                   </Button>
                 ) : undefined
               }
@@ -299,7 +297,7 @@ export function ChatView() {
           unassignedAgents={unassignedAgents}
           contentClassName={CHAT_COLUMN}
           onAssignAgent={(agent) => addToProject(projectId, agent.id)}
-          placeholder="Nachricht an das Projekt — @ erwähnt einen Agenten"
+          placeholder={t('chat.composer.placeholder')}
           onSend={(input) =>
             sendMessage({
               content: input.content,

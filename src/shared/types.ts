@@ -5,6 +5,7 @@ import type {
   TicketCategory,
   TicketStatus,
 } from './constants'
+import type { Language } from './i18n/types'
 
 /** Frei geformter JSON-Blob, wie er in `metadata`-Spalten liegt. */
 export type JsonObject = Record<string, unknown>
@@ -197,6 +198,8 @@ export interface AppSettings {
   claudePath: string | null
   minimizeToTray: boolean
   notificationsEnabled: boolean
+  /** Sprache der Oberfläche und der Texte, die der Main-Prozess erzeugt. */
+  language: Language
 }
 
 export interface AppInfo {

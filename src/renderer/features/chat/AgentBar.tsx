@@ -1,6 +1,7 @@
 import type { AgentStatusUpdate, ProjectAgent } from '@shared/types'
+import { useT } from '../../i18n'
 import { Tooltip, cn } from '../../ui'
-import { ACTIVITY_DOT_CLASSES, ACTIVITY_LABELS } from './chatHelpers'
+import { ACTIVITY_DOT_CLASSES, ACTIVITY_LABEL_KEYS } from './chatHelpers'
 
 export interface AgentBarProps {
   agents: ProjectAgent[]
@@ -11,10 +12,12 @@ export interface AgentBarProps {
 }
 
 export function AgentBar({ agents, activity, busyIds, onMention, onToggleStopped }: AgentBarProps) {
+  const t = useT()
+
   if (agents.length === 0) {
     return (
       <div className="px-3 py-2 text-xs text-ink-faint">
-        Diesem Projekt ist noch kein Agent zugeordnet.
+        {t('chat.agentBar.empty')}
       </div>
     )
   }
@@ -24,7 +27,9 @@ export function AgentBar({ agents, activity, busyIds, onMention, onToggleStopped
       {agents.map((agent) => {
         const status = activity[agent.id]
         const state = agent.stopped ? null : status?.activity ?? 'idle'
-        const detail = agent.stopped ? 'gestoppt' : status?.detail ?? (state ? ACTIVITY_LABELS[state] : '')
+        const detail = agent.stopped
+          ? t('chat.agentBar.stopped')
+          : status?.detail ?? (state ? t(ACTIVITY_LABEL_KEYS[state]) : '')
 
         return (
           <div
@@ -54,7 +59,7 @@ export function AgentBar({ agents, activity, busyIds, onMention, onToggleStopped
                 <span className="max-w-[10rem] truncate text-[11px] text-ink-faint">{detail}</span>
               </span>
             </button>
-            <Tooltip label={agent.stopped ? 'Agent fortsetzen' : 'Agent stoppen'}>
+            <Tooltip label={agent.stopped ? t('chat.agentBar.resume') : t('chat.agentBar.stop')}>
               <button
                 type="button"
                 disabled={busyIds.has(agent.id)}
@@ -66,7 +71,7 @@ export function AgentBar({ agents, activity, busyIds, onMention, onToggleStopped
                     : 'text-ink-faint hover:bg-raised hover:text-ink',
                 )}
               >
-                {agent.stopped ? 'Start' : 'Stopp'}
+                {agent.stopped ? t('chat.agentBar.start') : t('chat.agentBar.stopShort')}
               </button>
             </Tooltip>
           </div>

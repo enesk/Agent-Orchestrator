@@ -1,3 +1,5 @@
+import type { TranslationKey } from '@shared/i18n'
+import { useFormat, useT } from '../../i18n'
 import { cn } from '../../ui'
 import {
   CloseIcon,
@@ -7,7 +9,7 @@ import {
   MarkdownIcon,
   TableIcon,
 } from '../../ui/icons'
-import { formatFileSize, type AttachmentKind } from './attachmentHelpers'
+import type { AttachmentKind } from './attachmentHelpers'
 
 const KIND_ICONS = {
   image: ImageIcon,
@@ -17,12 +19,12 @@ const KIND_ICONS = {
   document: DocumentIcon,
 } as const
 
-const KIND_LABELS: Record<AttachmentKind, string> = {
-  image: 'Bild',
-  markdown: 'Markdown',
-  html: 'HTML',
-  table: 'Tabelle',
-  document: 'Dokument',
+const KIND_LABEL_KEYS: Record<AttachmentKind, TranslationKey> = {
+  image: 'attachment.kind.image',
+  markdown: 'attachment.kind.markdown',
+  html: 'attachment.kind.html',
+  table: 'attachment.kind.table',
+  document: 'attachment.kind.document',
 }
 
 export interface AttachmentTileProps {
@@ -55,6 +57,8 @@ export function AttachmentTile({
   onRemove,
   className,
 }: AttachmentTileProps) {
+  const t = useT()
+  const format = useFormat()
   const KindIcon = KIND_ICONS[kind]
   const showsPreview = kind === 'image' && !!previewUrl
 
@@ -64,7 +68,7 @@ export function AttachmentTile({
         type="button"
         disabled={!onOpen}
         onClick={onOpen}
-        title={`${fileName} · ${formatFileSize(size)}`}
+        title={`${fileName} · ${format.bytes(size)}`}
         className={cn(
           'flex items-center overflow-hidden rounded-md border border-line bg-raised text-left transition-colors',
           onOpen ? 'hover:border-line-strong' : 'cursor-default',
@@ -86,7 +90,7 @@ export function AttachmentTile({
             <span className="min-w-0 flex-1">
               <span className="block truncate text-xs text-ink">{fileName}</span>
               <span className="block truncate text-[11px] text-ink-faint">
-                {KIND_LABELS[kind]} · {formatFileSize(size)}
+                {t(KIND_LABEL_KEYS[kind])} · {format.bytes(size)}
               </span>
             </span>
           </>
@@ -96,7 +100,7 @@ export function AttachmentTile({
       {onRemove && (
         <button
           type="button"
-          aria-label={`${fileName} entfernen`}
+          aria-label={t('attachment.remove', { name: fileName })}
           onClick={onRemove}
           className="absolute -right-1.5 -top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full border border-line bg-overlay text-ink-muted hover:text-ink"
         >

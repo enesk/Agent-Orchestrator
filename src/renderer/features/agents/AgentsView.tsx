@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import type { TranslationKey } from '@shared/i18n'
 import type { ProjectAgent } from '@shared/types'
+import { useT } from '../../i18n'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useActiveProject } from '../../store/projectStore'
@@ -12,13 +14,14 @@ import { AgentMemoryPanel } from './AgentMemoryPanel'
 import { CreateAgentModal } from './CreateAgentModal'
 import { ProjectAgentsPanel } from './ProjectAgentsPanel'
 
-const TABS: { id: AgentsTab; label: string }[] = [
-  { id: 'editor', label: 'Agenten' },
-  { id: 'project', label: 'Im Projekt' },
-  { id: 'memory', label: 'Gedächtnis' },
+const TABS: { id: AgentsTab; labelKey: TranslationKey }[] = [
+  { id: 'editor', labelKey: 'agents.tab.editor' },
+  { id: 'project', labelKey: 'agents.tab.project' },
+  { id: 'memory', labelKey: 'agents.tab.memory' },
 ]
 
 export function AgentsView() {
+  const t = useT()
   const projectId = useUiStore((state) => state.activeProjectId)
   const project = useActiveProject()
 
@@ -65,7 +68,7 @@ export function AgentsView() {
     setActionError(null)
     try {
       const copy = await create({
-        name: `${agent.name} (Kopie)`,
+        name: t('agents.copySuffix', { name: agent.name }),
         title: agent.title,
         role: agent.role,
         systemPrompt: agent.systemPrompt,
@@ -82,9 +85,9 @@ export function AgentsView() {
 
   async function deleteAgent(agent: ProjectAgent): Promise<void> {
     const confirmed = await confirm({
-      title: 'Agent löschen',
-      message: `Agent „${agent.name}" löschen? Seine Zuordnungen, Erinnerungen und Nachrichten gehen mit.`,
-      confirmLabel: 'Löschen',
+      title: t('agents.delete.title'),
+      message: t('agents.delete.message', { name: agent.name }),
+      confirmLabel: t('common.delete'),
       danger: true,
     })
     if (!confirmed) return
@@ -112,7 +115,7 @@ export function AgentsView() {
                 : 'text-ink-muted hover:bg-raised hover:text-ink',
             )}
           >
-            {entry.label}
+            {t(entry.labelKey)}
           </button>
         ))}
         <div className="flex-1" />
@@ -130,8 +133,8 @@ export function AgentsView() {
           <ProjectAgentsPanel project={project} />
         ) : (
           <EmptyState
-            title="Kein Projekt ausgewählt"
-            description="Wähle links ein Projekt, um seine Agenten zuzuordnen."
+            title={t('agents.noProject.title')}
+            description={t('agents.noProject.description')}
             icon={<AgentIcon />}
           />
         )
@@ -139,14 +142,14 @@ export function AgentsView() {
         <div className="flex min-h-0 flex-1">
           <aside className="flex w-72 shrink-0 flex-col border-r border-line bg-surface">
             <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-line px-3">
-              <span className="text-sm font-medium text-ink">Alle Agenten</span>
+              <span className="text-sm font-medium text-ink">{t('agents.all')}</span>
               <Button
                 size="sm"
                 variant="primary"
                 icon={<PlusIcon width={14} height={14} />}
                 onClick={() => setCreateOpen(true)}
               >
-                Neu
+                {t('agents.new')}
               </Button>
             </div>
             <AgentList agents={allAgents} selectedId={selectedId} onSelect={setSelectedId} />
@@ -164,13 +167,13 @@ export function AgentsView() {
             )
           ) : (
             <EmptyState
-              title="Noch kein Agent angelegt"
-              description="Agenten gelten für alle Projekte und werden ihnen danach einzeln zugeordnet."
+              title={t('agents.empty.title')}
+              description={t('agents.empty.description')}
               icon={<AgentIcon />}
               className="flex-1"
               action={
                 <Button variant="primary" onClick={() => setCreateOpen(true)}>
-                  Neuer Agent
+                  {t('agents.newAgent')}
                 </Button>
               }
             />

@@ -1,15 +1,16 @@
 import { create } from 'zustand'
+import type { TranslationKey } from '@shared/i18n'
 
 export type Section = 'home' | 'chat' | 'tickets' | 'documents' | 'goals' | 'agents' | 'settings'
 
-export const SECTION_LABELS: Record<Section, string> = {
-  home: 'Übersicht',
-  chat: 'Chat',
-  tickets: 'Tickets',
-  documents: 'Dokumente',
-  goals: 'Vorhaben',
-  agents: 'Agenten',
-  settings: 'Einstellungen',
+export const SECTION_LABEL_KEYS: Record<Section, TranslationKey> = {
+  home: 'nav.home',
+  chat: 'nav.chat',
+  tickets: 'nav.tickets',
+  documents: 'nav.documents',
+  goals: 'nav.goals',
+  agents: 'nav.agents',
+  settings: 'nav.settings',
 }
 
 /** Reiter des Agenten-Bereichs — im Store, damit andere Ansichten gezielt dorthin führen. */

@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { useT } from '../i18n'
 import { cn } from './cn'
 import { CloseIcon } from './icons'
 import { IconButton } from './IconButton'
@@ -19,6 +20,7 @@ const WIDTHS = {
 } as const
 
 export function Modal({ open, title, onClose, children, footer, width = 'md' }: ModalProps) {
+  const t = useT()
   useEffect(() => {
     if (!open) return
     const onKeyDown = (event: KeyboardEvent) => {
@@ -47,7 +49,7 @@ export function Modal({ open, title, onClose, children, footer, width = 'md' }: 
       >
         <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-line px-4">
           <h2 className="truncate text-sm font-medium text-ink">{title}</h2>
-          <IconButton label="Schließen" icon={<CloseIcon />} onClick={onClose} />
+          <IconButton label={t('common.close')} icon={<CloseIcon />} onClick={onClose} />
         </header>
         <div className="min-h-0 flex-1 overflow-auto p-4">{children}</div>
         {footer && (

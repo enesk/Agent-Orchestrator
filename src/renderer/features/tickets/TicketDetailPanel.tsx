@@ -6,6 +6,7 @@ import {
   type TicketStatus,
 } from '@shared/constants'
 import type { ProjectAgent, Ticket, TicketDetail } from '@shared/types'
+import { useFormat, useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useTicketStore } from '../../store/ticketStore'
 import {
@@ -17,21 +18,10 @@ import {
   Select,
   Spinner,
   Textarea,
-  formatDateTime,
 } from '../../ui'
 import { CloseIcon } from '../../ui/icons'
 import { AttachmentList } from '../attachments'
-import { categoryOption } from './ticketHelpers'
-
-const STATUS_OPTIONS = (Object.keys(TICKET_STATUS_LABELS) as TicketStatus[]).map((status) => ({
-  value: status,
-  label: TICKET_STATUS_LABELS[status],
-}))
-
-const CATEGORY_OPTIONS = TICKET_CATEGORIES.map((option) => ({
-  value: option.value,
-  label: option.label,
-}))
+import { categoryLabelKey, categoryOption, statusLabelKey } from './ticketHelpers'
 
 export interface TicketDetailPanelProps {
   detail: TicketDetail
@@ -41,6 +31,26 @@ export interface TicketDetailPanelProps {
 }
 
 export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDetailPanelProps) {
+  const t = useT()
+  const format = useFormat()
+
+  const statusOptions = useMemo(
+    () =>
+      (Object.keys(TICKET_STATUS_LABELS) as TicketStatus[]).map((status) => ({
+        value: status,
+        label: t(statusLabelKey(status)),
+      })),
+    [t],
+  )
+  const categoryOptions = useMemo(
+    () =>
+      TICKET_CATEGORIES.map((option) => ({
+        value: option.value,
+        label: t(categoryLabelKey(option.value)),
+      })),
+    [t],
+  )
+
   const update = useTicketStore((state) => state.update)
   const addComment = useTicketStore((state) => state.addComment)
   const setDependencies = useTicketStore((state) => state.setDependencies)
@@ -99,9 +109,9 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
       <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-line px-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="font-mono text-xs text-ink-faint">#{detail.number}</span>
-          <Badge color={category.color}>{category.label}</Badge>
+          <Badge color={category.color}>{t(categoryLabelKey(detail.category))}</Badge>
         </div>
-        <IconButton label="Detail schließen" icon={<CloseIcon />} onClick={onClose} />
+        <IconButton label={t('ticketDetail.close')} icon={<CloseIcon />} onClick={onClose} />
       </header>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-3">
@@ -145,8 +155,8 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
 
         <div className="grid grid-cols-2 gap-2">
           <Select
-            label="Status"
-            options={STATUS_OPTIONS}
+            label={t('ticketDetail.status')}
+            options={statusOptions}
             value={detail.status}
             disabled={busy}
             onChange={(event) =>
@@ -154,8 +164,8 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
             }
           />
           <Select
-            label="Kategorie"
-            options={CATEGORY_OPTIONS}
+            label={t('ticketCreate.category')}
+            options={categoryOptions}
             value={detail.category}
             disabled={busy}
             onChange={(event) =>
@@ -165,9 +175,9 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
         </div>
 
         <Select
-          label="Zuweisung"
+          label={t('ticketCreate.assignee')}
           options={[
-            { value: '', label: 'Nicht zugewiesen' },
+            { value: '', label: t('ticket.card.unassigned') },
             ...agents.map((agent) => ({ value: agent.id, label: agent.name })),
           ]}
           value={detail.assignedAgentId ?? ''}
@@ -179,7 +189,7 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
 
         <section>
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs font-medium text-ink-muted">Beschreibung</span>
+            <span className="text-xs font-medium text-ink-muted">{t('ticketCreate.description')}</span>
             <Button
               size="sm"
               variant="ghost"
@@ -194,7 +204,7 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
                 }
               }}
             >
-              {editingDescription ? 'Fertig' : 'Bearbeiten'}
+              {editingDescription ? t('ticketDetail.done') : t('common.edit')}
             </Button>
           </div>
           {editingDescription ? (
@@ -202,19 +212,21 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
               rows={10}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Markdown wird unterstützt."
+              placeholder={t('ticketCreate.descriptionPlaceholder')}
             />
           ) : detail.description ? (
             <Markdown content={detail.description} />
           ) : (
-            <p className="text-xs text-ink-faint">Keine Beschreibung</p>
+            <p className="text-xs text-ink-faint">{t('project.card.noDescription')}</p>
           )}
         </section>
 
         <section>
-          <span className="mb-1 block text-xs font-medium text-ink-muted">Abhängigkeiten</span>
+          <span className="mb-1 block text-xs font-medium text-ink-muted">
+            {t('ticketDetail.dependencies')}
+          </span>
           {detail.dependencies.length === 0 && (
-            <p className="text-xs text-ink-faint">Keine Abhängigkeiten</p>
+            <p className="text-xs text-ink-faint">{t('ticketDetail.noDependencies')}</p>
           )}
           <ul className="space-y-1">
             {detail.dependencies.map((dependencyId) => {
@@ -240,7 +252,7 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
                       )
                     }
                   >
-                    Entfernen
+                    {t('ticketDetail.removeDependency')}
                   </button>
                 </li>
               )
@@ -248,7 +260,7 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
           </ul>
           <div className="mt-1.5">
             <Input
-              placeholder="Ticket suchen (Titel oder Nummer)"
+              placeholder={t('ticketDetail.searchTicket')}
               value={dependencyQuery}
               onChange={(event) => setDependencyQuery(event.target.value)}
             />
@@ -278,14 +290,14 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
 
         {detail.attachments.length > 0 && (
           <section>
-            <span className="mb-1 block text-xs font-medium text-ink-muted">Anhänge</span>
+            <span className="mb-1 block text-xs font-medium text-ink-muted">{t('ticketDetail.attachments')}</span>
             <AttachmentList attachments={detail.attachments} />
           </section>
         )}
 
         <section>
           <span className="mb-1 block text-xs font-medium text-ink-muted">
-            Kommentare ({detail.comments.length})
+            {t('ticketDetail.comments', { count: detail.comments.length })}
           </span>
           <ul className="space-y-2">
             {detail.comments.map((entry) => (
@@ -293,16 +305,17 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
                 <div className="mb-1 flex items-center gap-2 text-[11px] text-ink-faint">
                   <span className="text-ink-muted">
                     {entry.authorType === 'agent'
-                      ? (entry.agentId && agentById.get(entry.agentId)?.name) ?? 'Agent'
-                      : 'Du'}
+                      ? (entry.agentId && agentById.get(entry.agentId)?.name) ??
+                        t('ticketDetail.authorAgent')
+                      : t('ticketDetail.authorUser')}
                   </span>
-                  <span>{formatDateTime(entry.createdAt)}</span>
+                  <span>{format.dateTime(entry.createdAt)}</span>
                 </div>
                 <Markdown content={entry.content} className="text-xs" />
               </li>
             ))}
             {detail.comments.length === 0 && (
-              <li className="text-xs text-ink-faint">Noch keine Kommentare</li>
+              <li className="text-xs text-ink-faint">{t('ticketDetail.noComments')}</li>
             )}
           </ul>
         </section>
@@ -312,7 +325,7 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
         <Textarea
           rows={3}
           value={comment}
-          placeholder="Kommentar schreiben …"
+          placeholder={t('ticketDetail.commentPlaceholder')}
           onChange={(event) => setComment(event.target.value)}
         />
         <div className="flex items-center justify-end gap-2">
@@ -328,7 +341,7 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
               })
             }
           >
-            Kommentieren
+            {t('ticketDetail.comment')}
           </Button>
         </div>
       </footer>

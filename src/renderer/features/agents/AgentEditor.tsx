@@ -9,29 +9,16 @@ import {
   type AgentRole,
 } from '@shared/constants'
 import type { Agent } from '@shared/types'
+import { useT } from '../../i18n'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { Button, Input, Select, Textarea, cn } from '../../ui'
 import { AgentAvatar } from './AgentAvatar'
 import { GeneratePromptModal } from './GeneratePromptModal'
-import { previewMentionKey, roleDescription } from './agentHelpers'
+import { effortLabelKey, previewMentionKey, roleDescriptionKey, roleLabelKey } from './agentHelpers'
 
 const CUSTOM_MODEL = '__custom__'
 
-const MODEL_OPTIONS = [
-  ...AGENT_MODELS.map((option) => ({
-    value: option.value,
-    label: option.label,
-    group: option.group,
-  })),
-  { value: CUSTOM_MODEL, label: 'Eigene Modell-ID …', group: 'Sonstiges' },
-]
-
-const ROLE_OPTIONS = AGENT_ROLES.map((option) => ({ value: option.value, label: option.label }))
-const EFFORT_OPTIONS = AGENT_EFFORTS.map((option) => ({
-  value: option.value,
-  label: option.label,
-}))
 
 interface Draft {
   name: string
@@ -66,7 +53,32 @@ export interface AgentEditorProps {
 }
 
 export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) {
+  const t = useT()
   const update = useAgentStore((state) => state.update)
+
+  const modelOptions = useMemo(
+    () => [
+      ...AGENT_MODELS.map((option) => ({
+        value: option.value,
+        label: option.label,
+        group: option.group,
+      })),
+      {
+        value: CUSTOM_MODEL,
+        label: t('agentEditor.customModelOption'),
+        group: t('agentEditor.customModelGroup'),
+      },
+    ],
+    [t],
+  )
+  const roleOptions = useMemo(
+    () => AGENT_ROLES.map((option) => ({ value: option.value, label: t(roleLabelKey(option.value)) })),
+    [t],
+  )
+  const effortOptions = useMemo(
+    () => AGENT_EFFORTS.map((option) => ({ value: option.value, label: t(effortLabelKey(option.value)) })),
+    [t],
+  )
 
   const [draft, setDraft] = useState<Draft>(() => toDraft(agent))
   const [customModel, setCustomModel] = useState(() => isKnownModel(agent.model) ? '' : agent.model)
@@ -131,16 +143,16 @@ export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) 
       <header className="flex h-11 shrink-0 items-center gap-2 border-b border-line px-3">
         <AgentAvatar name={draft.name} color={draft.color} avatar={draft.avatar || null} size="sm" />
         <h2 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-          {draft.name || 'Ohne Namen'}
+          {draft.name || t('agentEditor.unnamed')}
         </h2>
         <span className="text-xs text-ink-faint">
-          {dirty ? 'Nicht gespeichert' : saved ? 'Gespeichert' : ''}
+          {dirty ? t('agentEditor.unsaved') : saved ? t('common.saved') : ''}
         </span>
         <Button size="sm" onClick={onDuplicate}>
-          Duplizieren
+          {t('agentEditor.duplicate')}
         </Button>
         <Button size="sm" variant="ghost" onClick={onDelete}>
-          Löschen
+          {t('common.delete')}
         </Button>
         <Button
           size="sm"
@@ -149,7 +161,7 @@ export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) 
           disabled={!dirty || !draft.name.trim() || modelMissing}
           onClick={() => void save()}
         >
-          Speichern
+          {t('common.save')}
         </Button>
       </header>
 
@@ -162,40 +174,42 @@ export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) 
       <div className="min-h-0 flex-1 space-y-3 overflow-auto p-3">
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Name"
+            label={t('agent.create.name')}
             value={draft.name}
             onChange={(event) => set('name', event.target.value)}
-            placeholder="z.B. Lena"
+            placeholder={t('agent.create.namePlaceholder')}
           />
           <Input
-            label="Titel"
+            label={t('agentEditor.title')}
             value={draft.title}
             onChange={(event) => set('title', event.target.value)}
-            placeholder="z.B. Backend-Entwicklung"
+            placeholder={t('agentEditor.titlePlaceholder')}
           />
         </div>
 
         <Input
-          label="Erwähnungskürzel"
+          label={t('agentEditor.mentionKey')}
           value={draft.mentionKey}
           onChange={(event) => set('mentionKey', event.target.value)}
-          hint={`Wird gespeichert als ${previewMentionKey(draft.mentionKey || draft.name)} — bei Kollision hängt die App eine Zahl an.`}
+          hint={t('agentEditor.mentionKeyHint', {
+            key: previewMentionKey(draft.mentionKey || draft.name),
+          })}
         />
 
         <div className="grid grid-cols-2 gap-3">
           <Select
-            label="Rolle"
-            options={ROLE_OPTIONS}
+            label={t('agent.create.role')}
+            options={roleOptions}
             value={draft.role}
             onChange={(event) => set('role', event.target.value as AgentRole)}
           />
-          <div className="self-end pb-2 text-xs text-ink-faint">{roleDescription(draft.role)}</div>
+          <div className="self-end pb-2 text-xs text-ink-faint">{t(roleDescriptionKey(draft.role))}</div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <Select
-            label="Modell"
-            options={MODEL_OPTIONS}
+            label={t('agentEditor.model')}
+            options={modelOptions}
             value={isKnownModel(draft.model) ? draft.model : CUSTOM_MODEL}
             onChange={(event) => {
               const value = event.target.value
@@ -203,8 +217,8 @@ export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) 
             }}
           />
           <Select
-            label="Effort"
-            options={EFFORT_OPTIONS}
+            label={t('agentEditor.effort')}
+            options={effortOptions}
             value={draft.effort}
             onChange={(event) => set('effort', event.target.value as AgentEffort)}
           />
@@ -212,7 +226,7 @@ export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) 
 
         {!isKnownModel(draft.model) && (
           <Input
-            label="Eigene Modell-ID"
+            label={t('agentEditor.customModel')}
             value={customModel || draft.model}
             className="font-mono"
             onChange={(event) => {
@@ -220,24 +234,24 @@ export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) 
               set('model', event.target.value)
             }}
             placeholder="claude-…"
-            error={modelMissing ? 'Ohne Modell-ID kann der Agent nicht laufen.' : null}
+            error={modelMissing ? t('agentEditor.modelMissing') : null}
           />
         )}
 
         {effortIgnored && (
           <p className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs text-warning">
-            Dieses Modell kennt den Effort-Parameter nicht — die CLI ignoriert die Einstellung.
+            {t('agentEditor.effortIgnored')}
           </p>
         )}
 
         <div>
-          <span className="mb-1 block text-xs font-medium text-ink-muted">Farbe</span>
+          <span className="mb-1 block text-xs font-medium text-ink-muted">{t('agentEditor.color')}</span>
           <div className="flex flex-wrap gap-2">
             {AGENT_COLORS.map((color) => (
               <button
                 key={color}
                 type="button"
-                aria-label={`Farbe ${color}`}
+                aria-label={t('agentEditor.colorLabel', { color })}
                 aria-pressed={draft.color === color}
                 style={{ backgroundColor: color }}
                 onClick={() => set('color', color)}
@@ -253,26 +267,26 @@ export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) 
         <div className="grid grid-cols-[auto,1fr] items-end gap-3">
           <AgentAvatar name={draft.name} color={draft.color} avatar={draft.avatar || null} />
           <Input
-            label="Avatar"
+            label={t('agentEditor.avatar')}
             value={draft.avatar}
             maxLength={4}
             onChange={(event) => set('avatar', event.target.value)}
-            hint="Ein Emoji oder bis zu vier Zeichen. Leer lassen für die Initialen."
+            hint={t('agentEditor.avatarHint')}
           />
         </div>
 
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs font-medium text-ink-muted">Systemprompt</span>
+            <span className="text-xs font-medium text-ink-muted">{t('agentEditor.systemPrompt')}</span>
             <Button size="sm" onClick={() => setPromptModalOpen(true)}>
-              Prompt erzeugen
+              {t('agentEditor.generatePrompt')}
             </Button>
           </div>
           <Textarea
             rows={18}
             value={draft.systemPrompt}
             onChange={(event) => set('systemPrompt', event.target.value)}
-            placeholder="Wer ist dieser Agent, wie arbeitet er, was darf er nicht?"
+            placeholder={t('agentEditor.systemPromptPlaceholder')}
             className="font-mono text-xs"
           />
         </div>

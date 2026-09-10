@@ -4,17 +4,18 @@
  */
 export const CHAT_COLUMN = 'mx-auto w-full max-w-3xl'
 
+import type { TranslationKey, Translator } from '@shared/i18n'
 import type { AgentActivity, ChatMessage, ProjectAgent } from '@shared/types'
 
 // Anhänge sind überall gleich — Chat, Ticket und Verlauf teilen sich dieselben Helfer.
 export { attachmentUrl, isImage, readFileAsBase64 } from '../attachments'
 
-export const ACTIVITY_LABELS: Record<AgentActivity, string> = {
-  idle: 'untätig',
-  thinking: 'denkt',
-  writing: 'antwortet',
-  tool: 'arbeitet',
-  error: 'Fehler',
+export const ACTIVITY_LABEL_KEYS: Record<AgentActivity, TranslationKey> = {
+  idle: 'chat.activity.idle',
+  thinking: 'chat.activity.thinking',
+  writing: 'chat.activity.writing',
+  tool: 'chat.activity.tool',
+  error: 'chat.activity.error',
 }
 
 export const ACTIVITY_DOT_CLASSES: Record<AgentActivity, string> = {
@@ -101,29 +102,27 @@ export function startsGroup(message: ChatMessage, previous: ChatMessage | undefi
   return !Number.isFinite(gap) || gap > GROUP_WINDOW_MS
 }
 
-const TIME_FORMAT = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' })
+const dayFormats = new Map<string, Intl.DateTimeFormat>()
 
-export function formatTime(value: string): string {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : TIME_FORMAT.format(date)
+function dayFormat(locale: string): Intl.DateTimeFormat {
+  let formatter = dayFormats.get(locale)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, { weekday: 'long', day: '2-digit', month: 'long' })
+    dayFormats.set(locale, formatter)
+  }
+  return formatter
 }
 
-const DAY_FORMAT = new Intl.DateTimeFormat('de-DE', {
-  weekday: 'long',
-  day: '2-digit',
-  month: 'long',
-})
-
 /** Datumstrenner über dem ersten Beitrag eines Tages — „Heute" und „Gestern" ausgeschrieben. */
-export function formatDaySeparator(value: string): string {
+export function formatDaySeparator(value: string, t: Translator): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   const startOfDay = (input: Date): number =>
     new Date(input.getFullYear(), input.getMonth(), input.getDate()).getTime()
   const days = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86_400_000)
-  if (days === 0) return 'Heute'
-  if (days === 1) return 'Gestern'
-  return DAY_FORMAT.format(date)
+  if (days === 0) return t('chat.day.today')
+  if (days === 1) return t('chat.day.yesterday')
+  return dayFormat(t.locale).format(date)
 }
 
 export function isSameDay(a: string, b: string): boolean {

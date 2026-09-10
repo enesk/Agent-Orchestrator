@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GoalLogEntry, ProjectAgent, Ticket } from '@shared/types'
+import { useFormat, useT } from '../../i18n'
 import { Button, Spinner, cn } from '../../ui'
-import { formatTime } from './goalHelpers'
 
 /** Ab diesem Abstand zum unteren Rand gilt die Ansicht als „unten angeheftet". */
 const STICK_THRESHOLD = 48
@@ -15,6 +15,7 @@ export interface GoalLogProps {
 }
 
 export function GoalLog({ entries, loading, error, agents, tickets }: GoalLogProps) {
+  const t = useT()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [pinned, setPinned] = useState(true)
 
@@ -50,7 +51,7 @@ export function GoalLog({ entries, loading, error, agents, tickets }: GoalLogPro
             <Spinner />
           </div>
         ) : entries.length === 0 ? (
-          <p className="p-3 text-xs text-ink-faint">Noch keine Meldungen.</p>
+          <p className="p-3 text-xs text-ink-faint">{t('goals.log.empty')}</p>
         ) : (
           <ul className="divide-y divide-line/60">
             {entries.map((entry) => (
@@ -68,7 +69,7 @@ export function GoalLog({ entries, loading, error, agents, tickets }: GoalLogPro
       {!pinned && entries.length > 0 && (
         <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
           <Button size="sm" className="pointer-events-auto shadow-lg" onClick={scrollToEnd}>
-            Neueste anzeigen
+            {t('goals.log.showLatest')}
           </Button>
         </div>
       )}
@@ -83,11 +84,12 @@ interface LogRowProps {
 }
 
 function LogRow({ entry, agentName, ticketNumber }: LogRowProps) {
+  const format = useFormat()
   return (
     <li className="flex items-start gap-2 px-3 py-1.5">
       <StatusMark status={entry.status} />
       <span className="shrink-0 pt-px font-mono text-[11px] text-ink-faint">
-        {formatTime(entry.createdAt)}
+        {format.timeWithSeconds(entry.createdAt)}
       </span>
       <div className="min-w-0 flex-1">
         <p className="whitespace-pre-wrap break-words text-xs text-ink">{entry.message}</p>
@@ -104,8 +106,13 @@ function LogRow({ entry, agentName, ticketNumber }: LogRowProps) {
 }
 
 function StatusMark({ status }: { status: GoalLogEntry['status'] }) {
+  const t = useT()
   const label =
-    status === 'running' ? 'Läuft' : status === 'success' ? 'Erfolgreich' : 'Fehlgeschlagen'
+    status === 'running'
+      ? t('goals.log.running')
+      : status === 'success'
+        ? t('goals.log.success')
+        : t('goals.log.failed')
   return (
     <span
       title={label}

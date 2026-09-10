@@ -1,4 +1,5 @@
 import type { ChatMessage, ProjectAgent } from '@shared/types'
+import { useT } from '../../i18n'
 import type { ToolEvent } from '../../store/chatStore'
 import { EmptyState, IconButton, Spinner } from '../../ui'
 import { CloseIcon } from '../../ui/icons'
@@ -42,17 +43,18 @@ export function ThreadPanel({
   onDelete,
   onSend,
 }: ThreadPanelProps) {
+  const t = useT()
   return (
     <aside className="flex w-[420px] shrink-0 flex-col border-l border-line bg-surface">
       <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-line px-3">
-        <span className="text-sm font-medium text-ink">Thread</span>
-        <IconButton label="Thread schließen" icon={<CloseIcon />} onClick={onClose} />
+        <span className="text-sm font-medium text-ink">{t('chat.thread.title')}</span>
+        <IconButton label={t('chat.thread.close')} icon={<CloseIcon />} onClick={onClose} />
       </header>
 
       {!root ? (
         <EmptyState
-          title="Nachricht nicht verfügbar"
-          description="Die Ursprungsnachricht wurde inzwischen gelöscht."
+          title={t('chat.thread.missing.title')}
+          description={t('chat.thread.missing.description')}
         />
       ) : (
         <>
@@ -74,10 +76,8 @@ export function ThreadPanel({
               <span className="h-px flex-1 bg-line" />
               <span className="text-[11px] text-ink-faint">
                 {replies.length === 0
-                  ? 'Noch keine Antworten'
-                  : replies.length === 1
-                    ? '1 Antwort'
-                    : `${replies.length} Antworten`}
+                  ? t('chat.thread.noReplies')
+                  : t('chat.message.replies', { count: replies.length })}
               </span>
               <span className="h-px flex-1 bg-line" />
             </div>
@@ -113,7 +113,7 @@ export function ThreadPanel({
           <Composer
             agents={agents}
             autoFocus
-            placeholder="Im Thread antworten …"
+            placeholder={t('chat.composer.threadPlaceholder')}
             onSend={onSend}
           />
         </>

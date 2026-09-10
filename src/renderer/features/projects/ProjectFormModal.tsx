@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { JsonObject, Project } from '@shared/types'
-import { roleLabel } from '../agents/agentHelpers'
+import { useT } from '../../i18n'
+import { roleLabelKey } from '../agents/agentHelpers'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useProjectStore } from '../../store/projectStore'
@@ -41,6 +42,7 @@ function toMetadata(pairs: MetadataPair[]): JsonObject {
 }
 
 export function ProjectFormModal({ open, project, onClose }: ProjectFormModalProps) {
+  const t = useT()
   const createProject = useProjectStore((state) => state.create)
   const updateProject = useProjectStore((state) => state.update)
   const setActiveProject = useUiStore((state) => state.setActiveProject)
@@ -123,7 +125,7 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
           try {
             await addManyToProject(result.id, chosen)
           } catch (caught) {
-            setError(`Projekt gespeichert, aber die Agenten konnten nicht zugeordnet werden: ${toErrorMessage(caught)}`)
+            setError(t('projectForm.agentsAssignFailed', { error: toErrorMessage(caught) }))
             return
           }
         }
@@ -145,13 +147,13 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
   return (
     <Modal
       open={open}
-      title={project ? 'Projekt bearbeiten' : 'Neues Projekt'}
+      title={project ? t('projectForm.title.edit') : t('projectForm.title.create')}
       onClose={onClose}
       footer={
         <>
-          <Button onClick={onClose}>{pathWarning ? 'Schließen' : 'Abbrechen'}</Button>
+          <Button onClick={onClose}>{pathWarning ? t('common.close') : t('common.cancel')}</Button>
           <Button variant="primary" loading={saving} disabled={!name.trim()} onClick={() => void submit()}>
-            Speichern
+            {t('common.save')}
           </Button>
         </>
       }
@@ -164,23 +166,23 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
         )}
 
         <Input
-          label="Name"
+          label={t('projectForm.name')}
           autoFocus
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="z.B. Onlineshop"
+          placeholder={t('projectForm.namePlaceholder')}
         />
 
         <Textarea
-          label="Beschreibung"
+          label={t('projectForm.description')}
           rows={3}
           value={description}
           onChange={(event) => setDescription(event.target.value)}
-          placeholder="Worum geht es in diesem Projekt?"
+          placeholder={t('projectForm.descriptionPlaceholder')}
         />
 
         <div>
-          <span className="mb-1 block text-xs font-medium text-ink-muted">Projektpfad</span>
+          <span className="mb-1 block text-xs font-medium text-ink-muted">{t('projectForm.path')}</span>
           <div className="flex gap-2">
             <div className="min-w-0 flex-1">
               <Input
@@ -195,28 +197,23 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
               icon={<FolderIcon width={16} height={16} />}
               onClick={() => void browse()}
             >
-              Durchsuchen
+              {t('projectForm.browse')}
             </Button>
           </div>
-          <p className="mt-1 text-xs text-ink-faint">
-            Die Agenten arbeiten in diesem Ordner — er ist das Arbeitsverzeichnis der Claude-CLI.
-          </p>
+          <p className="mt-1 text-xs text-ink-faint">{t('projectForm.pathHint')}</p>
           {pathWarning && (
             <p className="mt-1 rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs text-warning">
-              {pathWarning} Gespeichert wurde trotzdem.
+              {t('projectForm.pathWarningSaved', { warning: pathWarning })}
             </p>
           )}
         </div>
 
         {!project && (
           <div>
-            <span className="mb-1 block text-xs font-medium text-ink-muted">Agenten</span>
+            <span className="mb-1 block text-xs font-medium text-ink-muted">{t('projectForm.agents')}</span>
             {allAgents.length === 0 ? (
               <div className="rounded-md border border-line bg-base px-2 py-2">
-                <p className="text-xs text-ink-faint">
-                  Es ist noch kein Agent angelegt. Ohne zugeordneten Agenten antwortet im Chat
-                  niemand.
-                </p>
+                <p className="text-xs text-ink-faint">{t('projectForm.noAgents')}</p>
                 <Button
                   size="sm"
                   className="mt-1.5"
@@ -225,7 +222,7 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
                     openAgents('editor')
                   }}
                 >
-                  Zum Agenten-Bereich
+                  {t('projectForm.toAgents')}
                 </Button>
               </div>
             ) : (
@@ -245,7 +242,7 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
                           style={{ backgroundColor: agent.color }}
                         />
                         <span className="truncate text-sm text-ink">{agent.name}</span>
-                        <Badge>{roleLabel(agent.role)}</Badge>
+                        <Badge>{t(roleLabelKey(agent.role))}</Badge>
                         <span className="ml-auto shrink-0 font-mono text-[11px] text-ink-faint">
                           {agent.mentionKey}
                         </span>
@@ -253,10 +250,7 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
                     </li>
                   ))}
                 </ul>
-                <p className="mt-1 text-xs text-ink-faint">
-                  Nur zugeordnete Agenten lassen sich im Chat mit @ erwähnen. Vorausgewählt sind
-                  alle Worker.
-                </p>
+                <p className="mt-1 text-xs text-ink-faint">{t('projectForm.agentsHint')}</p>
               </>
             )}
           </div>
@@ -264,18 +258,18 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
 
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs font-medium text-ink-muted">Metadaten</span>
+            <span className="text-xs font-medium text-ink-muted">{t('projectForm.metadata')}</span>
             <Button
               size="sm"
               icon={<PlusIcon width={14} height={14} />}
               onClick={() => setPairs((current) => [...current, { key: '', value: '' }])}
             >
-              Feld
+              {t('projectForm.addField')}
             </Button>
           </div>
           {pairs.length === 0 ? (
             <p className="text-xs text-ink-faint">
-              Freie Schlüssel/Wert-Paare, z.B. <code className="font-mono">test_url</code> oder{' '}
+              {t('projectForm.metadataHint')} <code className="font-mono">test_url</code>,{' '}
               <code className="font-mono">tech_stack</code>.
             </p>
           ) : (
@@ -285,7 +279,7 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
                   <div className="w-44 shrink-0">
                     <Input
                       value={pair.key}
-                      placeholder="Schlüssel"
+                      placeholder={t('projectForm.key')}
                       className="font-mono"
                       onChange={(event) =>
                         setPairs((current) =>
@@ -299,7 +293,7 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
                   <div className="min-w-0 flex-1">
                     <Input
                       value={pair.value}
-                      placeholder="Wert"
+                      placeholder={t('projectForm.value')}
                       onChange={(event) =>
                         setPairs((current) =>
                           current.map((item, position) =>
@@ -310,7 +304,7 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
                     />
                   </div>
                   <IconButton
-                    label="Feld entfernen"
+                    label={t('projectForm.removeField')}
                     icon={<CloseIcon width={16} height={16} />}
                     onClick={() =>
                       setPairs((current) => current.filter((_, position) => position !== index))

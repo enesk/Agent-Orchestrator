@@ -1,8 +1,10 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Components } from 'react-markdown'
+import { useT } from '../../i18n'
 import { Markdown } from '../../ui'
 
 function CodeBlock({ children }: { children?: ReactNode }) {
+  const t = useT()
   const preRef = useRef<HTMLPreElement>(null)
   const [copied, setCopied] = useState(false)
 
@@ -24,7 +26,7 @@ function CodeBlock({ children }: { children?: ReactNode }) {
         onClick={() => void copy()}
         className="absolute right-2 top-3.5 rounded border border-line bg-overlay px-1.5 py-0.5 text-[11px] text-ink-muted opacity-0 transition-opacity hover:text-ink group-hover/code:opacity-100 focus-visible:opacity-100"
       >
-        {copied ? 'Kopiert' : 'Kopieren'}
+        {copied ? t('common.copied') : t('common.copy')}
       </button>
     </div>
   )

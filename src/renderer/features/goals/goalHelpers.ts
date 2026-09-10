@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { GOAL_STATUS_LABELS, type GoalStatus } from '@shared/constants'
+import type { GoalStatus } from '@shared/constants'
+import type { TranslationKey, Translator } from '@shared/i18n'
 import type { Goal, JsonObject, Ticket } from '@shared/types'
 import type { BadgeTone } from '../../ui'
 
@@ -7,15 +8,15 @@ export type GoalPhaseKey = 'spec' | 'tickets' | 'work' | 'review' | 'done'
 
 export interface GoalPhase {
   key: GoalPhaseKey
-  label: string
+  labelKey: TranslationKey
 }
 
 export const GOAL_PHASES: readonly GoalPhase[] = [
-  { key: 'spec', label: 'Pflichtenheft' },
-  { key: 'tickets', label: 'Tickets' },
-  { key: 'work', label: 'Arbeit' },
-  { key: 'review', label: 'Review' },
-  { key: 'done', label: 'Fertig' },
+  { key: 'spec', labelKey: 'goal.phase.spec' },
+  { key: 'tickets', labelKey: 'goal.phase.tickets' },
+  { key: 'work', labelKey: 'goal.phase.work' },
+  { key: 'review', labelKey: 'goal.phase.review' },
+  { key: 'done', labelKey: 'goal.phase.done' },
 ]
 
 const STATUS_TONES: Record<GoalStatus, BadgeTone> = {
@@ -54,13 +55,13 @@ export function resolvePhase(goal: Goal): GoalPhaseKey {
   return STATUS_PHASES[goal.status]
 }
 
-export function phaseLabel(goal: Goal): string {
+export function phaseLabel(goal: Goal, t: Translator): string {
   const phase = GOAL_PHASES.find((entry) => entry.key === resolvePhase(goal))
-  return phase?.label ?? '—'
+  return phase ? t(phase.labelKey) : '—'
 }
 
-export function goalStatusLabel(status: GoalStatus): string {
-  return GOAL_STATUS_LABELS[status]
+export function goalStatusLabelKey(status: GoalStatus): TranslationKey {
+  return `goal.status.${status}`
 }
 
 export function goalStatusTone(status: GoalStatus): BadgeTone {
@@ -157,42 +158,34 @@ function toStringOrNull(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null
 }
 
-const TIME_FORMAT = new Intl.DateTimeFormat('de-DE', {
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-})
-
-export function formatTime(value: string): string {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : TIME_FORMAT.format(date)
-}
-
 /** Laufzeit eines Vorhabens; läuft es noch, zählt sie gegen `now`. */
-export function formatDuration(goal: Goal, now: number): string {
+export function formatGoalDuration(goal: Goal, now: number, t: Translator): string {
   const start = new Date(goal.createdAt).getTime()
   if (Number.isNaN(start)) return '—'
   const end = goal.completedAt ? new Date(goal.completedAt).getTime() : now
   const seconds = Math.max(0, Math.round(((Number.isNaN(end) ? now : end) - start) / 1000))
 
-  if (seconds < 60) return `${seconds} Sek`
+  if (seconds < 60) return `${seconds} ${t('unit.seconds.short')}`
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes} Min`
+  if (minutes < 60) return `${minutes} ${t('unit.minutes.short')}`
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
-  return rest === 0 ? `${hours} Std` : `${hours} Std ${rest} Min`
+  const hoursText = `${hours} ${t('unit.hours.short')}`
+  return rest === 0 ? hoursText : `${hoursText} ${rest} ${t('unit.minutes.short')}`
 }
 
 /** Wie lange etwas schon anhält, kurz geschrieben — für die Zeile „was tut der Agent gerade". */
-export function formatElapsed(since: string, now: number): string {
+export function formatElapsed(since: string, now: number, t: Translator): string {
   const start = new Date(since).getTime()
   if (Number.isNaN(start)) return '—'
   const seconds = Math.max(0, Math.round((now - start) / 1000))
-  if (seconds < 60) return `${seconds} Sek`
+  if (seconds < 60) return `${seconds} ${t('unit.seconds.short')}`
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}:${String(seconds % 60).padStart(2, '0')} Min`
+  if (minutes < 60) {
+    return `${minutes}:${String(seconds % 60).padStart(2, '0')} ${t('unit.minutes.short')}`
+  }
   const hours = Math.floor(minutes / 60)
-  return `${hours}:${String(minutes % 60).padStart(2, '0')} Std`
+  return `${hours}:${String(minutes % 60).padStart(2, '0')} ${t('unit.hours.short')}`
 }
 
 /** Tickt im Sekundentakt, damit laufende Vorhaben eine mitlaufende Dauer zeigen. */

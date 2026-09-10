@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Project } from '@shared/types'
+import { useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useProjectStore } from '../../store/projectStore'
 import { useUiStore } from '../../store/uiStore'
@@ -9,6 +10,7 @@ import { ProjectCard, type ProjectStats } from '../projects/ProjectCard'
 import { ProjectFormModal } from '../projects/ProjectFormModal'
 
 export function HomeView() {
+  const t = useT()
   const projects = useProjectStore((state) => state.projects)
   const loading = useProjectStore((state) => state.loading)
   const storeError = useProjectStore((state) => state.error)
@@ -64,9 +66,9 @@ export function HomeView() {
 
   async function deleteProject(project: Project): Promise<void> {
     const confirmed = await confirm({
-      title: 'Projekt löschen',
-      message: `Projekt „${project.name}" endgültig löschen? Tickets, Dokumente und der Chatverlauf gehen mit.`,
-      confirmLabel: 'Löschen',
+      title: t('home.delete.title'),
+      message: t('home.delete.message', { name: project.name }),
+      confirmLabel: t('common.delete'),
       danger: true,
     })
     if (!confirmed) return
@@ -81,7 +83,7 @@ export function HomeView() {
   if (storeError) {
     return (
       <EmptyState
-        title="Projekte konnten nicht geladen werden"
+        title={t('home.loadFailed')}
         description={storeError}
         icon={<HomeIcon />}
       />
@@ -92,8 +94,8 @@ export function HomeView() {
     return (
       <>
         <EmptyState
-          title="Noch kein Projekt"
-          description="Lege ein Projekt an und ordne ihm einen Ordner auf der Platte zu."
+          title={t('home.empty.title')}
+          description={t('home.empty.description')}
           icon={<HomeIcon />}
           action={
             <Button
@@ -104,7 +106,7 @@ export function HomeView() {
                 setFormOpen(true)
               }}
             >
-              Neues Projekt
+              {t('home.newProject')}
             </Button>
           }
         />
@@ -116,7 +118,7 @@ export function HomeView() {
   return (
     <div className="p-4">
       <header className="mb-3 flex items-center gap-2">
-        <h1 className="text-sm font-medium text-ink">Projekte</h1>
+        <h1 className="text-sm font-medium text-ink">{t('home.title')}</h1>
         {loading && <Spinner size={14} />}
         <div className="flex-1" />
       </header>
@@ -153,7 +155,7 @@ export function HomeView() {
           className="flex min-h-[132px] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-line text-ink-muted transition-colors hover:border-accent hover:text-accent"
         >
           <PlusIcon width={20} height={20} />
-          <span className="text-xs font-medium">Neues Projekt</span>
+          <span className="text-xs font-medium">{t('home.newProject')}</span>
         </button>
       </div>
 

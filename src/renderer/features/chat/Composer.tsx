@@ -12,11 +12,12 @@ import {
 } from 'react'
 import { ATTACHMENT_ACCEPT } from '@shared/constants'
 import type { MessageAttachment, ProjectAgent } from '@shared/types'
+import { useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { Button, IconButton, Spinner, cn } from '../../ui'
 import { PaperclipIcon } from '../../ui/icons'
 import { AttachmentList, attachmentFileName, selectAttachableFiles } from '../attachments'
-import { roleLabel } from '../agents/agentHelpers'
+import { roleLabelKey } from '../agents/agentHelpers'
 import { mentionedAgentIds, readFileAsBase64, splitMentions } from './chatHelpers'
 
 /** Höchsthöhe des Eingabefelds — etwa 40 % des Fensters, wie im Entwurf vorgesehen. */
@@ -81,6 +82,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   },
   ref,
 ) {
+  const t = useT()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
   const pendingCaret = useRef<number | null>(null)
@@ -193,7 +195,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   }))
 
   async function upload(files: File[]): Promise<void> {
-    const { accepted, error: rejection } = selectAttachableFiles(files)
+    const { accepted, error: rejection } = selectAttachableFiles(files, t)
     setError(rejection)
     if (accepted.length === 0) return
     setUploading(true)
@@ -292,14 +294,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   // Ohne Zuordnung kann niemand antworten — das muss beim Tippen dastehen, nicht erst danach.
   const hint =
     text.trim().length === 0 || mentions.length > 0
-      ? 'Enter sendet · Shift+Enter für eine neue Zeile · Dateien ablegen, einfügen oder anhängen'
+      ? t('chat.composer.hint')
       : agents.length === 0
         ? unassignedAgents.length > 0 && onAssignAgent
-          ? 'Diesem Projekt ist kein Agent zugeordnet — tippe @ und wähle einen aus, das ordnet ihn zu.'
-          : 'Diesem Projekt ist kein Agent zugeordnet — unter „Agenten" mindestens einen hinzufügen.'
-        : `Ohne Erwähnung antwortet niemand — verfügbar: ${agents
-            .map((agent) => agent.mentionKey)
-            .join(', ')}`
+          ? t('chat.composer.noAgentsAssignable')
+          : t('chat.composer.noAgents')
+        : t('chat.composer.noMention', {
+            keys: agents.map((agent) => agent.mentionKey).join(', '),
+          })
 
   return (
     <div
@@ -349,7 +351,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
                           assignedCount > 0 && 'mt-1 border-t border-line',
                         )}
                       >
-                        Nicht in diesem Projekt — Auswahl ordnet zu
+                        {t('chat.composer.otherProject')}
                       </p>
                     )}
                     <button
@@ -377,12 +379,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
                         )
                       ) : (
                         <span className="truncate text-xs text-ink-faint">
-                          {roleLabel(agent.role)}
+                          {t(roleLabelKey(agent.role))}
                         </span>
                       )}
                       <span className="ml-auto flex shrink-0 items-center gap-1.5 font-mono text-[11px] text-ink-faint">
                         {assigning && <Spinner size={12} />}
-                        {option.assigned && agent.stopped ? 'gestoppt' : agent.mentionKey}
+                        {option.assigned && agent.stopped
+                          ? t('chat.agentBar.stopped')
+                          : agent.mentionKey}
                       </span>
                     </button>
                   </li>
@@ -454,7 +458,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             onChange={pickFiles}
           />
           <IconButton
-            label="Datei anhängen"
+            label={t('attachment.attach')}
             icon={<PaperclipIcon />}
             disabled={disabled || uploading}
             onClick={() => fileInputRef.current?.click()}
@@ -467,7 +471,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             disabled={!canSend}
             onClick={() => void send()}
           >
-            Senden
+            {t('chat.composer.send')}
           </Button>
         </div>
       </div>

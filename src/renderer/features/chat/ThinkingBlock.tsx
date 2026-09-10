@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useT } from '../../i18n'
 import { cn } from '../../ui'
 import { ChevronDownIcon, ChevronRightIcon } from '../../ui/icons'
 
@@ -8,6 +9,7 @@ export interface ThinkingBlockProps {
 
 /** Der Denkvorgang steht über der Antwort und ist standardmäßig zugeklappt. */
 export function ThinkingBlock({ thinking }: ThinkingBlockProps) {
+  const t = useT()
   const [open, setOpen] = useState(false)
 
   return (
@@ -25,7 +27,7 @@ export function ThinkingBlock({ thinking }: ThinkingBlockProps) {
         ) : (
           <ChevronRightIcon width={12} height={12} />
         )}
-        Überlegt …
+        {t('chat.message.thinking')}
       </button>
       {open && (
         <pre className="mt-1 whitespace-pre-wrap rounded-md border border-line bg-raised px-2.5 py-2 font-sans text-xs italic leading-relaxed text-ink-muted">

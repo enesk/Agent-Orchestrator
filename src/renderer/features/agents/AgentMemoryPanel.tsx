@@ -1,21 +1,18 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Agent, AgentMemory } from '@shared/types'
+import { useFormat, useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useProjectStore } from '../../store/projectStore'
-import { Button, EmptyState, IconButton, Input, Modal, Select, Spinner, Textarea, cn, formatDateTime, useConfirm } from '../../ui'
+import { Button, EmptyState, IconButton, Input, Modal, Select, Spinner, Textarea, cn, useConfirm } from '../../ui'
 import { CloseIcon, PlusIcon } from '../../ui/icons'
-
-const IMPORTANCE_OPTIONS = [
-  { value: '1', label: 'Beiläufig' },
-  { value: '2', label: 'Normal' },
-  { value: '3', label: 'Wichtig' },
-]
 
 export interface AgentMemoryPanelProps {
   agent: Agent
 }
 
 export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
+  const t = useT()
+  const format = useFormat()
   const projects = useProjectStore((state) => state.projects)
 
   const [memories, setMemories] = useState<AgentMemory[]>([])
@@ -43,9 +40,9 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
 
   async function remove(memory: AgentMemory): Promise<void> {
     const confirmed = await confirm({
-      title: 'Erinnerung löschen',
-      message: `Erinnerung „${memory.key}" löschen?`,
-      confirmLabel: 'Löschen',
+      title: t('memory.delete.title'),
+      message: t('memory.delete.message', { key: memory.key }),
+      confirmLabel: t('common.delete'),
       danger: true,
     })
     if (!confirmed) return
@@ -59,9 +56,9 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
 
   async function clearAll(): Promise<void> {
     const confirmed = await confirm({
-      title: 'Gedächtnis leeren',
-      message: `Alle ${memories.length} Erinnerungen von „${agent.name}" löschen?`,
-      confirmLabel: 'Alle löschen',
+      title: t('memory.clear.title'),
+      message: t('memory.clear.message', { count: memories.length, name: agent.name }),
+      confirmLabel: t('memory.clearAll'),
       danger: true,
     })
     if (!confirmed) return
@@ -74,15 +71,15 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
   }
 
   function projectLabel(projectId: string | null): string {
-    if (!projectId) return 'projektübergreifend'
-    return projects.find((project) => project.id === projectId)?.name ?? 'Unbekanntes Projekt'
+    if (!projectId) return t('memory.scope.global')
+    return projects.find((project) => project.id === projectId)?.name ?? t('memory.scope.unknownProject')
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="flex h-11 shrink-0 items-center gap-2 border-b border-line px-3">
         <h2 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-          Gedächtnis von {agent.name}
+          {t('memory.title', { name: agent.name })}
         </h2>
         {loading && <Spinner size={14} />}
         <Button
@@ -90,10 +87,10 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
           icon={<PlusIcon width={14} height={14} />}
           onClick={() => setCreateOpen(true)}
         >
-          Eintrag
+          {t('memory.entry')}
         </Button>
         <Button size="sm" variant="ghost" disabled={memories.length === 0} onClick={() => void clearAll()}>
-          Alle löschen
+          {t('memory.clearAll')}
         </Button>
       </header>
 
@@ -105,8 +102,8 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
 
       {!loading && memories.length === 0 ? (
         <EmptyState
-          title="Noch keine Erinnerungen"
-          description="Der Agent legt sie im Gespräch selbst an — du kannst ihm aber auch etwas mitgeben."
+          title={t('memory.empty.title')}
+          description={t('memory.empty.description')}
         />
       ) : (
         <ul className="min-h-0 flex-1 overflow-auto p-3">
@@ -122,12 +119,14 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
                   {memory.value}
                 </p>
                 <p className="mt-1.5 text-[11px] text-ink-faint">
-                  {projectLabel(memory.projectId)} · {memory.source === 'user' ? 'von dir' : 'vom Agenten'} ·{' '}
-                  {memory.accessCount}× gelesen · {formatDateTime(memory.updatedAt)}
+                  {projectLabel(memory.projectId)} ·{' '}
+                  {memory.source === 'user' ? t('memory.source.user') : t('memory.source.agent')} ·{' '}
+                  {t('memory.readCount', { count: memory.accessCount })} ·{' '}
+                  {format.dateTime(memory.updatedAt)}
                 </p>
               </div>
               <IconButton
-                label="Erinnerung löschen"
+                label={t('memory.delete.title')}
                 icon={<CloseIcon width={16} height={16} />}
                 onClick={() => void remove(memory)}
               />
@@ -148,12 +147,10 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
 }
 
 function ImportanceDots({ value }: { value: number }) {
+  const t = useT()
+  const label = t('memory.importanceDots', { value })
   return (
-    <span
-      className="mt-1 flex shrink-0 flex-col gap-1"
-      title={`Wichtigkeit ${value} von 3`}
-      aria-label={`Wichtigkeit ${value} von 3`}
-    >
+    <span className="mt-1 flex shrink-0 flex-col gap-1" title={label} aria-label={label}>
       {[3, 2, 1].map((level) => (
         <span
           key={level}
@@ -175,7 +172,16 @@ interface CreateMemoryModalProps {
 }
 
 function CreateMemoryModal({ open, agentId, onClose, onSaved }: CreateMemoryModalProps) {
+  const t = useT()
   const projects = useProjectStore((state) => state.projects)
+  const importanceOptions = useMemo(
+    () => [
+      { value: '1', label: t('memory.importance.1') },
+      { value: '2', label: t('memory.importance.2') },
+      { value: '3', label: t('memory.importance.3') },
+    ],
+    [t],
+  )
 
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
@@ -220,45 +226,45 @@ function CreateMemoryModal({ open, agentId, onClose, onSaved }: CreateMemoryModa
   return (
     <Modal
       open={open}
-      title="Erinnerung anlegen"
+      title={t('memory.create.title')}
       width="sm"
       onClose={onClose}
       footer={
         <>
-          <Button onClick={onClose}>Abbrechen</Button>
+          <Button onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant="primary" loading={saving} disabled={!key.trim()} onClick={() => void submit()}>
-            Speichern
+            {t('common.save')}
           </Button>
         </>
       }
     >
       <div className="space-y-3">
         <Input
-          label="Schlüssel"
+          label={t('memory.create.key')}
           autoFocus
           value={key}
           onChange={(event) => setKey(event.target.value)}
-          placeholder="z.B. deployment"
+          placeholder={t('memory.create.keyPlaceholder')}
           className="font-mono"
         />
         <Textarea
-          label="Wert"
+          label={t('memory.create.value')}
           rows={4}
           value={value}
           onChange={(event) => setValue(event.target.value)}
-          placeholder="Was soll sich der Agent merken?"
+          placeholder={t('memory.create.valuePlaceholder')}
         />
         <div className="grid grid-cols-2 gap-3">
           <Select
-            label="Wichtigkeit"
-            options={IMPORTANCE_OPTIONS}
+            label={t('memory.create.importance')}
+            options={importanceOptions}
             value={importance}
             onChange={(event) => setImportance(event.target.value)}
           />
           <Select
-            label="Gilt für"
+            label={t('memory.create.scope')}
             options={[
-              { value: '', label: 'Alle Projekte' },
+              { value: '', label: t('memory.create.allProjects') },
               ...projects.map((project) => ({ value: project.id, label: project.name })),
             ]}
             value={projectId}

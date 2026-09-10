@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { activeT } from '../i18n/active'
 import type { IpcRequest, IpcResponse } from '@shared/ipc-contract'
 import type { Project } from '@shared/types'
 import { toErrorMessage } from './errorMessage'
@@ -23,7 +24,7 @@ interface ProjectState {
 }
 
 function sortProjects(projects: Project[]): Project[] {
-  return [...projects].sort((a, b) => a.name.localeCompare(b.name, 'de'))
+  return [...projects].sort((a, b) => a.name.localeCompare(b.name, activeT().locale))
 }
 
 function mergeProject(projects: Project[], project: Project): Project[] {

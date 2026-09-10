@@ -1,7 +1,8 @@
 import type { ProjectAgent } from '@shared/types'
+import { useT } from '../../i18n'
 import { Badge, cn } from '../../ui'
 import { AgentAvatar } from './AgentAvatar'
-import { modelLabel, roleLabel } from './agentHelpers'
+import { modelLabel, roleLabelKey } from './agentHelpers'
 
 export interface AgentListProps {
   agents: ProjectAgent[]
@@ -10,10 +11,11 @@ export interface AgentListProps {
 }
 
 export function AgentList({ agents, selectedId, onSelect }: AgentListProps) {
+  const t = useT()
   return (
     <ul className="min-h-0 flex-1 overflow-auto p-2">
       {agents.length === 0 && (
-        <li className="px-1 py-4 text-center text-xs text-ink-faint">Noch keine Agenten</li>
+        <li className="px-1 py-4 text-center text-xs text-ink-faint">{t('agent.list.empty')}</li>
       )}
       {agents.map((agent) => (
         <li key={agent.id}>
@@ -38,7 +40,7 @@ export function AgentList({ agents, selectedId, onSelect }: AgentListProps) {
                 {agent.title ?? agent.mentionKey} · {modelLabel(agent.model)}
               </span>
             </span>
-            <Badge className="shrink-0">{roleLabel(agent.role)}</Badge>
+            <Badge className="shrink-0">{t(roleLabelKey(agent.role))}</Badge>
           </button>
         </li>
       ))}

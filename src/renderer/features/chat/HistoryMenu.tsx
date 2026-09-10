@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { TranslationKey } from '@shared/i18n'
+import { useT } from '../../i18n'
 import { cn } from '../../ui'
 import { ChevronDownIcon } from '../../ui/icons'
 
@@ -7,13 +9,13 @@ export type ClearScope = number | null
 
 interface ScopeOption {
   scope: ClearScope
-  label: string
+  labelKey: TranslationKey
 }
 
 const OPTIONS: ScopeOption[] = [
-  { scope: 7, label: 'Älter als 7 Tage' },
-  { scope: 30, label: 'Älter als 30 Tage' },
-  { scope: null, label: 'Gesamten Verlauf löschen' },
+  { scope: 7, labelKey: 'chat.history.olderThan7' },
+  { scope: 30, labelKey: 'chat.history.olderThan30' },
+  { scope: null, labelKey: 'chat.history.all' },
 ]
 
 export interface HistoryMenuProps {
@@ -22,6 +24,11 @@ export interface HistoryMenuProps {
 }
 
 export function HistoryMenu({ busy, onSelect }: HistoryMenuProps) {
+  const t = useT()
+  const options = useMemo(
+    () => OPTIONS.map((option) => ({ ...option, label: t(option.labelKey) })),
+    [t],
+  )
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
@@ -53,7 +60,7 @@ export function HistoryMenu({ busy, onSelect }: HistoryMenuProps) {
           'disabled:opacity-50',
         )}
       >
-        {busy ? 'Wird bereinigt …' : 'Verlauf bereinigen'}
+        {busy ? t('chat.history.cleaning') : t('chat.history.clean')}
         <ChevronDownIcon width={12} height={12} />
       </button>
 
@@ -64,7 +71,7 @@ export function HistoryMenu({ busy, onSelect }: HistoryMenuProps) {
             'border border-line bg-overlay py-1 shadow-lg',
           )}
         >
-          {OPTIONS.map((option) => (
+          {options.map((option) => (
             <button
               key={option.label}
               type="button"

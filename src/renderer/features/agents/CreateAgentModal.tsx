@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AGENT_ROLES, type AgentRole } from '@shared/constants'
+import { useT } from '../../i18n'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { Button, Input, Modal, Select } from '../../ui'
-
-const ROLE_OPTIONS = AGENT_ROLES.map((option) => ({ value: option.value, label: option.label }))
+import { roleDescriptionKey, roleLabelKey } from './agentHelpers'
 
 export interface CreateAgentModalProps {
   open: boolean
@@ -13,6 +13,11 @@ export interface CreateAgentModalProps {
 }
 
 export function CreateAgentModal({ open, onClose, onCreated }: CreateAgentModalProps) {
+  const t = useT()
+  const roleOptions = useMemo(
+    () => AGENT_ROLES.map((option) => ({ value: option.value, label: t(roleLabelKey(option.value)) })),
+    [t],
+  )
   const create = useAgentStore((state) => state.create)
 
   const [name, setName] = useState('')
@@ -47,35 +52,33 @@ export function CreateAgentModal({ open, onClose, onCreated }: CreateAgentModalP
   return (
     <Modal
       open={open}
-      title="Neuer Agent"
+      title={t('agent.create.title')}
       width="sm"
       onClose={onClose}
       footer={
         <>
-          <Button onClick={onClose}>Abbrechen</Button>
+          <Button onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant="primary" loading={saving} disabled={!name.trim()} onClick={() => void submit()}>
-            Anlegen
+            {t('common.create')}
           </Button>
         </>
       }
     >
       <div className="space-y-3">
         <Input
-          label="Name"
+          label={t('agent.create.name')}
           autoFocus
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="z.B. Lena"
+          placeholder={t('agent.create.namePlaceholder')}
         />
         <Select
-          label="Rolle"
-          options={ROLE_OPTIONS}
+          label={t('agent.create.role')}
+          options={roleOptions}
           value={role}
           onChange={(event) => setRole(event.target.value as AgentRole)}
         />
-        <p className="text-xs text-ink-faint">
-          {AGENT_ROLES.find((option) => option.value === role)?.description}
-        </p>
+        <p className="text-xs text-ink-faint">{t(roleDescriptionKey(role))}</p>
         {error && <p className="text-xs text-danger">{error}</p>}
       </div>
     </Modal>

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { activeT } from '../i18n/active'
 import type { AgentStatusUpdate, ChatMessage } from '@shared/types'
 import { toErrorMessage } from './errorMessage'
 
@@ -189,7 +190,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   send: async (input) => {
     const projectId = get().projectId
-    if (!projectId) throw new Error('Kein Projekt ausgewählt')
+    if (!projectId) throw new Error(activeT()('topBar.noProject'))
     const message = await window.api.chat.send({
       projectId,
       content: input.content,

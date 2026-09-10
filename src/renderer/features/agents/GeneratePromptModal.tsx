@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { AgentRole } from '@shared/constants'
+import { useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { Button, Modal, Textarea, useConfirm } from '../../ui'
 
@@ -21,6 +22,7 @@ export function GeneratePromptModal({
   onClose,
   onApply,
 }: GeneratePromptModalProps) {
+  const t = useT()
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,9 +40,9 @@ export function GeneratePromptModal({
     if (!trimmed) return
     if (hasPrompt) {
       const confirmed = await confirm({
-        title: 'Systemprompt ersetzen',
-        message: 'Der vorhandene Systemprompt wird ersetzt. Fortfahren?',
-        confirmLabel: 'Ersetzen',
+        title: t('agents.generate.replaceTitle'),
+        message: t('agents.generate.replaceMessage'),
+        confirmLabel: t('agents.generate.replaceConfirm'),
       })
       if (!confirmed) return
     }
@@ -65,13 +67,13 @@ export function GeneratePromptModal({
     <>
     <Modal
       open={open}
-      title="Systemprompt erzeugen"
+      title={t('agents.generate.title')}
       width="sm"
       onClose={onClose}
       footer={
         <>
           <Button onClick={onClose} disabled={loading}>
-            Abbrechen
+            {t('common.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -79,22 +81,22 @@ export function GeneratePromptModal({
             disabled={!description.trim()}
             onClick={() => void generate()}
           >
-            Erzeugen
+            {t('agents.generate.submit')}
           </Button>
         </>
       }
     >
       <Textarea
-        label="Kurzbeschreibung"
+        label={t('agents.generate.field')}
         autoFocus
         rows={5}
         value={description}
         onChange={(event) => setDescription(event.target.value)}
-        placeholder="z.B. Erfahrene Backend-Entwicklerin, arbeitet gründlich, testet ihre Änderungen selbst."
-        hint="Claude schreibt daraus einen deutschen Systemprompt."
+        placeholder={t('agents.generate.placeholder')}
+        hint={t('agents.generate.hint')}
       />
       {loading && (
-        <p className="mt-2 text-xs text-ink-muted">Claude schreibt den Systemprompt …</p>
+        <p className="mt-2 text-xs text-ink-muted">{t('agents.generate.running')}</p>
       )}
       {error && <p className="mt-2 text-xs text-danger">{error}</p>}
     </Modal>

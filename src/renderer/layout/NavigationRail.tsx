@@ -1,5 +1,6 @@
+import { useT } from '../i18n'
 import { useProjectStore } from '../store/projectStore'
-import { SECTION_LABELS, useUiStore, type Section } from '../store/uiStore'
+import { SECTION_LABEL_KEYS, useUiStore, type Section } from '../store/uiStore'
 import { Tooltip, cn } from '../ui'
 import {
   AgentIcon,
@@ -22,6 +23,7 @@ const SECTIONS: { id: Section; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] 
 ]
 
 export function NavigationRail() {
+  const t = useT()
   const projects = useProjectStore((state) => state.projects)
   const activeProjectId = useUiStore((state) => state.activeProjectId)
   const setActiveProject = useUiStore((state) => state.setActiveProject)
@@ -55,10 +57,10 @@ export function NavigationRail() {
 
       <div className="flex w-full flex-col items-center gap-1 px-2">
         {SECTIONS.map(({ id, Icon }) => (
-          <Tooltip key={id} label={SECTION_LABELS[id]} side="right">
+          <Tooltip key={id} label={t(SECTION_LABEL_KEYS[id])} side="right">
             <button
               type="button"
-              aria-label={SECTION_LABELS[id]}
+              aria-label={t(SECTION_LABEL_KEYS[id])}
               aria-current={activeSection === id ? 'page' : undefined}
               onClick={() => setActiveSection(id)}
               className={cn(
@@ -75,10 +77,10 @@ export function NavigationRail() {
       </div>
 
       <div className="mt-auto px-2">
-        <Tooltip label={SECTION_LABELS.settings} side="right">
+        <Tooltip label={t('nav.settings')} side="right">
           <button
             type="button"
-            aria-label={SECTION_LABELS.settings}
+            aria-label={t('nav.settings')}
             aria-current={activeSection === 'settings' ? 'page' : undefined}
             onClick={() => setActiveSection('settings')}
             className={cn(

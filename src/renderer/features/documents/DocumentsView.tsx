@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useFormat, useT } from '../../i18n'
 import { useAgentStore } from '../../store/agentStore'
 import { useDocumentStore } from '../../store/documentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useUiStore } from '../../store/uiStore'
-import { Button, EmptyState, Input, Modal, Spinner, cn, formatDateTime, useConfirm } from '../../ui'
+import { Button, EmptyState, Input, Modal, Spinner, cn, useConfirm } from '../../ui'
 import { DocumentIcon, PlusIcon } from '../../ui/icons'
 import { DocumentEditor } from './DocumentEditor'
 
 export function DocumentsView() {
+  const t = useT()
+  const format = useFormat()
   const projectId = useUiStore((state) => state.activeProjectId)
 
   const documents = useDocumentStore((state) => state.documents)
@@ -57,9 +60,9 @@ export function DocumentsView() {
   async function remove(): Promise<void> {
     if (!selected) return
     const confirmed = await confirm({
-      title: 'Dokument löschen',
-      message: `Dokument „${selected.title}" löschen?`,
-      confirmLabel: 'Löschen',
+      title: t('documents.delete.title'),
+      message: t('documents.delete.message', { title: selected.title }),
+      confirmLabel: t('common.delete'),
       danger: true,
     })
     if (!confirmed) return
@@ -69,8 +72,8 @@ export function DocumentsView() {
   if (!projectId) {
     return (
       <EmptyState
-        title="Kein Projekt ausgewählt"
-        description="Wähle links ein Projekt, um dessen Dokumente zu sehen."
+        title={t('documents.noProject.title')}
+        description={t('documents.noProject.description')}
         icon={<DocumentIcon />}
       />
     )
@@ -80,7 +83,7 @@ export function DocumentsView() {
     <div className="flex h-full min-h-0">
       <aside className="flex w-72 shrink-0 flex-col border-r border-line bg-surface">
         <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-line px-3">
-          <span className="text-sm font-medium text-ink">Dokumente</span>
+          <span className="text-sm font-medium text-ink">{t('documents.title')}</span>
           {loading && <Spinner size={14} />}
           <Button
             size="sm"
@@ -92,7 +95,7 @@ export function DocumentsView() {
               setDialog('create')
             }}
           >
-            Neu
+            {t('documents.new')}
           </Button>
         </header>
 
@@ -104,11 +107,13 @@ export function DocumentsView() {
 
         <ul className="min-h-0 flex-1 overflow-auto p-2">
           {!loading && documents.length === 0 && (
-            <li className="px-1 py-4 text-center text-xs text-ink-faint">Noch keine Dokumente</li>
+            <li className="px-1 py-4 text-center text-xs text-ink-faint">{t('documents.empty')}</li>
           )}
           {documents.map((document) => {
             const author = document.updatedByAgentId ?? document.createdByAgentId
-            const authorName = author ? agentById.get(author)?.name ?? 'Agent' : 'Du'
+            const authorName = author
+              ? agentById.get(author)?.name ?? t('documents.author.agent')
+              : t('documents.author.user')
             return (
               <li key={document.id}>
                 <button
@@ -123,7 +128,7 @@ export function DocumentsView() {
                 >
                   <span className="block truncate text-xs font-medium">{document.title}</span>
                   <span className="mt-0.5 block truncate text-[11px] text-ink-faint">
-                    {authorName} · {formatDateTime(document.updatedAt)}
+                    {authorName} · {format.dateTime(document.updatedAt)}
                   </span>
                 </button>
               </li>
@@ -145,8 +150,8 @@ export function DocumentsView() {
         />
       ) : (
         <EmptyState
-          title="Kein Dokument ausgewählt"
-          description="Wähle links ein Dokument oder lege ein neues an."
+          title={t('documents.none.title')}
+          description={t('documents.none.description')}
           icon={<DocumentIcon />}
           className="flex-1"
         />
@@ -154,12 +159,12 @@ export function DocumentsView() {
 
       <Modal
         open={dialog !== null}
-        title={dialog === 'rename' ? 'Dokument umbenennen' : 'Neues Dokument'}
+        title={dialog === 'rename' ? t('documents.rename.title') : t('documents.create.title')}
         width="sm"
         onClose={() => setDialog(null)}
         footer={
           <>
-            <Button onClick={() => setDialog(null)}>Abbrechen</Button>
+            <Button onClick={() => setDialog(null)}>{t('common.cancel')}</Button>
             <Button
               variant="primary"
               loading={busy}
@@ -172,17 +177,17 @@ export function DocumentsView() {
                 )
               }
             >
-              {dialog === 'rename' ? 'Umbenennen' : 'Anlegen'}
+              {dialog === 'rename' ? t('documents.rename.submit') : t('common.create')}
             </Button>
           </>
         }
       >
         <Input
-          label="Titel"
+          label={t('documents.titleField')}
           autoFocus
           value={titleDraft}
           onChange={(event) => setTitleDraft(event.target.value)}
-          placeholder="z.B. Pflichtenheft"
+          placeholder={t('documents.titlePlaceholder')}
         />
         {actionError && <p className="mt-2 text-xs text-danger">{actionError}</p>}
       </Modal>

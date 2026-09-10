@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react'
 import type { Goal, GoalLogEntry, ProjectAgent, Ticket } from '@shared/types'
+import { useFormat, useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useDocumentStore } from '../../store/documentStore'
 import { useGoalStore, type GoalActivity } from '../../store/goalStore'
 import { useUiStore } from '../../store/uiStore'
-import { Badge, Button, formatDateTime, useConfirm } from '../../ui'
+import { Badge, Button, useConfirm } from '../../ui'
 import { GoalLog } from './GoalLog'
 import { PhaseBar } from './PhaseBar'
 import {
-  formatDuration,
   formatElapsed,
-  goalStatusLabel,
+  formatGoalDuration,
+  goalStatusLabelKey,
   goalStatusTone,
   isGoalActive,
   isRateLimitPause,
@@ -39,6 +40,8 @@ export function GoalProgress({
   logLoading,
   logError,
 }: GoalProgressProps) {
+  const t = useT()
+  const format = useFormat()
   const cancel = useGoalStore((state) => state.cancel)
   const retry = useGoalStore((state) => state.retry)
   const selectDocument = useDocumentStore((state) => state.select)
@@ -85,24 +88,26 @@ export function GoalProgress({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h2 className="truncate text-sm font-medium text-ink">{goal.title}</h2>
-              <Badge tone={goalStatusTone(goal.status)}>{goalStatusLabel(goal.status)}</Badge>
+              <Badge tone={goalStatusTone(goal.status)}>{t(goalStatusLabelKey(goal.status))}</Badge>
             </div>
             <p className="mt-0.5 flex flex-wrap gap-x-3 text-[11px] text-ink-faint">
-              <span>Start {formatDateTime(goal.createdAt)}</span>
-              <span>Dauer {formatDuration(goal, now)}</span>
+              <span>{t('goals.progress.start', { time: format.dateTime(goal.createdAt) })}</span>
+              <span>
+                {t('goals.progress.duration', { duration: formatGoalDuration(goal, now, t) })}
+              </span>
               {counts && (
                 <span>
-                  {counts.done} von {counts.total} Tickets erledigt
+                  {t('goals.progress.ticketsDone', { done: counts.done, total: counts.total })}
                 </span>
               )}
-              {goal.retryCount > 0 && <span>{goal.retryCount}. Wiederholung</span>}
+              {goal.retryCount > 0 && <span>{t('goals.progress.retry', { count: goal.retryCount })}</span>}
             </p>
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
             {goal.specDocumentId && (
               <Button size="sm" onClick={openSpec}>
-                Pflichtenheft
+                {t('goals.progress.spec')}
               </Button>
             )}
             {goal.status === 'failed' && (
@@ -112,7 +117,7 @@ export function GoalProgress({
                 disabled={busy}
                 onClick={() => void run(() => retry(goal.id))}
               >
-                Erneut versuchen
+                {t('common.retry')}
               </Button>
             )}
             {active && (
@@ -122,17 +127,17 @@ export function GoalProgress({
                 disabled={busy}
                 onClick={() => {
                   void confirm({
-                    title: 'Vorhaben abbrechen',
-                    message: `Vorhaben „${goal.title}" wirklich abbrechen?`,
-                    confirmLabel: 'Abbrechen',
-                    cancelLabel: 'Weiterlaufen lassen',
+                    title: t('goals.progress.cancel.title'),
+                    message: t('goals.progress.cancel.message', { title: goal.title }),
+                    confirmLabel: t('goals.progress.cancel.confirm'),
+                    cancelLabel: t('goals.progress.cancel.keepRunning'),
                     danger: true,
                   }).then((confirmed) => {
                     if (confirmed) void run(() => cancel(goal.id))
                   })
                 }}
               >
-                Abbrechen
+                {t('goals.progress.cancel.confirm')}
               </Button>
             )}
           </div>
@@ -148,13 +153,13 @@ export function GoalProgress({
 
         {ratePause ? (
           <p className="rounded-md border border-info/30 bg-info/10 px-2 py-1.5 text-xs text-info">
-            Pause wegen Rate-Limit, wird automatisch fortgesetzt.
+            {t('goals.progress.ratePause')}
           </p>
         ) : (
           goal.errorMessage && (
             <div className="rounded-md border border-danger/40 bg-danger/10 px-2 py-1.5">
               <p className="text-xs font-medium text-danger">
-                {goal.errorType ?? 'Fehler'}
+                {goal.errorType ?? t('common.error')}
               </p>
               <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-danger/90">
                 {goal.errorMessage}
@@ -173,21 +178,21 @@ export function GoalProgress({
       {(assignments.length > 0 || (active && counts !== null)) && (
         <section className="shrink-0 border-b border-line px-4 py-2">
           <p className="mb-1.5 flex flex-wrap gap-x-3 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
-            <span>Aktive Tickets</span>
+            <span>{t('goals.progress.activeTickets')}</span>
             {counts && (
               <>
                 <span className="normal-case tracking-normal text-ink-muted">
-                  {queued} in der Warteschlange
+                  {t('goals.progress.queued', { count: queued ?? 0 })}
                 </span>
                 <span className="normal-case tracking-normal text-ink-muted">
-                  {counts.done} von {counts.total} erledigt
+                  {t('goals.progress.doneOfTotal', { done: counts.done, total: counts.total })}
                 </span>
               </>
             )}
           </p>
 
           {assignments.length === 0 ? (
-            <p className="text-xs text-ink-faint">Gerade arbeitet kein Agent an einem Ticket.</p>
+            <p className="text-xs text-ink-faint">{t('goals.progress.idle')}</p>
           ) : (
             <ul className="space-y-1">
               {assignments.map((assignment) => {
@@ -207,20 +212,20 @@ export function GoalProgress({
                         className="h-2 w-2 rounded-full bg-ink-faint"
                       />
                       <span className="font-medium" style={{ color: agent?.color }}>
-                        {agent?.name ?? 'Unbekannter Agent'}
+                        {agent?.name ?? t('goals.progress.unknownAgent')}
                       </span>
                     </span>
                     <span className="shrink-0 font-mono text-[11px] text-ink-faint">
                       {ticket ? `#${ticket.number}` : assignment.ticketId}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-ink">
-                      {ticket?.title ?? 'Unbekanntes Ticket'}
+                      {ticket?.title ?? t('goals.progress.unknownTicket')}
                     </span>
                     <span className="shrink-0 italic text-ink-muted">
-                      {current?.tool ?? 'überlegt …'}
+                      {current?.tool ?? t('goals.progress.thinking')}
                     </span>
                     <span className="shrink-0 tabular-nums text-[11px] text-ink-faint">
-                      {current ? formatElapsed(current.since, now) : '—'}
+                      {current ? formatElapsed(current.since, now, t) : '—'}
                     </span>
                   </li>
                 )
@@ -232,7 +237,7 @@ export function GoalProgress({
 
       <div className="flex min-h-0 flex-1 flex-col">
         <p className="shrink-0 px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
-          Protokoll
+          {t('goals.progress.log')}
         </p>
         <GoalLog
           entries={logEntries}

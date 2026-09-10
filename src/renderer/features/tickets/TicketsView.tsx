@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TICKET_CATEGORIES, type TicketCategory, type TicketStatus } from '@shared/constants'
+import { useT } from '../../i18n'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useGoalStore } from '../../store/goalStore'
@@ -11,13 +12,10 @@ import { CreateTicketModal } from './CreateTicketModal'
 import { ImportTicketsModal } from './ImportTicketsModal'
 import { TicketBoard } from './TicketBoard'
 import { TicketDetailPanel } from './TicketDetailPanel'
-
-const CATEGORY_FILTER_OPTIONS = [
-  { value: '', label: 'Alle Kategorien' },
-  ...TICKET_CATEGORIES.map((option) => ({ value: option.value, label: option.label })),
-]
+import { categoryLabelKey } from './ticketHelpers'
 
 export function TicketsView() {
+  const t = useT()
   const projectId = useUiStore((state) => state.activeProjectId)
 
   const tickets = useTicketStore((state) => state.tickets)
@@ -62,6 +60,17 @@ export function TicketsView() {
   useEffect(() => subscribeAgents(), [subscribeAgents])
 
   const agentById = useMemo(() => new Map(agents.map((agent) => [agent.id, agent])), [agents])
+
+  const categoryFilterOptions = useMemo(
+    () => [
+      { value: '', label: t('tickets.filter.allCategories') },
+      ...TICKET_CATEGORIES.map((option) => ({
+        value: option.value,
+        label: t(categoryLabelKey(option.value)),
+      })),
+    ],
+    [t],
+  )
 
   const visibleTickets = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -168,12 +177,9 @@ export function TicketsView() {
     const ids = checkedList.map((ticket) => ticket.id)
     if (ids.length === 0) return
     const confirmed = await confirm({
-      title: ids.length === 1 ? 'Ticket löschen' : 'Tickets löschen',
-      message:
-        ids.length === 1
-          ? 'Dieses Ticket endgültig löschen? Kommentare und Abhängigkeiten werden mitgelöscht.'
-          : `${ids.length} Tickets endgültig löschen? Kommentare und Abhängigkeiten werden mitgelöscht.`,
-      confirmLabel: 'Löschen',
+      title: t('tickets.delete.title', { count: ids.length }),
+      message: t('tickets.delete.message', { count: ids.length }),
+      confirmLabel: t('common.delete'),
       danger: true,
     })
     if (!confirmed) return
@@ -194,8 +200,8 @@ export function TicketsView() {
   if (!projectId) {
     return (
       <EmptyState
-        title="Kein Projekt ausgewählt"
-        description="Wähle links ein Projekt, um dessen Tickets zu sehen."
+        title={t('tickets.noProject.title')}
+        description={t('tickets.noProject.description')}
         icon={<TicketIcon />}
       />
     )
@@ -206,21 +212,21 @@ export function TicketsView() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-2">
           <Input
-            placeholder="Suche nach Titel oder Nummer"
+            placeholder={t('tickets.search')}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="w-64"
           />
           <Select
-            options={CATEGORY_FILTER_OPTIONS}
+            options={categoryFilterOptions}
             value={categoryFilter}
             onChange={(event) => setCategoryFilter(event.target.value as TicketCategory | '')}
             className="w-44"
           />
           <Select
             options={[
-              { value: '', label: 'Alle Agenten' },
-              { value: '__none__', label: 'Nicht zugewiesen' },
+              { value: '', label: t('tickets.filter.allAgents') },
+              { value: '__none__', label: t('ticket.card.unassigned') },
               ...agents.map((agent) => ({ value: agent.id, label: agent.name })),
             ]}
             value={agentFilter}
@@ -234,14 +240,14 @@ export function TicketsView() {
               disabled={visibleTickets.length === 0}
               onChange={toggleAllVisible}
             />
-            Alle auswählen
+            {t('tickets.selectAll')}
             <span className="text-ink-faint">({visibleTickets.length})</span>
           </label>
           <div className="flex-1" />
           {loading && <Spinner size={14} />}
-          <Button onClick={() => setImportOpen(true)}>Import</Button>
+          <Button onClick={() => setImportOpen(true)}>{t('tickets.import')}</Button>
           <Button variant="primary" icon={<PlusIcon width={16} height={16} />} onClick={() => setCreateOpen(true)}>
-            Neues Ticket
+            {t('tickets.new')}
           </Button>
         </header>
 
@@ -254,29 +260,29 @@ export function TicketsView() {
         {checkedList.length > 0 && (
           <div className="flex shrink-0 items-center gap-2 border-b border-line bg-raised px-3 py-1.5">
             <span className="text-xs text-ink-muted">
-              {checkedList.length === 1 ? '1 Ticket ausgewählt' : `${checkedList.length} Tickets ausgewählt`}
+              {t('tickets.selected', { count: checkedList.length })}
             </span>
             <div className="flex-1" />
             <Button size="sm" disabled={actionBusy} onClick={clearChecked}>
-              Auswahl aufheben
+              {t('tickets.clearSelection')}
             </Button>
             <Button size="sm" variant="primary" disabled={actionBusy} onClick={startGoal}>
-              Vorhaben starten
+              {t('tickets.startGoal')}
             </Button>
             <Button size="sm" variant="danger" disabled={actionBusy} onClick={() => void deleteChecked()}>
-              Löschen
+              {t('common.delete')}
             </Button>
           </div>
         )}
 
         {!loading && tickets.length === 0 ? (
           <EmptyState
-            title="Noch keine Tickets"
-            description="Lege ein Ticket an oder importiere eine JSON-Datei."
+            title={t('tickets.empty.title')}
+            description={t('tickets.empty.description')}
             icon={<TicketIcon />}
             action={
               <Button variant="primary" onClick={() => setCreateOpen(true)}>
-                Neues Ticket
+                {t('tickets.new')}
               </Button>
             }
           />
@@ -311,11 +317,11 @@ export function TicketsView() {
             <Spinner />
           ) : (
             <EmptyState
-              title="Ticket nicht verfügbar"
-              description={storeError ?? 'Die Details konnten nicht geladen werden.'}
+              title={t('tickets.detailUnavailable.title')}
+              description={storeError ?? t('tickets.detailUnavailable.description')}
               action={
                 <Button size="sm" onClick={() => void selectTicket(null)}>
-                  Schließen
+                  {t('common.close')}
                 </Button>
               }
             />

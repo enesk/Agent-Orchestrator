@@ -6,7 +6,6 @@ export {
   attachmentKind,
   attachmentUrl,
   extensionOf,
-  formatFileSize,
   isImage,
   kindOf,
   readFileAsBase64,

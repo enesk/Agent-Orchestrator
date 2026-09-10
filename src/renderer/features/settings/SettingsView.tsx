@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
+import { LANGUAGES, LANGUAGE_LABELS, type Language } from '@shared/i18n'
 import type { AppInfo, ClaudeStatus } from '@shared/types'
+import { useT } from '../../i18n'
 import { useClaudeStore } from '../../store/claudeStore'
 import { useSettingsStore } from '../../store/settingsStore'
-import { Badge, Button, Input, Panel, Spinner, Switch } from '../../ui'
+import { Badge, Button, Input, Panel, Select, Spinner, Switch } from '../../ui'
 import { FolderIcon } from '../../ui/icons'
 
 export function SettingsView() {
+  const t = useT()
   const settings = useSettingsStore((state) => state.settings)
   const loading = useSettingsStore((state) => state.loading)
   const error = useSettingsStore((state) => state.error)
@@ -20,7 +23,7 @@ export function SettingsView() {
     return (
       <div className="flex h-full items-center justify-center gap-2 text-sm text-ink-muted">
         {loading ? <Spinner size={14} /> : null}
-        {error ?? 'Einstellungen werden geladen …'}
+        {error ?? t('settings.loading')}
       </div>
     )
   }
@@ -35,17 +38,26 @@ export function SettingsView() {
 
       <ClaudeSection claudePath={settings.claudePath} onSavePath={(path) => save({ claudePath: path })} />
 
-      <Panel title="Verhalten">
+      <Panel title={t('settings.behaviour')}>
         <div className="flex flex-col gap-4">
+          <div>
+            <Select
+              label={t('settings.language')}
+              options={LANGUAGE_OPTIONS}
+              value={settings.language}
+              onChange={(event) => void save({ language: event.target.value as Language })}
+            />
+            <p className="mt-1 text-xs text-ink-faint">{t('settings.languageHint')}</p>
+          </div>
           <Switch
-            label="Beim Schließen in die Menüleiste minimieren"
-            hint="Das Fenster verschwindet, die Agenten laufen weiter. Beenden über das Tray-Menü."
+            label={t('settings.minimizeToTray')}
+            hint={t('settings.minimizeToTrayHint')}
             checked={settings.minimizeToTray}
             onChange={(checked) => void save({ minimizeToTray: checked })}
           />
           <Switch
-            label="Benachrichtigungen anzeigen"
-            hint="Meldet fertige Agenten-Läufe und Fehler, wenn das Fenster nicht im Vordergrund ist."
+            label={t('settings.notifications')}
+            hint={t('settings.notificationsHint')}
             checked={settings.notificationsEnabled}
             onChange={(checked) => void save({ notificationsEnabled: checked })}
           />
@@ -57,6 +69,12 @@ export function SettingsView() {
   )
 }
 
+/** Die Sprachnamen stehen in ihrer eigenen Sprache und werden deshalb nie übersetzt. */
+const LANGUAGE_OPTIONS = LANGUAGES.map((language) => ({
+  value: language,
+  label: LANGUAGE_LABELS[language],
+}))
+
 // ---------------------------------------------------------------------------
 
 interface ClaudeSectionProps {
@@ -65,6 +83,7 @@ interface ClaudeSectionProps {
 }
 
 function ClaudeSection({ claudePath, onSavePath }: ClaudeSectionProps) {
+  const t = useT()
   const status = useClaudeStore((state) => state.status)
   const setStatus = useClaudeStore((state) => state.set)
   const [draft, setDraft] = useState(claudePath ?? '')
@@ -109,17 +128,16 @@ function ClaudeSection({ claudePath, onSavePath }: ClaudeSectionProps) {
   const shown = result ?? status
 
   return (
-    <Panel title="Claude CLI">
+    <Panel title={t('settings.claude.title')}>
       <div className="flex flex-col gap-3">
         <p className="text-xs text-ink-muted">
-          Jeder Agent ist ein Aufruf der Claude-Code-CLI. Leer lassen, wenn <code>claude</code> im
-          Pfad liegt.
+          {t('settings.claude.intro', { command: 'claude' })}
         </p>
 
         <div className="flex items-end gap-2">
           <Input
             className="font-mono"
-            label="Pfad zur ausführbaren Datei"
+            label={t('settings.claude.path')}
             placeholder="claude"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
@@ -129,10 +147,10 @@ function ClaudeSection({ claudePath, onSavePath }: ClaudeSectionProps) {
             }}
           />
           <Button icon={<FolderIcon width={16} height={16} />} onClick={() => void browse()}>
-            Durchsuchen
+            {t('projectForm.browse')}
           </Button>
           <Button variant="primary" loading={checking} onClick={() => void check()}>
-            Prüfen
+            {t('settings.claude.check')}
           </Button>
         </div>
 
@@ -142,12 +160,14 @@ function ClaudeSection({ claudePath, onSavePath }: ClaudeSectionProps) {
           <div className="flex flex-col gap-1.5 rounded-md border border-line bg-raised px-3 py-2">
             <div className="flex items-center gap-2">
               {shown.available ? (
-                <Badge tone="success">Gefunden</Badge>
+                <Badge tone="success">{t('settings.claude.found')}</Badge>
               ) : (
-                <Badge tone="danger">Nicht gefunden</Badge>
+                <Badge tone="danger">{t('settings.claude.notFound')}</Badge>
               )}
               <span className="text-xs text-ink-muted">
-                {shown.available ? (shown.version ?? 'Version unbekannt') : (shown.error ?? 'Kein Grund gemeldet')}
+                {shown.available
+                  ? shown.version ?? t('settings.claude.versionUnknown')
+                  : shown.error ?? t('settings.claude.noReason')}
               </span>
             </div>
             {shown.path && <p className="truncate font-mono text-[11px] text-ink-faint">{shown.path}</p>}
@@ -156,7 +176,7 @@ function ClaudeSection({ claudePath, onSavePath }: ClaudeSectionProps) {
 
         {shown && !shown.available && (
           <p className="text-xs text-ink-muted">
-            Noch nicht installiert? Im Terminal:{' '}
+            {t('settings.claude.installHint')}{' '}
             <code className="rounded bg-raised px-1 py-0.5 font-mono text-[11px] text-ink">
               npm install -g @anthropic-ai/claude-code
             </code>
@@ -170,6 +190,7 @@ function ClaudeSection({ claudePath, onSavePath }: ClaudeSectionProps) {
 // ---------------------------------------------------------------------------
 
 function AboutSection() {
+  const t = useT()
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -182,7 +203,7 @@ function AboutSection() {
 
   if (error) {
     return (
-      <Panel title="Über">
+      <Panel title={t('settings.about')}>
         <p className="text-xs text-danger">{error}</p>
       </Panel>
     )
@@ -190,33 +211,35 @@ function AboutSection() {
 
   if (!info) {
     return (
-      <Panel title="Über">
-        <p className="text-xs text-ink-muted">Wird geladen …</p>
+      <Panel title={t('settings.about')}>
+        <p className="text-xs text-ink-muted">{t('common.loading')}</p>
       </Panel>
     )
   }
 
   return (
     <>
-      <Panel title="Über">
+      <Panel title={t('settings.about')}>
         <dl className="flex flex-col gap-2 text-xs">
-          <Row label="Anwendung" value={info.name} />
-          <Row label="Version" value={info.version} />
-          <Row label="Electron" value={info.electronVersion} />
-          <Row label="Plattform" value={info.platform} />
+          <Row label={t('settings.about.app')} value={info.name} />
+          <Row label={t('settings.about.version')} value={info.version} />
+          <Row label={t('settings.about.electron')} value={info.electronVersion} />
+          <Row label={t('settings.about.platform')} value={info.platform} />
         </dl>
       </Panel>
 
-      <Panel title="Datenbank">
+      <Panel title={t('settings.database')}>
         <div className="flex flex-col gap-3">
           <p className="break-all font-mono text-[11px] text-ink-muted">{info.databasePath}</p>
           <div className="flex gap-2">
-            <Button onClick={() => void window.api.app.showDatabaseFile()}>Im Finder zeigen</Button>
+            <Button onClick={() => void window.api.app.showDatabaseFile()}>
+              {t('settings.database.reveal')}
+            </Button>
             <Button
               icon={<FolderIcon width={16} height={16} />}
               onClick={() => void window.api.app.openDatabaseFolder()}
             >
-              Datenbank-Ordner öffnen
+              {t('settings.database.openFolder')}
             </Button>
           </div>
         </div>
