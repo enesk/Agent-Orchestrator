@@ -57,6 +57,8 @@ export interface ComposerProps {
   unassignedAgents?: ProjectAgent[]
   onAssignAgent?: (agent: ProjectAgent) => Promise<unknown>
   placeholder: string
+  /** Breitenbegrenzung des Inhalts — der Hauptverlauf zentriert ihn, das Thread-Panel nicht. */
+  contentClassName?: string
   disabled?: boolean
   autoFocus?: boolean
   onSend: (input: {
@@ -72,6 +74,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     unassignedAgents = [],
     onAssignAgent,
     placeholder,
+    contentClassName,
     disabled = false,
     autoFocus = false,
     onSend,
@@ -301,7 +304,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   return (
     <div
       className={cn(
-        'shrink-0 border-t border-line bg-surface px-3 py-2 transition-colors',
+        'shrink-0 border-t border-line bg-surface py-2 transition-colors',
         dragOver && 'bg-accent-soft',
       )}
       onDragOver={(event) => {
@@ -311,160 +314,162 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
     >
-      {error && (
-        <p className="mb-1.5 rounded-md border border-danger/40 bg-danger/10 px-2 py-1 text-xs text-danger">
-          {error}
-        </p>
-      )}
-
-      {(attachments.length > 0 || uploading) && (
-        <AttachmentList
-          className="mb-2"
-          attachments={attachments}
-          onRemove={(attachment) =>
-            setAttachments((current) => current.filter((item) => item.id !== attachment.id))
-          }
-        >
-          {uploading && <Spinner size={16} className="text-ink-muted" />}
-        </AttachmentList>
-      )}
-
-      <div className="relative">
-        {mention && options.length > 0 && (
-          <ul className="absolute bottom-full left-0 z-40 mb-1 max-h-72 w-80 overflow-auto rounded-md border border-line bg-overlay py-1 shadow-lg">
-            {options.map((option, index) => {
-              const agent = option.agent
-              const assigning = assigningId === agent.id
-              return (
-                <li key={`${option.assigned ? 'in' : 'out'}-${agent.id}`}>
-                  {/* Kopfzeile des zweiten Abschnitts — sie steht vor dem ersten fremden Agenten. */}
-                  {!option.assigned && index === assignedCount && (
-                    <p
-                      className={cn(
-                        'px-2 pb-0.5 pt-1.5 text-[11px] font-medium text-ink-faint',
-                        assignedCount > 0 && 'mt-1 border-t border-line',
-                      )}
-                    >
-                      Nicht in diesem Projekt — Auswahl ordnet zu
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    disabled={assigningId !== null && !assigning}
-                    onMouseDown={(event) => {
-                      event.preventDefault()
-                      void acceptOption(option)
-                    }}
-                    onMouseEnter={() => setHighlighted(index)}
-                    className={cn(
-                      'flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm',
-                      index === highlighted ? 'bg-raised' : 'hover:bg-raised',
-                      (agent.stopped || !option.assigned) && 'opacity-60',
-                    )}
-                  >
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: agent.color }}
-                    />
-                    <span className="truncate text-ink">{agent.name}</span>
-                    {option.assigned ? (
-                      agent.title && (
-                        <span className="truncate text-xs text-ink-faint">{agent.title}</span>
-                      )
-                    ) : (
-                      <span className="truncate text-xs text-ink-faint">
-                        {roleLabel(agent.role)}
-                      </span>
-                    )}
-                    <span className="ml-auto flex shrink-0 items-center gap-1.5 font-mono text-[11px] text-ink-faint">
-                      {assigning && <Spinner size={12} />}
-                      {option.assigned && agent.stopped ? 'gestoppt' : agent.mentionKey}
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+      <div className={cn('w-full px-4', contentClassName)}>
+        {error && (
+          <p className="mb-1.5 rounded-md border border-danger/40 bg-danger/10 px-2 py-1 text-xs text-danger">
+            {error}
+          </p>
         )}
 
-        <div className="relative rounded-md border border-line bg-base focus-within:border-accent">
-          {/* Spiegel des Textes hinter dem Feld — nur er kann Erwähnungen einfärben. */}
-          <div
-            ref={backdropRef}
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-3 py-2 text-sm leading-relaxed text-ink"
-          >
-            {splitMentions(text, agents).map((segment, index) =>
-              segment.agent ? (
-                <span
-                  key={index}
-                  className="rounded"
-                  style={{
-                    color: segment.agent.color,
-                    backgroundColor: `${segment.agent.color}22`,
-                  }}
-                >
-                  {segment.text}
-                </span>
-              ) : (
-                <span key={index}>{segment.text}</span>
-              ),
-            )}
-            {'\n'}
-          </div>
-
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            value={text}
-            disabled={disabled}
-            placeholder={placeholder}
-            onChange={(event) => {
-              setText(event.target.value)
-              updateMention(event.target.value, event.target.selectionStart)
-            }}
-            onSelect={(event) =>
-              updateMention(event.currentTarget.value, event.currentTarget.selectionStart)
+        {(attachments.length > 0 || uploading) && (
+          <AttachmentList
+            className="mb-2"
+            attachments={attachments}
+            onRemove={(attachment) =>
+              setAttachments((current) => current.filter((item) => item.id !== attachment.id))
             }
-            onKeyDown={onKeyDown}
-            onPaste={onPaste}
-            onScroll={(event) => {
-              if (backdropRef.current) backdropRef.current.scrollTop = event.currentTarget.scrollTop
-            }}
-            className={cn(
-              'relative block w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed',
-              'text-transparent caret-ink placeholder:text-ink-faint focus:outline-none',
-              'disabled:cursor-not-allowed disabled:opacity-60',
-            )}
-          />
-        </div>
-      </div>
+          >
+            {uploading && <Spinner size={16} className="text-ink-muted" />}
+          </AttachmentList>
+        )}
 
-      <div className="mt-1.5 flex items-center gap-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept={ATTACHMENT_ACCEPT}
-          className="hidden"
-          onChange={pickFiles}
-        />
-        <IconButton
-          label="Datei anhängen"
-          icon={<PaperclipIcon />}
-          disabled={disabled || uploading}
-          onClick={() => fileInputRef.current?.click()}
-        />
-        <span className="min-w-0 flex-1 truncate text-[11px] text-ink-faint">{hint}</span>
-        <Button
-          variant="primary"
-          size="sm"
-          loading={sending}
-          disabled={!canSend}
-          onClick={() => void send()}
-        >
-          Senden
-        </Button>
+        <div className="relative">
+          {mention && options.length > 0 && (
+            <ul className="absolute bottom-full left-0 z-40 mb-1 max-h-72 w-80 overflow-auto rounded-md border border-line bg-overlay py-1 shadow-lg">
+              {options.map((option, index) => {
+                const agent = option.agent
+                const assigning = assigningId === agent.id
+                return (
+                  <li key={`${option.assigned ? 'in' : 'out'}-${agent.id}`}>
+                    {/* Kopfzeile des zweiten Abschnitts — sie steht vor dem ersten fremden Agenten. */}
+                    {!option.assigned && index === assignedCount && (
+                      <p
+                        className={cn(
+                          'px-2 pb-0.5 pt-1.5 text-[11px] font-medium text-ink-faint',
+                          assignedCount > 0 && 'mt-1 border-t border-line',
+                        )}
+                      >
+                        Nicht in diesem Projekt — Auswahl ordnet zu
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      disabled={assigningId !== null && !assigning}
+                      onMouseDown={(event) => {
+                        event.preventDefault()
+                        void acceptOption(option)
+                      }}
+                      onMouseEnter={() => setHighlighted(index)}
+                      className={cn(
+                        'flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm',
+                        index === highlighted ? 'bg-raised' : 'hover:bg-raised',
+                        (agent.stopped || !option.assigned) && 'opacity-60',
+                      )}
+                    >
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: agent.color }}
+                      />
+                      <span className="truncate text-ink">{agent.name}</span>
+                      {option.assigned ? (
+                        agent.title && (
+                          <span className="truncate text-xs text-ink-faint">{agent.title}</span>
+                        )
+                      ) : (
+                        <span className="truncate text-xs text-ink-faint">
+                          {roleLabel(agent.role)}
+                        </span>
+                      )}
+                      <span className="ml-auto flex shrink-0 items-center gap-1.5 font-mono text-[11px] text-ink-faint">
+                        {assigning && <Spinner size={12} />}
+                        {option.assigned && agent.stopped ? 'gestoppt' : agent.mentionKey}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+
+          <div className="relative rounded-md border border-line bg-base focus-within:border-accent">
+            {/* Spiegel des Textes hinter dem Feld — nur er kann Erwähnungen einfärben. */}
+            <div
+              ref={backdropRef}
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-3 py-2 text-sm leading-relaxed text-ink"
+            >
+              {splitMentions(text, agents).map((segment, index) =>
+                segment.agent ? (
+                  <span
+                    key={index}
+                    className="rounded"
+                    style={{
+                      color: segment.agent.color,
+                      backgroundColor: `${segment.agent.color}22`,
+                    }}
+                  >
+                    {segment.text}
+                  </span>
+                ) : (
+                  <span key={index}>{segment.text}</span>
+                ),
+              )}
+              {'\n'}
+            </div>
+
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={text}
+              disabled={disabled}
+              placeholder={placeholder}
+              onChange={(event) => {
+                setText(event.target.value)
+                updateMention(event.target.value, event.target.selectionStart)
+              }}
+              onSelect={(event) =>
+                updateMention(event.currentTarget.value, event.currentTarget.selectionStart)
+              }
+              onKeyDown={onKeyDown}
+              onPaste={onPaste}
+              onScroll={(event) => {
+                if (backdropRef.current) backdropRef.current.scrollTop = event.currentTarget.scrollTop
+              }}
+              className={cn(
+                'relative block w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed',
+                'text-transparent caret-ink placeholder:text-ink-faint focus:outline-none',
+                'disabled:cursor-not-allowed disabled:opacity-60',
+              )}
+            />
+          </div>
+        </div>
+
+        <div className="mt-1.5 flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ATTACHMENT_ACCEPT}
+            className="hidden"
+            onChange={pickFiles}
+          />
+          <IconButton
+            label="Datei anhängen"
+            icon={<PaperclipIcon />}
+            disabled={disabled || uploading}
+            onClick={() => fileInputRef.current?.click()}
+          />
+          <span className="min-w-0 flex-1 truncate text-[11px] text-ink-faint">{hint}</span>
+          <Button
+            variant="primary"
+            size="sm"
+            loading={sending}
+            disabled={!canSend}
+            onClick={() => void send()}
+          >
+            Senden
+          </Button>
+        </div>
       </div>
     </div>
   )

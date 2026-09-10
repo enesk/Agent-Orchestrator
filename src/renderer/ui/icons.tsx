@@ -157,3 +157,32 @@ export const ImageIcon = (props: IconProps) => (
     <path d="m5 17 4.5-4.5L13 16l2.5-2.5L21 19" />
   </Icon>
 )
+
+export const ThreadIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M9 7 5 11l4 4" />
+    <path d="M5 11h8a6 6 0 0 1 6 6v3" />
+  </Icon>
+)
+
+export const TrashIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 7h16" />
+    <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    <path d="M6 7v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7" />
+    <path d="M10 11v6M14 11v6" />
+  </Icon>
+)
+
+export const StopIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="6" y="6" width="12" height="12" rx="2" />
+  </Icon>
+)
+
+export const RetryIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M20 12a8 8 0 1 1-2.6-5.9" />
+    <path d="M20 4v4h-4" />
+  </Icon>
+)

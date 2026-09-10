@@ -1,3 +1,9 @@
+/**
+ * Breite und Zentrierung des Hauptverlaufs. Nachrichtenliste und Eingabefeld teilen sie sich,
+ * damit beide exakt übereinanderliegen; der scrollende Bereich bleibt fensterbreit.
+ */
+export const CHAT_COLUMN = 'mx-auto w-full max-w-3xl'
+
 import type { AgentActivity, ChatMessage, ProjectAgent } from '@shared/types'
 
 // Anhänge sind überall gleich — Chat, Ticket und Verlauf teilen sich dieselben Helfer.

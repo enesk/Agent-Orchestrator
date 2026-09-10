@@ -1,7 +1,8 @@
 import { memo } from 'react'
 import type { ChatMessage, MessageAttachment, ProjectAgent } from '@shared/types'
 import type { ToolEvent } from '../../store/chatStore'
-import { Spinner, cn } from '../../ui'
+import { IconButton, Spinner, Tooltip, cn } from '../../ui'
+import { RetryIcon, StopIcon, ThreadIcon, TrashIcon } from '../../ui/icons'
 import { AttachmentList } from '../attachments'
 import { autoMentionAgent, formatTime, splitMentions } from './chatHelpers'
 import { MessageMarkdown } from './MessageMarkdown'
@@ -34,6 +35,9 @@ function errorText(message: ChatMessage): string {
   if (message.errorCode) return message.errorCode
   return 'Der Agent hat nicht geantwortet.'
 }
+
+/** Die Aktionsleiste sitzt eng an der Nachricht — kleiner als der Standard-Symbolknopf. */
+const ACTION_BUTTON = 'h-7 w-7'
 
 const squash = (value: string): string => value.replace(/\s+/g, ' ').trim().toLowerCase()
 
@@ -74,41 +78,51 @@ function MessageItemComponent({
   }
 
   const actions = (
-    <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100">
+    <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100">
       {streaming && (
-        <button
-          type="button"
-          onClick={() => onStop(message.id)}
-          className="text-[11px] text-ink-faint hover:text-ink"
-        >
-          Stoppen
-        </button>
+        <Tooltip label="Stoppen">
+          <IconButton
+            label="Stoppen"
+            // Der gestaltete Tooltip steht schon da — der native würde ihn doppeln.
+            title=""
+            icon={<StopIcon width={15} height={15} />}
+            className={ACTION_BUTTON}
+            onClick={() => onStop(message.id)}
+          />
+        </Tooltip>
       )}
       {message.status === 'error' && (
-        <button
-          type="button"
-          onClick={() => onRetry(message.id)}
-          className="text-[11px] text-ink-faint hover:text-ink"
-        >
-          Wiederholen
-        </button>
+        <Tooltip label="Wiederholen">
+          <IconButton
+            label="Wiederholen"
+            title=""
+            icon={<RetryIcon width={15} height={15} />}
+            className={ACTION_BUTTON}
+            onClick={() => onRetry(message.id)}
+          />
+        </Tooltip>
       )}
       {onOpenThread && (
-        <button
-          type="button"
-          onClick={() => onOpenThread(message.id)}
-          className="text-[11px] text-ink-faint hover:text-ink"
-        >
-          Im Thread antworten
-        </button>
+        <Tooltip label="Im Thread antworten">
+          <IconButton
+            label="Im Thread antworten"
+            title=""
+            icon={<ThreadIcon width={15} height={15} />}
+            className={ACTION_BUTTON}
+            onClick={() => onOpenThread(message.id)}
+          />
+        </Tooltip>
       )}
-      <button
-        type="button"
-        onClick={() => onDelete(message.id)}
-        className="text-[11px] text-ink-faint hover:text-danger"
-      >
-        Löschen
-      </button>
+      <Tooltip label="Löschen">
+        <IconButton
+          label="Löschen"
+          title=""
+          tone="danger"
+          icon={<TrashIcon width={15} height={15} />}
+          className={ACTION_BUTTON}
+          onClick={() => onDelete(message.id)}
+        />
+      </Tooltip>
     </div>
   )
 

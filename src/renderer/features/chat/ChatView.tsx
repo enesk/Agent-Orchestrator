@@ -7,6 +7,7 @@ import { useUiStore } from '../../store/uiStore'
 import { Button, EmptyState, Spinner, useConfirm } from '../../ui'
 import { AgentIcon, ChatIcon } from '../../ui/icons'
 import { AgentBar } from './AgentBar'
+import { CHAT_COLUMN } from './chatHelpers'
 import { Composer, type ComposerHandle } from './Composer'
 import { HistoryMenu, type ClearScope } from './HistoryMenu'
 import { MessageList } from './MessageList'
@@ -285,6 +286,7 @@ export function ChatView() {
             onStop={handleStop}
             onDelete={handleDelete}
             onOpenThread={handleOpenThread}
+            contentClassName={CHAT_COLUMN}
             hasOlder={hasOlder}
             loadingOlder={loadingOlder}
             onLoadOlder={handleLoadOlder}
@@ -295,6 +297,7 @@ export function ChatView() {
           ref={composerRef}
           agents={agents}
           unassignedAgents={unassignedAgents}
+          contentClassName={CHAT_COLUMN}
           onAssignAgent={(agent) => addToProject(projectId, agent.id)}
           placeholder="Nachricht an das Projekt — @ erwähnt einen Agenten"
           onSend={(input) =>

@@ -23,6 +23,8 @@ export interface MessageListProps {
   hasOlder: boolean
   loadingOlder: boolean
   onLoadOlder: () => void
+  /** Breitenbegrenzung des Inhalts — nur er wird zentriert, der Rollbereich bleibt voll breit. */
+  contentClassName?: string
   className?: string
 }
 
@@ -41,6 +43,7 @@ export function MessageList({
   hasOlder,
   loadingOlder,
   onLoadOlder,
+  contentClassName,
   className,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -96,50 +99,52 @@ export function MessageList({
   return (
     <div className={cn('relative min-h-0 flex-1', className)}>
       <div ref={containerRef} onScroll={onScroll} className="h-full overflow-auto py-3">
-        {hasOlder && (
-          <div className="mb-2 flex justify-center px-4">
-            <button
-              type="button"
-              onClick={loadOlder}
-              disabled={loadingOlder}
-              className={cn(
-                'rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-muted',
-                'transition-colors hover:bg-raised hover:text-ink disabled:opacity-50',
-              )}
-            >
-              {loadingOlder ? 'Wird geladen …' : 'Ältere Nachrichten laden'}
-            </button>
-          </div>
-        )}
-        {messages.map((message, index) => {
-          const previous = messages[index - 1]
-          const newDay = !previous || !isSameDay(previous.createdAt, message.createdAt)
-          return (
-            <div key={message.id}>
-              {newDay && (
-                <div className="my-3 flex items-center gap-3 px-4">
-                  <span className="h-px flex-1 bg-line" />
-                  <span className="text-[11px] text-ink-faint">
-                    {formatDaySeparator(message.createdAt)}
-                  </span>
-                  <span className="h-px flex-1 bg-line" />
-                </div>
-              )}
-              <MessageItem
-                message={message}
-                agent={message.agentId ? agentById.get(message.agentId) ?? null : null}
-                agents={agents}
-                tools={tools[message.id] ?? NO_TOOLS}
-                startsGroup={newDay || startsGroup(message, previous)}
-                replyCount={replyCounts[message.id] ?? 0}
-                onRetry={onRetry}
-                onStop={onStop}
-                onDelete={onDelete}
-                onOpenThread={onOpenThread}
-              />
+        <div className={cn('w-full', contentClassName)}>
+          {hasOlder && (
+            <div className="mb-2 flex justify-center px-4">
+              <button
+                type="button"
+                onClick={loadOlder}
+                disabled={loadingOlder}
+                className={cn(
+                  'rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-muted',
+                  'transition-colors hover:bg-raised hover:text-ink disabled:opacity-50',
+                )}
+              >
+                {loadingOlder ? 'Wird geladen …' : 'Ältere Nachrichten laden'}
+              </button>
             </div>
-          )
-        })}
+          )}
+          {messages.map((message, index) => {
+            const previous = messages[index - 1]
+            const newDay = !previous || !isSameDay(previous.createdAt, message.createdAt)
+            return (
+              <div key={message.id}>
+                {newDay && (
+                  <div className="my-3 flex items-center gap-3 px-4">
+                    <span className="h-px flex-1 bg-line" />
+                    <span className="text-[11px] text-ink-faint">
+                      {formatDaySeparator(message.createdAt)}
+                    </span>
+                    <span className="h-px flex-1 bg-line" />
+                  </div>
+                )}
+                <MessageItem
+                  message={message}
+                  agent={message.agentId ? agentById.get(message.agentId) ?? null : null}
+                  agents={agents}
+                  tools={tools[message.id] ?? NO_TOOLS}
+                  startsGroup={newDay || startsGroup(message, previous)}
+                  replyCount={replyCounts[message.id] ?? 0}
+                  onRetry={onRetry}
+                  onStop={onStop}
+                  onDelete={onDelete}
+                  onOpenThread={onOpenThread}
+                />
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {!atBottom && (
