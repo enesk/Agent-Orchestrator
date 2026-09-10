@@ -30,6 +30,8 @@ export const en: Catalog = {
   'nav.goals': 'Initiatives',
   'nav.agents': 'Agents',
   'nav.settings': 'Settings',
+  'nav.collapse': 'Collapse sidebar',
+  'nav.expand': 'Expand sidebar',
   'topBar.noProject': 'No project selected',
   'topBar.openLog': 'Open log (⌘L)',
   'topBar.closeLog': 'Close log (⌘L)',

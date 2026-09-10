@@ -21,6 +21,8 @@ interface UiState {
   activeSection: Section
   agentsTab: AgentsTab
   logBarOpen: boolean
+  /** Seitenleiste mit Beschriftungen statt nur Symbolen — startet ausgeklappt. */
+  navExpanded: boolean
   setActiveProject: (projectId: string | null) => void
   setActiveSection: (section: Section) => void
   setAgentsTab: (tab: AgentsTab) => void
@@ -28,6 +30,8 @@ interface UiState {
   openAgents: (tab: AgentsTab) => void
   setLogBarOpen: (open: boolean) => void
   toggleLogBar: () => void
+  setNavExpanded: (expanded: boolean) => void
+  toggleNavExpanded: () => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -35,10 +39,13 @@ export const useUiStore = create<UiState>((set) => ({
   activeSection: 'home',
   agentsTab: 'editor',
   logBarOpen: false,
+  navExpanded: true,
   setActiveProject: (activeProjectId) => set({ activeProjectId }),
   setActiveSection: (activeSection) => set({ activeSection }),
   setAgentsTab: (agentsTab) => set({ agentsTab }),
   openAgents: (agentsTab) => set({ activeSection: 'agents', agentsTab }),
   setLogBarOpen: (logBarOpen) => set({ logBarOpen }),
   toggleLogBar: () => set((state) => ({ logBarOpen: !state.logBarOpen })),
+  setNavExpanded: (navExpanded) => set({ navExpanded }),
+  toggleNavExpanded: () => set((state) => ({ navExpanded: !state.navExpanded })),
 }))

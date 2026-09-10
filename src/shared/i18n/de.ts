@@ -35,6 +35,8 @@ export const de = {
   'nav.goals': 'Vorhaben',
   'nav.agents': 'Agenten',
   'nav.settings': 'Einstellungen',
+  'nav.collapse': 'Seitenleiste einklappen',
+  'nav.expand': 'Seitenleiste ausklappen',
   'topBar.noProject': 'Kein Projekt ausgewählt',
   'topBar.openLog': 'Protokoll öffnen (⌘L)',
   'topBar.closeLog': 'Protokoll schließen (⌘L)',

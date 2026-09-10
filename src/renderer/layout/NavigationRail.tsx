@@ -5,13 +5,14 @@ import { Tooltip, cn } from '../ui'
 import {
   AgentIcon,
   ChatIcon,
+  ChevronRightIcon,
   DocumentIcon,
   GoalIcon,
   HomeIcon,
   SettingsIcon,
   TicketIcon,
 } from '../ui/icons'
-import type { ComponentType, SVGProps } from 'react'
+import type { ComponentType, ReactNode, SVGProps } from 'react'
 
 const SECTIONS: { id: Section; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
   { id: 'home', Icon: HomeIcon },
@@ -22,6 +23,23 @@ const SECTIONS: { id: Section; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] 
   { id: 'agents', Icon: AgentIcon },
 ]
 
+/**
+ * Eingeklappt trägt der Tooltip die Beschriftung, ausgeklappt steht sie im Knopf — dann wäre
+ * das Tooltip eine Dopplung und bleibt weg.
+ */
+function RailLabel({ expanded, label, children }: {
+  expanded: boolean
+  label: string
+  children: ReactNode
+}) {
+  if (expanded) return <>{children}</>
+  return (
+    <Tooltip label={label} side="right">
+      {children}
+    </Tooltip>
+  )
+}
+
 export function NavigationRail() {
   const t = useT()
   const projects = useProjectStore((state) => state.projects)
@@ -29,70 +47,98 @@ export function NavigationRail() {
   const setActiveProject = useUiStore((state) => state.setActiveProject)
   const activeSection = useUiStore((state) => state.activeSection)
   const setActiveSection = useUiStore((state) => state.setActiveSection)
+  const expanded = useUiStore((state) => state.navExpanded)
+  const toggleNavExpanded = useUiStore((state) => state.toggleNavExpanded)
+
+  const sectionButton = (id: Section, Icon: ComponentType<SVGProps<SVGSVGElement>>) => {
+    const label = t(SECTION_LABEL_KEYS[id])
+    return (
+      <RailLabel key={id} expanded={expanded} label={label}>
+        <button
+          type="button"
+          aria-label={label}
+          aria-current={activeSection === id ? 'page' : undefined}
+          onClick={() => setActiveSection(id)}
+          className={cn(
+            'flex h-9 items-center rounded-md transition-colors',
+            expanded ? 'w-full gap-2.5 px-2' : 'w-9 justify-center',
+            activeSection === id
+              ? 'bg-accent-soft text-accent'
+              : 'text-ink-muted hover:bg-raised hover:text-ink',
+          )}
+        >
+          <Icon className="shrink-0" />
+          {expanded && <span className="truncate text-sm">{label}</span>}
+        </button>
+      </RailLabel>
+    )
+  }
 
   return (
-    <nav className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-base pb-2">
+    <nav
+      className={cn(
+        'flex shrink-0 flex-col gap-1 border-r border-line bg-base pb-2',
+        'transition-[width] duration-200',
+        expanded ? 'w-52 items-stretch' : 'w-14 items-center',
+      )}
+    >
       <div className="drag-region h-11 w-full" />
 
-      <div className="flex w-full flex-col items-center gap-1 px-2">
+      <div className={cn('flex w-full flex-col gap-1 px-2', !expanded && 'items-center')}>
         {projects.map((project) => (
-          <Tooltip key={project.id} label={project.name} side="right">
+          <RailLabel key={project.id} expanded={expanded} label={project.name}>
             <button
               type="button"
               onClick={() => setActiveProject(project.id)}
               className={cn(
-                'flex h-9 w-9 items-center justify-center rounded-md border text-xs font-semibold uppercase transition-colors',
+                'flex h-9 items-center rounded-md border transition-colors',
+                expanded ? 'w-full gap-2.5 px-2' : 'w-9 justify-center',
                 project.id === activeProjectId
                   ? 'border-accent bg-accent-soft text-accent'
                   : 'border-line bg-raised text-ink-muted hover:text-ink',
               )}
             >
-              {project.name.slice(0, 2)}
+              <span className="w-5 shrink-0 text-center text-xs font-semibold uppercase">
+                {project.name.slice(0, 2)}
+              </span>
+              {expanded && <span className="truncate text-sm">{project.name}</span>}
             </button>
-          </Tooltip>
+          </RailLabel>
         ))}
       </div>
 
-      {projects.length > 0 && <div className="my-1 h-px w-8 bg-line" />}
+      {projects.length > 0 && (
+        <div className={cn('my-1 h-px bg-line', expanded ? 'mx-2 w-auto' : 'w-8 self-center')} />
+      )}
 
-      <div className="flex w-full flex-col items-center gap-1 px-2">
-        {SECTIONS.map(({ id, Icon }) => (
-          <Tooltip key={id} label={t(SECTION_LABEL_KEYS[id])} side="right">
-            <button
-              type="button"
-              aria-label={t(SECTION_LABEL_KEYS[id])}
-              aria-current={activeSection === id ? 'page' : undefined}
-              onClick={() => setActiveSection(id)}
-              className={cn(
-                'flex h-9 w-9 items-center justify-center rounded-md transition-colors',
-                activeSection === id
-                  ? 'bg-accent-soft text-accent'
-                  : 'text-ink-muted hover:bg-raised hover:text-ink',
-              )}
-            >
-              <Icon />
-            </button>
-          </Tooltip>
-        ))}
+      <div className={cn('flex w-full flex-col gap-1 px-2', !expanded && 'items-center')}>
+        {SECTIONS.map(({ id, Icon }) => sectionButton(id, Icon))}
       </div>
 
-      <div className="mt-auto px-2">
-        <Tooltip label={t('nav.settings')} side="right">
+      <div className={cn('mt-auto flex w-full flex-col gap-1 px-2', !expanded && 'items-center')}>
+        {sectionButton('settings', SettingsIcon)}
+
+        <RailLabel
+          expanded={expanded}
+          label={expanded ? t('nav.collapse') : t('nav.expand')}
+        >
           <button
             type="button"
-            aria-label={t('nav.settings')}
-            aria-current={activeSection === 'settings' ? 'page' : undefined}
-            onClick={() => setActiveSection('settings')}
+            aria-label={expanded ? t('nav.collapse') : t('nav.expand')}
+            aria-expanded={expanded}
+            onClick={toggleNavExpanded}
             className={cn(
-              'flex h-9 w-9 items-center justify-center rounded-md transition-colors',
-              activeSection === 'settings'
-                ? 'bg-accent-soft text-accent'
-                : 'text-ink-muted hover:bg-raised hover:text-ink',
+              'flex h-9 items-center rounded-md text-ink-muted transition-colors',
+              'hover:bg-raised hover:text-ink',
+              expanded ? 'w-full gap-2.5 px-2' : 'w-9 justify-center',
             )}
           >
-            <SettingsIcon />
+            <ChevronRightIcon
+              className={cn('shrink-0 transition-transform', expanded && 'rotate-180')}
+            />
+            {expanded && <span className="truncate text-sm">{t('nav.collapse')}</span>}
           </button>
-        </Tooltip>
+        </RailLabel>
       </div>
     </nav>
   )

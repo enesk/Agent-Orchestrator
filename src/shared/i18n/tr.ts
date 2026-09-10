@@ -30,6 +30,8 @@ export const tr: Catalog = {
   'nav.goals': 'Girişimler',
   'nav.agents': 'Ajanlar',
   'nav.settings': 'Ayarlar',
+  'nav.collapse': 'Kenar çubuğunu daralt',
+  'nav.expand': 'Kenar çubuğunu genişlet',
   'topBar.noProject': 'Proje seçilmedi',
   'topBar.openLog': 'Günlüğü aç (⌘L)',
   'topBar.closeLog': 'Günlüğü kapat (⌘L)',
