@@ -267,6 +267,11 @@ export const tr: Catalog = {
   'ticketDetail.removeDependency': 'Kaldır',
   'ticketDetail.searchTicket': 'Bilet ara (başlık veya numara)',
   'ticketDetail.attachments': 'Ekler',
+  'ticketDetail.noAttachments': 'Ek yok',
+  'ticketDetail.attachmentsHint': 'Dosyaları buraya sürükleyin, yapıştırın ya da ekleyin.',
+  'ticketDetail.removeAttachmentTitle': 'Eki kaldır',
+  'ticketDetail.removeAttachmentMessage':
+    '“{name}” diskten de silinecek. Bu işlem geri alınamaz.',
   'ticketDetail.comments': 'Yorumlar ({count})',
   'ticketDetail.noComments': 'Henüz yorum yok',
   'ticketDetail.authorAgent': 'Ajan',
@@ -471,6 +476,7 @@ export const tr: Catalog = {
 
   'main.error.projectGone': 'Bu proje artık yok.',
   'main.error.messageGone': 'Bu mesaj artık yok.',
+  'main.error.ticketGone': 'Bu bilet artık yok.',
   'main.error.retryAgentOnly': 'Yalnızca bir ajanın yanıtları yinelenebilir.',
   'main.error.stillRunning': 'Bu çalışma hâlâ sürüyor — önce durdurun.',
   'main.error.agentLeftProject': 'Bu ajan artık projeye ait değil.',

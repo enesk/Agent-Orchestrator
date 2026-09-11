@@ -15,6 +15,12 @@ export interface TicketImportResult {
   warnings: string[]
 }
 
+/** Eine Datei auf dem Weg an ein Ticket — dasselbe Format wie `chat.saveAttachment`. */
+export type AttachmentUpload = Omit<
+  IpcRequest<'chat', 'saveAttachment'>,
+  'ticketId' | 'messageId'
+>
+
 interface TicketState {
   projectId: string | null
   tickets: Ticket[]
@@ -34,6 +40,8 @@ interface TicketState {
   remove: (id: string) => Promise<void>
   removeMany: (ids: string[]) => Promise<number>
   addComment: (ticketId: string, content: string) => Promise<void>
+  attachFile: (ticketId: string, file: AttachmentUpload) => Promise<void>
+  removeAttachment: (ticketId: string, attachmentId: string) => Promise<void>
   setDependencies: (ticketId: string, dependsOn: string[]) => Promise<void>
   importJson: (projectId: string, json: string) => Promise<TicketImportResult>
   subscribe: () => () => void
@@ -150,6 +158,28 @@ export const useTicketStore = create<TicketState>((set, get) => ({
     if (detail && detail.id === ticketId) {
       const next = { ...detail, comments: [...detail.comments, comment] }
       set({ detail: next, meta: { ...get().meta, [ticketId]: metaOf(next) } })
+    }
+  },
+
+  attachFile: async (ticketId, file) => {
+    const attachment = await window.api.chat.saveAttachment({ ...file, ticketId })
+    const detail = get().detail
+    // Nur den Datensatz ergänzen, nicht neu laden — sonst springt das offene Panel.
+    if (detail && detail.id === ticketId) {
+      set({ detail: { ...detail, attachments: [...detail.attachments, attachment] } })
+    }
+  },
+
+  removeAttachment: async (ticketId, attachmentId) => {
+    await window.api.tickets.removeAttachment({ ticketId, attachmentId })
+    const detail = get().detail
+    if (detail && detail.id === ticketId) {
+      set({
+        detail: {
+          ...detail,
+          attachments: detail.attachments.filter((entry) => entry.id !== attachmentId),
+        },
+      })
     }
   },
 

@@ -267,6 +267,11 @@ export const en: Catalog = {
   'ticketDetail.removeDependency': 'Remove',
   'ticketDetail.searchTicket': 'Find ticket (title or number)',
   'ticketDetail.attachments': 'Attachments',
+  'ticketDetail.noAttachments': 'No attachments',
+  'ticketDetail.attachmentsHint': 'Drag, paste or attach files here.',
+  'ticketDetail.removeAttachmentTitle': 'Remove attachment',
+  'ticketDetail.removeAttachmentMessage':
+    '“{name}” will also be deleted from disk. This cannot be undone.',
   'ticketDetail.comments': 'Comments ({count})',
   'ticketDetail.noComments': 'No comments yet',
   'ticketDetail.authorAgent': 'Agent',
@@ -471,6 +476,7 @@ export const en: Catalog = {
 
   'main.error.projectGone': 'This project no longer exists.',
   'main.error.messageGone': 'This message no longer exists.',
+  'main.error.ticketGone': 'This ticket no longer exists.',
   'main.error.retryAgentOnly': 'Only an agent’s answers can be retried.',
   'main.error.stillRunning': 'This run is still going — stop it first.',
   'main.error.agentLeftProject': 'This agent no longer belongs to the project.',

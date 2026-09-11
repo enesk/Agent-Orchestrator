@@ -496,6 +496,14 @@ export const ipcContract = {
       }),
       response: ticketCommentSchema,
     },
+    /**
+     * Löst einen Anhang vom Ticket und löscht seine Datei unter `userData/attachments/`.
+     * Angehängt wird über `chat.saveAttachment` mit `ticketId`.
+     */
+    removeAttachment: {
+      request: z.object({ ticketId: z.string(), attachmentId: z.string() }),
+      response: okSchema,
+    },
     setDependencies: {
       request: z.object({ ticketId: z.string(), dependsOn: z.array(z.string()) }),
       response: ticketDetailSchema,

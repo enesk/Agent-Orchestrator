@@ -1,13 +1,16 @@
-import path from 'node:path'
 import { TICKET_STATUS_LABELS } from '@shared/constants'
 import type { Agent, ChatMessage, Project, ProjectAgent, Ticket } from '@shared/types'
-import { getAttachmentsRoot } from '../app/attachments'
 import { listMessages } from '../db/repositories/messages'
 import { listProjectAgents } from '../db/repositories/agents'
 import { list as listDocuments } from '../documents/DocumentService'
 import { TOOL_INSTRUCTIONS } from '../mcp/toolInstructions'
 import { buildBlock, getForPrompt } from '../memory/MemoryService'
 import { list as listTickets } from '../tickets/TicketService'
+import {
+  MESSAGE_ATTACHMENT_INTRO,
+  MESSAGE_ATTACHMENT_TITLE,
+  attachmentPromptBody,
+} from './attachmentPrompt'
 
 /**
  * Baut den Prompt eines Chat-Laufs. Zwei Varianten, weil der Unterschied bares Geld ist:
@@ -75,28 +78,10 @@ function section(title: string, body: string): string | null {
   return content ? `## ${title}\n${content}` : null
 }
 
-/**
- * Bilder und Dateien liegen auf der Platte; die CLI liest sie mit ihrem eigenen Werkzeug.
- * Deshalb steht hier nur der absolute Pfad, nicht der Inhalt — eine 300 KB große HTML-Datei
- * in den Prompt zu kopieren wäre Verschwendung, der Agent liest gezielt.
- */
 function attachmentBlock(trigger: ChatMessage | null): string | null {
-  if (!trigger || trigger.attachments.length === 0) return null
-  const root = getAttachmentsRoot()
-  const lines = trigger.attachments.map((attachment) => {
-    const kind = (attachment.mimeType ?? '').startsWith('image/') ? ' (Bild)' : ''
-    return `- ${attachment.fileName}${kind}: ${path.join(root, attachment.relativePath)}`
-  })
-  return section(
-    'Anhänge der Nachricht',
-    [
-      'Der Nutzer hat diese Dateien zur Prüfung angehängt. Die Pfade sind absolut und liegen',
-      'außerhalb des Projektverzeichnisses — lies jede Datei mit deinem Read-Werkzeug, bevor du',
-      'antwortest, und geh in deiner Antwort inhaltlich auf sie ein.',
-      '',
-      ...lines,
-    ].join('\n'),
-  )
+  if (!trigger) return null
+  const body = attachmentPromptBody(trigger.attachments, MESSAGE_ATTACHMENT_INTRO)
+  return body ? section(MESSAGE_ATTACHMENT_TITLE, body) : null
 }
 
 function roleBlock(agent: Agent, peers: ProjectAgent[]): string {

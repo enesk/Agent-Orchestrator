@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { TICKET_CATEGORIES, TICKET_STATUS_LABELS, type TicketCategory } from '@shared/constants'
+import { attachmentPromptLines } from '../../agents/attachmentPrompt'
 import { getAgent } from '../../db/repositories/agents'
+import { countAttachmentsByTicket } from '../../db/repositories/messages'
 import { getTicket, getTicketByNumber } from '../../db/repositories/tickets'
 import * as tickets from '../../tickets/TicketService'
 import { scopedLogger } from '../../Logger'
@@ -141,7 +143,18 @@ export function registerTicketTools(server: McpServer, tool: ToolContext): void 
     ({ status }) => {
       const found = tickets.list({ projectId, ...(status !== undefined ? { status } : {}) })
       if (found.length === 0) return ok('Keine Tickets gefunden.')
-      return ok(found.map(summarize).join('\n'))
+
+      // Nur die Anzahl, keine Pfade — die holt sich der Agent bei Bedarf über `ticket_get`.
+      const counts = countAttachmentsByTicket(found.map((ticket) => ticket.id))
+      return ok(
+        found
+          .map((ticket) => {
+            const count = counts.get(ticket.id) ?? 0
+            if (count === 0) return summarize(ticket)
+            return `${summarize(ticket)} — ${count} ${count === 1 ? 'Anhang' : 'Anhänge'}`
+          })
+          .join('\n'),
+      )
     },
   )
 
@@ -149,7 +162,9 @@ export function registerTicketTools(server: McpServer, tool: ToolContext): void 
     'ticket_get',
     {
       title: 'Ticket lesen',
-      description: 'Liefert ein Ticket vollständig, inklusive Kommentaren und Abhängigkeiten.',
+      description:
+        'Liefert ein Ticket vollständig, inklusive Kommentaren, Abhängigkeiten und Anhängen. ' +
+        'Angehängte Dateien stehen mit absolutem Pfad darin — lies sie mit dem Read-Werkzeug.',
       inputSchema: { number: z.number().int().positive() },
       annotations: { title: 'Ticket lesen', readOnlyHint: true },
     },
@@ -178,6 +193,9 @@ export function registerTicketTools(server: McpServer, tool: ToolContext): void 
               )
               .join('\n')
 
+      const attachments =
+        detail.attachments.length === 0 ? '—' : attachmentPromptLines(detail.attachments).join('\n')
+
       return ok(
         [
           `# Ticket #${detail.number}: ${detail.title}`,
@@ -189,6 +207,9 @@ export function registerTicketTools(server: McpServer, tool: ToolContext): void 
           '',
           '## Beschreibung',
           detail.description?.trim() || '—',
+          '',
+          '## Anhänge',
+          attachments,
           '',
           '## Kommentare',
           comments,

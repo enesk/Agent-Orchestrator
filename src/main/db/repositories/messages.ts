@@ -363,6 +363,49 @@ export function listAttachmentsForTicket(ticketId: string): MessageAttachment[] 
     .map(toAttachment)
 }
 
+/** Anzahl der Anhänge je Ticket in einer Abfrage — für Listen, die keine Pfade brauchen. */
+export function countAttachmentsByTicket(ticketIds: readonly string[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  if (ticketIds.length === 0) return counts
+  const placeholders = ticketIds.map(() => '?').join(', ')
+  const rows = getDb()
+    .prepare<string[], { ticket_id: string; count: number }>(
+      `SELECT ticket_id, COUNT(*) AS count FROM attachments
+        WHERE ticket_id IN (${placeholders}) GROUP BY ticket_id`,
+    )
+    .all(...ticketIds)
+  for (const row of rows) counts.set(row.ticket_id, row.count)
+  return counts
+}
+
+/**
+ * Löst die Anhänge gelöschter Tickets ab und meldet die Pfade, deren Dateien jetzt niemand mehr
+ * braucht. `ticket_id` hat kein `ON DELETE CASCADE`, deshalb muss das hier von Hand passieren.
+ * Hängt ein Anhang zusätzlich an einer Nachricht, bleibt er dort erhalten — dann verliert er
+ * nur seinen Ticketbezug, und seine Datei bleibt liegen.
+ */
+export function detachTicketAttachments(ticketIds: readonly string[]): string[] {
+  if (ticketIds.length === 0) return []
+  const db = getDb()
+  const placeholders = ticketIds.map(() => '?').join(', ')
+  const paths = db
+    .prepare<string[], { relative_path: string }>(
+      `SELECT relative_path FROM attachments
+        WHERE message_id IS NULL AND ticket_id IN (${placeholders})`,
+    )
+    .all(...ticketIds)
+    .map((row) => row.relative_path)
+
+  db.prepare(
+    `DELETE FROM attachments WHERE message_id IS NULL AND ticket_id IN (${placeholders})`,
+  ).run(...ticketIds)
+  db.prepare(
+    `UPDATE attachments SET ticket_id = NULL WHERE ticket_id IN (${placeholders})`,
+  ).run(...ticketIds)
+
+  return paths
+}
+
 export function attachToMessage(attachmentIds: string[], messageId: string): void {
   if (attachmentIds.length === 0) return
   const statement = getDb().prepare('UPDATE attachments SET message_id = ? WHERE id = ?')

@@ -272,6 +272,11 @@ export const de = {
   'ticketDetail.removeDependency': 'Entfernen',
   'ticketDetail.searchTicket': 'Ticket suchen (Titel oder Nummer)',
   'ticketDetail.attachments': 'Anhänge',
+  'ticketDetail.noAttachments': 'Keine Anhänge',
+  'ticketDetail.attachmentsHint': 'Dateien hierher ziehen, einfügen oder anhängen.',
+  'ticketDetail.removeAttachmentTitle': 'Anhang entfernen',
+  'ticketDetail.removeAttachmentMessage':
+    '„{name}" wird auch von der Festplatte gelöscht. Das lässt sich nicht rückgängig machen.',
   'ticketDetail.comments': 'Kommentare ({count})',
   'ticketDetail.noComments': 'Noch keine Kommentare',
   'ticketDetail.authorAgent': 'Agent',
@@ -476,6 +481,7 @@ export const de = {
 
   'main.error.projectGone': 'Dieses Projekt existiert nicht mehr.',
   'main.error.messageGone': 'Diese Nachricht existiert nicht mehr.',
+  'main.error.ticketGone': 'Dieses Ticket existiert nicht mehr.',
   'main.error.retryAgentOnly': 'Nur Antworten eines Agenten lassen sich wiederholen.',
   'main.error.stillRunning': 'Dieser Lauf läuft noch — stoppe ihn zuerst.',
   'main.error.agentLeftProject': 'Dieser Agent gehört nicht mehr zum Projekt.',

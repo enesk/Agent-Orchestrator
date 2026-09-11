@@ -1,4 +1,5 @@
 import { getDocument } from '../db/repositories/documents'
+import { listAttachmentsForTicket } from '../db/repositories/messages'
 import {
   getTicket,
   getTicketByNumber,
@@ -291,6 +292,7 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
           dependencies: listDependencies(ticket.id)
             .map((id) => getTicket(id))
             .filter((entry): entry is Ticket => entry !== null),
+          attachments: listAttachmentsForTicket(ticket.id),
           attempt,
           lastComment: attempt > 1 ? lastComment(ticket.id) : null,
         }),

@@ -1,5 +1,8 @@
+import { removeAttachmentFolders } from '../app/attachments'
+import { mainT } from '../app/settings'
 import { withTransaction } from '../db/connection'
 import { listAgents } from '../db/repositories/agents'
+import { deleteAttachment, getAttachment } from '../db/repositories/messages'
 import {
   addTicketComment,
   createTicket,
@@ -23,7 +26,7 @@ import {
   planTicketImport,
   type PlannedTicket,
 } from '@shared/ticketImport'
-import type { Ticket, TicketComment, TicketDetail } from '@shared/types'
+import type { MessageAttachment, Ticket, TicketComment, TicketDetail } from '@shared/types'
 
 const log = scopedLogger('tickets')
 
@@ -47,9 +50,10 @@ export function update(id: string, patch: UpdateTicketInput): Ticket {
   return ticket
 }
 
-export function remove(id: string): void {
+export async function remove(id: string): Promise<void> {
   const ticket = getTicket(id)
-  deleteTicket(id)
+  const { attachmentPaths } = deleteTicket(id)
+  await removeAttachmentFolders(attachmentPaths)
   if (ticket) notify(ticket, 'removed')
 }
 
@@ -57,12 +61,13 @@ export function remove(id: string): void {
  * Sammellöschen: eine Transaktion, ein Ereignis. Unbekannte IDs fallen still weg, damit ein
  * veralteter Renderer-Zustand nicht die ganze Aktion scheitern lässt.
  */
-export function removeMany(ids: string[]): { removed: number } {
+export async function removeMany(ids: string[]): Promise<{ removed: number }> {
   const unique = [...new Set(ids)]
   const known = unique.map(getTicket).filter((ticket): ticket is Ticket => ticket !== null)
   if (known.length === 0) return { removed: 0 }
 
-  const removed = deleteTickets(known.map((ticket) => ticket.id))
+  const { removed, attachmentPaths } = deleteTickets(known.map((ticket) => ticket.id))
+  await removeAttachmentFolders(attachmentPaths)
 
   // Ein gebündeltes Ereignis pro Projekt — sonst flackert das Board bei zwanzig Tickets.
   const byProject = new Map<string, string[]>()
@@ -80,8 +85,36 @@ export function removeMany(ids: string[]): { removed: number } {
     })
   }
 
-  log.info('Tickets gelöscht', { requested: unique.length, removed })
+  log.info('Tickets gelöscht', {
+    requested: unique.length,
+    removed,
+    attachments: attachmentPaths.length,
+  })
   return { removed }
+}
+
+/**
+ * Löst einen Anhang vom Ticket und löscht seine Datei. Der Anhang muss wirklich an diesem
+ * Ticket hängen — so kann eine veraltete Oberfläche nicht die Datei eines fremden Tickets
+ * treffen.
+ */
+export async function removeAttachment(
+  ticketId: string,
+  attachmentId: string,
+): Promise<MessageAttachment> {
+  const ticket = getTicket(ticketId)
+  if (!ticket) throw new Error(mainT()('main.error.ticketGone'))
+
+  const attachment = getAttachment(attachmentId)
+  if (!attachment || attachment.ticketId !== ticketId) {
+    throw new Error(mainT()('main.error.attachmentGone'))
+  }
+
+  deleteAttachment(attachment.id)
+  await removeAttachmentFolders([attachment.relativePath])
+  notify(ticket, 'updated')
+  log.info('Anhang vom Ticket entfernt', { ticketId, attachmentId })
+  return attachment
 }
 
 export function addComment(input: AddTicketCommentInput): TicketComment {

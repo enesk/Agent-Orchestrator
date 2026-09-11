@@ -1,11 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
 import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ClipboardEvent,
+  type DragEvent,
+} from 'react'
+import {
+  ATTACHMENT_ACCEPT,
   TICKET_CATEGORIES,
   TICKET_STATUS_LABELS,
   type TicketCategory,
   type TicketStatus,
 } from '@shared/constants'
-import type { ProjectAgent, Ticket, TicketDetail } from '@shared/types'
+import type { MessageAttachment, ProjectAgent, Ticket, TicketDetail } from '@shared/types'
 import { useFormat, useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useTicketStore } from '../../store/ticketStore'
@@ -18,10 +27,11 @@ import {
   Select,
   Spinner,
   Textarea,
+  useConfirm,
 } from '../../ui'
-import { CloseIcon } from '../../ui/icons'
-import { AttachmentList } from '../attachments'
-import { categoryLabelKey, categoryOption, statusLabelKey } from './ticketHelpers'
+import { CloseIcon, PaperclipIcon } from '../../ui/icons'
+import { AttachmentList, attachmentFileName, selectAttachableFiles } from '../attachments'
+import { categoryLabelKey, categoryOption, readFileAsBase64, statusLabelKey } from './ticketHelpers'
 
 export interface TicketDetailPanelProps {
   detail: TicketDetail
@@ -53,7 +63,11 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
 
   const update = useTicketStore((state) => state.update)
   const addComment = useTicketStore((state) => state.addComment)
+  const attachFile = useTicketStore((state) => state.attachFile)
+  const removeAttachment = useTicketStore((state) => state.removeAttachment)
   const setDependencies = useTicketStore((state) => state.setDependencies)
+  const { confirm, dialog } = useConfirm()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [title, setTitle] = useState(detail.title)
   const [editingTitle, setEditingTitle] = useState(false)
@@ -90,6 +104,51 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
       .slice(0, 6)
   }, [dependencyQuery, tickets, detail.id, detail.dependencies])
 
+  /** Ziehen, Einfügen und Büroklammer landen alle hier — Prüfung und Meldung wie im Chat. */
+  function addFiles(incoming: FileList | File[]): void {
+    const { accepted, error: rejection } = selectAttachableFiles(Array.from(incoming), t)
+    setError(rejection)
+    if (accepted.length === 0) return
+    void run(async () => {
+      for (const file of accepted) {
+        await attachFile(detail.id, {
+          fileName: attachmentFileName(file),
+          mimeType: file.type || null,
+          dataBase64: await readFileAsBase64(file),
+        })
+      }
+      // Eine abgelehnte Datei aus derselben Auswahl darf ihre Meldung behalten.
+      setError(rejection)
+    })
+  }
+
+  function pickFiles(event: ChangeEvent<HTMLInputElement>): void {
+    const chosen = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (chosen.length > 0) addFiles(chosen)
+  }
+
+  function onDrop(event: DragEvent<HTMLElement>): void {
+    event.preventDefault()
+    if (event.dataTransfer.files.length > 0) addFiles(event.dataTransfer.files)
+  }
+
+  function onPaste(event: ClipboardEvent<HTMLElement>): void {
+    const pasted = Array.from(event.clipboardData.files)
+    if (pasted.length > 0) addFiles(pasted)
+  }
+
+  async function confirmRemoveAttachment(attachment: MessageAttachment): Promise<void> {
+    const confirmed = await confirm({
+      title: t('ticketDetail.removeAttachmentTitle'),
+      message: t('ticketDetail.removeAttachmentMessage', { name: attachment.fileName }),
+      confirmLabel: t('common.delete'),
+      danger: true,
+    })
+    if (!confirmed) return
+    await run(() => removeAttachment(detail.id, attachment.id))
+  }
+
   async function run(action: () => Promise<unknown>): Promise<void> {
     setBusy(true)
     setError(null)
@@ -105,7 +164,12 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
   const category = categoryOption(detail.category)
 
   return (
-    <aside className="flex w-[380px] shrink-0 flex-col border-l border-line bg-surface">
+    <aside
+      className="flex w-[380px] shrink-0 flex-col border-l border-line bg-surface"
+      onDrop={onDrop}
+      onDragOver={(event) => event.preventDefault()}
+      onPaste={onPaste}
+    >
       <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-line px-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="font-mono text-xs text-ink-faint">#{detail.number}</span>
@@ -288,12 +352,34 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
           </div>
         </section>
 
-        {detail.attachments.length > 0 && (
-          <section>
-            <span className="mb-1 block text-xs font-medium text-ink-muted">{t('ticketDetail.attachments')}</span>
-            <AttachmentList attachments={detail.attachments} />
-          </section>
-        )}
+        <section>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs font-medium text-ink-muted">{t('ticketDetail.attachments')}</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={ATTACHMENT_ACCEPT}
+              className="hidden"
+              onChange={pickFiles}
+            />
+            <IconButton
+              label={t('attachment.attach')}
+              icon={<PaperclipIcon />}
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+            />
+          </div>
+          {detail.attachments.length === 0 ? (
+            <p className="text-xs text-ink-faint">{t('ticketDetail.noAttachments')}</p>
+          ) : (
+            <AttachmentList
+              attachments={detail.attachments}
+              onRemove={(attachment) => void confirmRemoveAttachment(attachment)}
+            />
+          )}
+          <p className="mt-1 text-[11px] text-ink-faint">{t('ticketDetail.attachmentsHint')}</p>
+        </section>
 
         <section>
           <span className="mb-1 block text-xs font-medium text-ink-muted">
@@ -345,6 +431,8 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
           </Button>
         </div>
       </footer>
+
+      {dialog}
     </aside>
   )
 }

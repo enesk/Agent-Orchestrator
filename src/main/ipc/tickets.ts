@@ -6,13 +6,17 @@ export const ticketsHandlers: DomainHandlers<'tickets'> = {
   get: ({ id }) => tickets.get(id),
   create: (input) => tickets.create(input),
   update: ({ id, patch }) => tickets.update(id, patch),
-  remove: ({ id }) => {
-    tickets.remove(id)
+  remove: async ({ id }) => {
+    await tickets.remove(id)
     return { ok: true }
   },
   removeMany: ({ ids }) => tickets.removeMany(ids),
   addComment: ({ ticketId, content, authorType, agentId }) =>
     tickets.addComment({ ticketId, content, authorType, agentId }),
+  removeAttachment: async ({ ticketId, attachmentId }) => {
+    await tickets.removeAttachment(ticketId, attachmentId)
+    return { ok: true }
+  },
   setDependencies: ({ ticketId, dependsOn }) => tickets.setDependencies(ticketId, dependsOn),
   importJson: ({ projectId, json }) => tickets.importJson(projectId, json),
 }

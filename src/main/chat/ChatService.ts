@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type {
   Agent,
@@ -12,8 +12,7 @@ import type {
 } from '@shared/types'
 import { buildFull, buildResume } from '../agents/PromptBuilder'
 import { isStopped } from '../agents/AgentService'
-import { getAttachmentsRoot } from '../app/attachments'
-import { resolveAttachmentPath } from '../app/attachment-path'
+import { getAttachmentsRoot, removeAttachmentFolders } from '../app/attachments'
 import { notifyAgentDone, notifyError } from '../app/notifications'
 import {
   RateLimitError,
@@ -565,29 +564,6 @@ export async function clearHistory(input: ClearHistoryInput): Promise<{ deleted:
 
   emitEvent('chat.historyCleared', { projectId: input.projectId, deleted: result.deleted })
   return { deleted: result.deleted }
-}
-
-/** Entfernt die Ordner `userData/attachments/<uuid>/` der gelöschten Anhänge. */
-async function removeAttachmentFolders(relativePaths: string[]): Promise<void> {
-  const root = getAttachmentsRoot()
-  const folders = new Set<string>()
-  for (const relativePath of relativePaths) {
-    const folder = relativePath.split('/')[0]
-    if (folder) folders.add(folder)
-  }
-
-  for (const folder of folders) {
-    const resolved = resolveAttachmentPath(root, folder)
-    if (!resolved) {
-      log.warn('Anhangsordner außerhalb des Verzeichnisses übersprungen', { folder })
-      continue
-    }
-    try {
-      await rm(resolved, { recursive: true, force: true })
-    } catch (error) {
-      log.warn('Anhangsordner ließ sich nicht löschen', { folder, ...describeError(error) })
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------

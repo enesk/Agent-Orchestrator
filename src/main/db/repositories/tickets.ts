@@ -1,6 +1,6 @@
 import { getDb, nowIso } from '../connection'
 import { buildUpdate, newId } from '../utils'
-import { listAttachmentsForTicket } from './messages'
+import { detachTicketAttachments, listAttachmentsForTicket } from './messages'
 import type { TicketCategory, TicketStatus } from '@shared/constants'
 import type { Ticket, TicketAuthorType, TicketComment, TicketDetail } from '@shared/types'
 
@@ -228,22 +228,30 @@ export function updateTicket(id: string, patch: UpdateTicketInput): Ticket {
   return ticket
 }
 
-export function deleteTicket(id: string): void {
-  getDb().prepare('DELETE FROM tickets WHERE id = ?').run(id)
+export interface DeleteTicketsResult {
+  removed: number
+  /** `relative_path` der Anhänge, deren Dateien der Aufrufer noch von der Platte räumen muss. */
+  attachmentPaths: string[]
+}
+
+export function deleteTicket(id: string): DeleteTicketsResult {
+  return deleteTickets([id])
 }
 
 /**
  * Löscht mehrere Tickets in einer einzigen Transaktion und meldet, wie viele Zeilen wirklich
- * verschwunden sind. Unbekannte IDs treffen einfach nichts.
+ * verschwunden sind. Unbekannte IDs treffen einfach nichts. Die Anhänge fallen in derselben
+ * Transaktion mit; ihre Dateien räumt der Aufrufer weg, denn das Dateisystem kennt kein Rollback.
  */
-export function deleteTickets(ids: string[]): number {
-  if (ids.length === 0) return 0
+export function deleteTickets(ids: string[]): DeleteTicketsResult {
+  if (ids.length === 0) return { removed: 0, attachmentPaths: [] }
   const db = getDb()
   const statement = db.prepare('DELETE FROM tickets WHERE id = ?')
-  const removeAll = db.transaction((): number => {
+  const removeAll = db.transaction((): DeleteTicketsResult => {
+    const attachmentPaths = detachTicketAttachments(ids)
     let removed = 0
     for (const id of ids) removed += statement.run(id).changes
-    return removed
+    return { removed, attachmentPaths }
   })
   return removeAll()
 }

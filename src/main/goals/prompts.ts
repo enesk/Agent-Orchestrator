@@ -1,7 +1,12 @@
 import { TICKET_CATEGORIES, TICKET_STATUS_LABELS } from '@shared/constants'
+import {
+  TICKET_ATTACHMENT_INTRO,
+  TICKET_ATTACHMENT_TITLE,
+  attachmentPromptBody,
+} from '../agents/attachmentPrompt'
 import { TOOL_INSTRUCTIONS } from '../mcp'
 import * as memory from '../memory/MemoryService'
-import type { Agent, Goal, Ticket } from '@shared/types'
+import type { Agent, Goal, MessageAttachment, Ticket } from '@shared/types'
 import { mainT } from '../app/settings'
 
 /** So viel Pflichtenheft passt in einen Worker-Prompt, ohne ihn zu sprengen. */
@@ -109,6 +114,8 @@ export interface WorkerPromptInput {
   spec: string | null
   otherTickets: readonly Ticket[]
   dependencies: readonly Ticket[]
+  /** Die Dateien am Ticket — sie gehen als Pfad in den Prompt, nicht als Inhalt. */
+  attachments: readonly MessageAttachment[]
   /** Der wievielte Anlauf dieses Tickets gerade beginnt; 1 ist der erste. */
   attempt?: number
   /** Die letzte Begründung des vorigen Agenten aus `ticket_comment`. */
@@ -134,6 +141,11 @@ export function buildWorkerPrompt(input: WorkerPromptInput): string {
     '',
     ticket.description?.trim() || '(keine Beschreibung hinterlegt)',
   ]
+
+  const attachments = attachmentPromptBody(input.attachments, TICKET_ATTACHMENT_INTRO)
+  if (attachments) {
+    lines.push('', `## ${TICKET_ATTACHMENT_TITLE}`, '', attachments)
+  }
 
   if (dependencies.length > 0) {
     lines.push(

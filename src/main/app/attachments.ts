@@ -1,9 +1,9 @@
 import { mkdirSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { app, protocol } from 'electron'
 import { resolveAttachmentPath } from './attachment-path'
-import { logger } from '../Logger'
+import { describeError, logger } from '../Logger'
 
 export const ATTACHMENT_SCHEME = 'attachment'
 
@@ -80,4 +80,35 @@ export function registerAttachmentProtocol(): void {
       return new Response('Nicht gefunden', { status: 404 })
     }
   })
+}
+
+/**
+ * Entfernt die Ordner `userData/attachments/<uuid>/` gelöschter Anhänge. Das Dateisystem kennt
+ * kein Rollback, deshalb räumen die Aufrufer erst auf, wenn die Datenbanktransaktion durch ist.
+ */
+export async function removeAttachmentFolders(relativePaths: readonly string[]): Promise<void> {
+  const root = getAttachmentsRoot()
+  const folders = new Set<string>()
+  for (const relativePath of relativePaths) {
+    const folder = relativePath.split('/')[0]
+    if (folder) folders.add(folder)
+  }
+
+  for (const folder of folders) {
+    const resolved = resolveAttachmentPath(root, folder)
+    if (!resolved) {
+      logger.warn('attachments', 'Anhangsordner außerhalb des Verzeichnisses übersprungen', {
+        folder,
+      })
+      continue
+    }
+    try {
+      await rm(resolved, { recursive: true, force: true })
+    } catch (error) {
+      logger.warn('attachments', 'Anhangsordner ließ sich nicht löschen', {
+        folder,
+        ...describeError(error),
+      })
+    }
+  }
 }
