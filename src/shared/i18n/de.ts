@@ -283,6 +283,12 @@ export const de = {
   'ticketDetail.authorUser': 'Du',
   'ticketDetail.commentPlaceholder': 'Kommentar schreiben …',
   'ticketDetail.comment': 'Kommentieren',
+  'ticketDetail.removeCommentTitle': 'Kommentar löschen',
+  'ticketDetail.removeCommentMessage':
+    'Diesen Kommentar endgültig löschen? „{excerpt}"',
+  'ticketDetail.clearComments': 'Alle löschen',
+  'ticketDetail.clearCommentsTitle': 'Kommentare löschen',
+  'ticketDetail.clearCommentsMessage': { one: 'Den einzigen Kommentar dieses Tickets löschen?', other: 'Alle {count} Kommentare dieses Tickets löschen?' },
 
   'documents.title': 'Dokumente',
   'documents.new': 'Neu',

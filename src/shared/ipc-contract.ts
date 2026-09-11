@@ -497,6 +497,19 @@ export const ipcContract = {
       response: ticketCommentSchema,
     },
     /**
+     * Löscht einen einzelnen Kommentar. Bewusst nur für den Nutzer — es gibt kein
+     * MCP-Werkzeug dazu, damit ein Agent seine eigenen Fehlversuche nicht wegräumen kann.
+     */
+    removeComment: {
+      request: z.object({ commentId: z.string() }),
+      response: z.object({ removed: z.number().int() }),
+    },
+    /** Räumt alle Kommentare eines Tickets in einer Transaktion, ein Ereignis für alle. */
+    clearComments: {
+      request: z.object({ ticketId: z.string() }),
+      response: z.object({ removed: z.number().int() }),
+    },
+    /**
      * Löst einen Anhang vom Ticket und löscht seine Datei unter `userData/attachments/`.
      * Angehängt wird über `chat.saveAttachment` mit `ticketId`.
      */

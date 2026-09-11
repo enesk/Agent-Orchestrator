@@ -14,7 +14,13 @@ import {
   type TicketCategory,
   type TicketStatus,
 } from '@shared/constants'
-import type { MessageAttachment, ProjectAgent, Ticket, TicketDetail } from '@shared/types'
+import type {
+  MessageAttachment,
+  ProjectAgent,
+  Ticket,
+  TicketComment,
+  TicketDetail,
+} from '@shared/types'
 import { useFormat, useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useTicketStore } from '../../store/ticketStore'
@@ -27,9 +33,10 @@ import {
   Select,
   Spinner,
   Textarea,
+  Tooltip,
   useConfirm,
 } from '../../ui'
-import { CloseIcon, PaperclipIcon } from '../../ui/icons'
+import { CloseIcon, PaperclipIcon, TrashIcon } from '../../ui/icons'
 import { AttachmentList, attachmentFileName, selectAttachableFiles } from '../attachments'
 import { categoryLabelKey, categoryOption, readFileAsBase64, statusLabelKey } from './ticketHelpers'
 
@@ -63,6 +70,8 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
 
   const update = useTicketStore((state) => state.update)
   const addComment = useTicketStore((state) => state.addComment)
+  const removeComment = useTicketStore((state) => state.removeComment)
+  const clearComments = useTicketStore((state) => state.clearComments)
   const attachFile = useTicketStore((state) => state.attachFile)
   const removeAttachment = useTicketStore((state) => state.removeAttachment)
   const setDependencies = useTicketStore((state) => state.setDependencies)
@@ -147,6 +156,28 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
     })
     if (!confirmed) return
     await run(() => removeAttachment(detail.id, attachment.id))
+  }
+
+  async function confirmRemoveComment(entry: TicketComment): Promise<void> {
+    const confirmed = await confirm({
+      title: t('ticketDetail.removeCommentTitle'),
+      message: t('ticketDetail.removeCommentMessage', { excerpt: commentExcerpt(entry.content) }),
+      confirmLabel: t('common.delete'),
+      danger: true,
+    })
+    if (!confirmed) return
+    await run(() => removeComment(detail.id, entry.id))
+  }
+
+  async function confirmClearComments(): Promise<void> {
+    const confirmed = await confirm({
+      title: t('ticketDetail.clearCommentsTitle'),
+      message: t('ticketDetail.clearCommentsMessage', { count: detail.comments.length }),
+      confirmLabel: t('common.delete'),
+      danger: true,
+    })
+    if (!confirmed) return
+    await run(() => clearComments(detail.id))
   }
 
   async function run(action: () => Promise<unknown>): Promise<void> {
@@ -382,12 +413,27 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
         </section>
 
         <section>
-          <span className="mb-1 block text-xs font-medium text-ink-muted">
-            {t('ticketDetail.comments', { count: detail.comments.length })}
-          </span>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs font-medium text-ink-muted">
+              {t('ticketDetail.comments', { count: detail.comments.length })}
+            </span>
+            {detail.comments.length > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => void confirmClearComments()}
+              >
+                {t('ticketDetail.clearComments')}
+              </Button>
+            )}
+          </div>
           <ul className="space-y-2">
             {detail.comments.map((entry) => (
-              <li key={entry.id} className="rounded-md border border-line bg-raised p-2">
+              <li
+                key={entry.id}
+                className="group/comment rounded-md border border-line bg-raised p-2"
+              >
                 <div className="mb-1 flex items-center gap-2 text-[11px] text-ink-faint">
                   <span className="text-ink-muted">
                     {entry.authorType === 'agent'
@@ -396,6 +442,20 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
                       : t('ticketDetail.authorUser')}
                   </span>
                   <span>{format.dateTime(entry.createdAt)}</span>
+                  <span className="ml-auto opacity-0 transition-opacity group-hover/comment:opacity-100 focus-within:opacity-100">
+                    <Tooltip label={t('common.delete')}>
+                      <IconButton
+                        label={t('common.delete')}
+                        // Der gestaltete Tooltip steht schon da — der native würde ihn doppeln.
+                        title=""
+                        tone="danger"
+                        icon={<TrashIcon width={14} height={14} />}
+                        className="h-6 w-6"
+                        disabled={busy}
+                        onClick={() => void confirmRemoveComment(entry)}
+                      />
+                    </Tooltip>
+                  </span>
                 </div>
                 <Markdown content={entry.content} className="text-xs" />
               </li>
@@ -435,4 +495,10 @@ export function TicketDetailPanel({ detail, tickets, agents, onClose }: TicketDe
       {dialog}
     </aside>
   )
+}
+
+/** Ein Ausschnitt für die Rückfrage, damit man sieht, welchen Kommentar man erwischt. */
+function commentExcerpt(content: string): string {
+  const squashed = content.replace(/\s+/g, ' ').trim()
+  return squashed.length > 120 ? `${squashed.slice(0, 120)}…` : squashed
 }

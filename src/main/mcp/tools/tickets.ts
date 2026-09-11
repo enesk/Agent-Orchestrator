@@ -112,6 +112,14 @@ export function registerTicketTools(server: McpServer, tool: ToolContext): void 
     },
   )
 
+  /**
+   * `ticket_comment` ist bewusst nur schreibend: Es gibt kein Werkzeug zum Löschen von
+   * Kommentaren. Kommentare sind das Protokoll dessen, was ein Agent getan hat —
+   * einschließlich seiner Fehlversuche. Ein Agent, der sein eigenes Scheitern wegräumen kann,
+   * nimmt dem Menschen die einzige Spur, an der er erkennt, warum ein Ticket fünf Anläufe
+   * gebraucht hat. Aufräumen ist eine Entscheidung des Nutzers, nicht der Maschine — es läuft
+   * über `tickets.removeComment` und `tickets.clearComments` im Detail-Panel.
+   */
   server.registerTool(
     'ticket_comment',
     {

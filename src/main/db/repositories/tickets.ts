@@ -288,8 +288,28 @@ export function addTicketComment(input: AddTicketCommentInput): TicketComment {
   return toComment(row!)
 }
 
-export function deleteTicketComment(id: string): void {
-  getDb().prepare('DELETE FROM ticket_comments WHERE id = ?').run(id)
+export function getTicketComment(id: string): TicketComment | null {
+  const row = getDb()
+    .prepare<[string], TicketCommentRow>('SELECT * FROM ticket_comments WHERE id = ?')
+    .get(id)
+  return row ? toComment(row) : null
+}
+
+export function deleteTicketComment(id: string): number {
+  return getDb().prepare('DELETE FROM ticket_comments WHERE id = ?').run(id).changes
+}
+
+/**
+ * Räumt alle Kommentare eines Tickets in einer Transaktion und meldet die Zahl der Zeilen.
+ * An Kommentaren hängen keine Anhänge — `attachments` verweist nur auf `messages` und
+ * `tickets` —, es bleibt also nichts auf der Platte zurück.
+ */
+export function deleteTicketComments(ticketId: string): number {
+  const db = getDb()
+  const clear = db.transaction(
+    (): number => db.prepare('DELETE FROM ticket_comments WHERE ticket_id = ?').run(ticketId).changes,
+  )
+  return clear()
 }
 
 // --- Abhängigkeiten ---------------------------------------------------------

@@ -278,6 +278,11 @@ export const tr: Catalog = {
   'ticketDetail.authorUser': 'Siz',
   'ticketDetail.commentPlaceholder': 'Yorum yazın…',
   'ticketDetail.comment': 'Yorum ekle',
+  'ticketDetail.removeCommentTitle': 'Yorumu sil',
+  'ticketDetail.removeCommentMessage': 'Bu yorum kalıcı olarak silinsin mi? “{excerpt}”',
+  'ticketDetail.clearComments': 'Tümünü sil',
+  'ticketDetail.clearCommentsTitle': 'Yorumları sil',
+  'ticketDetail.clearCommentsMessage': { other: 'Bu biletin {count} yorumu silinsin mi?' },
 
   'documents.title': 'Belgeler',
   'documents.new': 'Yeni',

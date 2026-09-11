@@ -7,8 +7,11 @@ import {
   addTicketComment,
   createTicket,
   deleteTicket,
+  deleteTicketComment,
+  deleteTicketComments,
   deleteTickets,
   getTicket,
+  getTicketComment,
   getTicketByExternalId,
   getTicketDetail,
   listTickets,
@@ -122,6 +125,39 @@ export function addComment(input: AddTicketCommentInput): TicketComment {
   const ticket = getTicket(input.ticketId)
   if (ticket) notify(ticket, 'updated')
   return comment
+}
+
+/**
+ * Löscht einen Kommentar. Bewusst nur vom Nutzer aufrufbar: Es gibt kein MCP-Werkzeug dazu,
+ * denn Kommentare sind das Protokoll dessen, was ein Agent getan hat — einschließlich seiner
+ * Fehlversuche. Ein Agent, der sein eigenes Scheitern wegräumen kann, nimmt dem Menschen die
+ * einzige Spur, an der er erkennt, warum ein Ticket fünf Anläufe gebraucht hat. Aufräumen ist
+ * eine Entscheidung des Nutzers, nicht der Maschine.
+ */
+export function removeComment(commentId: string): { removed: number } {
+  const comment = getTicketComment(commentId)
+  if (!comment) return { removed: 0 }
+
+  const removed = deleteTicketComment(commentId)
+  const ticket = getTicket(comment.ticketId)
+  if (removed > 0 && ticket) notify(ticket, 'updated')
+  log.info('Ticket-Kommentar gelöscht', { ticketId: comment.ticketId, commentId })
+  return { removed }
+}
+
+/**
+ * Löscht alle Kommentare eines Tickets in einer Transaktion und meldet danach **ein**
+ * gebündeltes Ereignis, nicht eines je Kommentar. Wie bei `removeComment` gibt es dafür
+ * bewusst kein MCP-Werkzeug.
+ */
+export function clearComments(ticketId: string): { removed: number } {
+  const ticket = getTicket(ticketId)
+  if (!ticket) throw new Error(mainT()('main.error.ticketGone'))
+
+  const removed = deleteTicketComments(ticketId)
+  if (removed > 0) notify(ticket, 'updated')
+  log.info('Ticket-Kommentare geleert', { ticketId, removed })
+  return { removed }
 }
 
 /** Ersetzt die Abhängigkeiten vollständig; Selbstbezüge und Unbekanntes fallen weg. */

@@ -40,6 +40,8 @@ interface TicketState {
   remove: (id: string) => Promise<void>
   removeMany: (ids: string[]) => Promise<number>
   addComment: (ticketId: string, content: string) => Promise<void>
+  removeComment: (ticketId: string, commentId: string) => Promise<void>
+  clearComments: (ticketId: string) => Promise<number>
   attachFile: (ticketId: string, file: AttachmentUpload) => Promise<void>
   removeAttachment: (ticketId: string, attachmentId: string) => Promise<void>
   setDependencies: (ticketId: string, dependsOn: string[]) => Promise<void>
@@ -159,6 +161,29 @@ export const useTicketStore = create<TicketState>((set, get) => ({
       const next = { ...detail, comments: [...detail.comments, comment] }
       set({ detail: next, meta: { ...get().meta, [ticketId]: metaOf(next) } })
     }
+  },
+
+  removeComment: async (ticketId, commentId) => {
+    await window.api.tickets.removeComment({ commentId })
+    const detail = get().detail
+    // Nur den Datensatz kürzen, nicht neu laden — sonst springt das offene Panel.
+    if (detail && detail.id === ticketId) {
+      const next = {
+        ...detail,
+        comments: detail.comments.filter((entry) => entry.id !== commentId),
+      }
+      set({ detail: next, meta: { ...get().meta, [ticketId]: metaOf(next) } })
+    }
+  },
+
+  clearComments: async (ticketId) => {
+    const { removed } = await window.api.tickets.clearComments({ ticketId })
+    const detail = get().detail
+    if (detail && detail.id === ticketId) {
+      const next = { ...detail, comments: [] }
+      set({ detail: next, meta: { ...get().meta, [ticketId]: metaOf(next) } })
+    }
+    return removed
   },
 
   attachFile: async (ticketId, file) => {

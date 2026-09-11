@@ -278,6 +278,11 @@ export const en: Catalog = {
   'ticketDetail.authorUser': 'You',
   'ticketDetail.commentPlaceholder': 'Write a comment…',
   'ticketDetail.comment': 'Comment',
+  'ticketDetail.removeCommentTitle': 'Delete comment',
+  'ticketDetail.removeCommentMessage': 'Permanently delete this comment? “{excerpt}”',
+  'ticketDetail.clearComments': 'Delete all',
+  'ticketDetail.clearCommentsTitle': 'Delete comments',
+  'ticketDetail.clearCommentsMessage': { one: "Delete this ticket's only comment?", other: "Delete all {count} comments of this ticket?" },
 
   'documents.title': 'Documents',
   'documents.new': 'New',

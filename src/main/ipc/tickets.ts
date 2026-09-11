@@ -13,6 +13,8 @@ export const ticketsHandlers: DomainHandlers<'tickets'> = {
   removeMany: ({ ids }) => tickets.removeMany(ids),
   addComment: ({ ticketId, content, authorType, agentId }) =>
     tickets.addComment({ ticketId, content, authorType, agentId }),
+  removeComment: ({ commentId }) => tickets.removeComment(commentId),
+  clearComments: ({ ticketId }) => tickets.clearComments(ticketId),
   removeAttachment: async ({ ticketId, attachmentId }) => {
     await tickets.removeAttachment(ticketId, attachmentId)
     return { ok: true }
