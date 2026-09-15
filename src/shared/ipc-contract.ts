@@ -588,6 +588,11 @@ export const ipcContract = {
     },
     save: { request: saveMemorySchema, response: agentMemorySchema },
     remove: { request: numericIdSchema, response: okSchema },
+    /** Sammellöschen in einer Transaktion — unbekannte IDs werden übersprungen. */
+    removeMany: {
+      request: z.object({ ids: z.array(z.number().int()) }),
+      response: z.object({ removed: z.number().int() }),
+    },
     clear: {
       request: z.object({
         agentId: z.string().optional(),

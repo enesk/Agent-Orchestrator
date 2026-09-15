@@ -8,5 +8,6 @@ export const memoryHandlers: DomainHandlers<'memory'> = {
     memory.remove(id)
     return { ok: true }
   },
+  removeMany: ({ ids }) => ({ removed: memory.removeMany(ids) }),
   clear: ({ agentId, projectId }) => ({ removed: memory.clear({ agentId, projectId }) }),
 }

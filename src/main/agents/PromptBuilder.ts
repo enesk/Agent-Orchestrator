@@ -4,7 +4,7 @@ import { listMessages } from '../db/repositories/messages'
 import { listProjectAgents } from '../db/repositories/agents'
 import { list as listDocuments } from '../documents/DocumentService'
 import { TOOL_INSTRUCTIONS } from '../mcp/toolInstructions'
-import { buildBlock, getForPrompt } from '../memory/MemoryService'
+import { buildPromptIndex } from '../memory/MemoryService'
 import { list as listTickets } from '../tickets/TicketService'
 import {
   MESSAGE_ATTACHMENT_INTRO,
@@ -148,7 +148,7 @@ function documentBlock(projectId: string): string | null {
 }
 
 function memoryBlock(agentId: string, projectId: string): string | null {
-  return section('Was du dir gemerkt hast', buildBlock(getForPrompt(agentId, projectId)))
+  return section('Dein Gedächtnis', buildPromptIndex(agentId, projectId))
 }
 
 function threadBlock(trigger: ChatMessage | null, peers: ProjectAgent[]): string | null {

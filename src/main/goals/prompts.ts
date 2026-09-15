@@ -25,11 +25,11 @@ export function specDocumentTitle(goal: Goal): string {
  * und nicht aus dem Chat übernommen — ein Vorhabenlauf hat keinen Chat-Kontext.
  */
 export function buildSystemAppend(agent: Agent, projectId: string, roleNote: string): string {
-  const block = memory.buildBlock(memory.getForPrompt(agent.id, projectId))
+  const block = memory.buildPromptIndex(agent.id, projectId)
   const sections = [agent.systemPrompt.trim()]
 
   if (block) {
-    sections.push(`## Gedächtnis\n\nWas du dir aus früheren Läufen gemerkt hast:\n\n${block}`)
+    sections.push(`## Gedächtnis\n\n${block}`)
   }
   sections.push(TOOL_INSTRUCTIONS)
   sections.push(`## Dieser Lauf\n\n${roleNote.trim()}`)
@@ -218,7 +218,8 @@ export function buildWorkerPrompt(input: WorkerPromptInput): string {
     '   startest du nur, wenn dieses Ticket sie ausdrücklich verlangt.',
     '7. Hast du etwas gelernt, das über dieses Ticket hinaus gilt — Architektur, Konventionen,',
     '   Befehle —, halte es mit `memory_save` fest: höchstens drei Einträge, nur stabile',
-    '   Tatsachen, nicht was du in diesem Ticket geändert hast.',
+    '   Tatsachen, nicht was du in diesem Ticket geändert hast. Ein Eintrag ist **ein Satz**,',
+    '   keine Erklärung.',
   )
 
   return lines.join('\n')

@@ -66,6 +66,28 @@ export function listMemories(filter: MemoryFilter = {}): AgentMemory[] {
     .map(toMemory)
 }
 
+/**
+ * Vorfilter für die Suche: alle Erinnerungen, in deren Schlüssel oder Wert mindestens eines der
+ * Suchwörter vorkommt. Die Gewichtung übernimmt der Service — bei ein paar hundert Zeilen
+ * genügt `LIKE`, ein Volltextindex lohnt nicht.
+ */
+export function searchMemories(filter: MemoryFilter, terms: readonly string[]): AgentMemory[] {
+  if (terms.length === 0) return []
+  const { clause, values } = buildFilter(filter)
+  const matches = terms.map(() => "(key LIKE ? ESCAPE '\\' OR value LIKE ? ESCAPE '\\')")
+  const patterns = terms.flatMap((term) => {
+    const pattern = `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`
+    return [pattern, pattern]
+  })
+  const where = `${clause ? `${clause} AND` : 'WHERE'} (${matches.join(' OR ')})`
+  return getDb()
+    .prepare<unknown[], MemoryRow>(
+      `SELECT * FROM memories ${where} ORDER BY importance DESC, updated_at DESC`,
+    )
+    .all(...values, ...patterns)
+    .map(toMemory)
+}
+
 export function getMemory(id: number): AgentMemory | null {
   const row = getDb().prepare<[number], MemoryRow>('SELECT * FROM memories WHERE id = ?').get(id)
   return row ? toMemory(row) : null
@@ -115,6 +137,15 @@ export function saveMemory(input: SaveMemoryInput): AgentMemory {
 
 export function deleteMemory(id: number): void {
   getDb().prepare('DELETE FROM memories WHERE id = ?').run(id)
+}
+
+/** Sammellöschen in einer Transaktion — unbekannte IDs werden übersprungen. */
+export function deleteMemories(ids: readonly number[]): number {
+  if (ids.length === 0) return 0
+  const db = getDb()
+  const statement = db.prepare('DELETE FROM memories WHERE id = ?')
+  const run = db.transaction(() => ids.reduce((sum, id) => sum + statement.run(id).changes, 0))
+  return run()
 }
 
 export function clearMemories(filter: MemoryFilter = {}): number {

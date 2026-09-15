@@ -10,7 +10,8 @@ Dinge zu verändern:
 - Tickets anlegen, ändern, kommentieren: \`ticket_create\`, \`ticket_update\`, \`ticket_comment\`
 - Tickets nachschlagen: \`ticket_list\`, \`ticket_get\`
 - Dokumente: \`doc_save\`, \`doc_get\`, \`doc_list\`
-- Dauerhaftes merken: \`memory_save\`, \`memory_delete\`
+- Gedächtnis: nachschlagen mit \`memory_get\`, \`memory_search\`; merken mit \`memory_save\`,
+  \`memory_delete\`
 
 Regeln:
 

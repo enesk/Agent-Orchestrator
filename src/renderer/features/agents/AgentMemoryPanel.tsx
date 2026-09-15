@@ -1,10 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { MEMORY_INDEX_CHAR_LIMIT, buildMemoryIndex } from '@shared/memoryIndex'
 import type { Agent, AgentMemory } from '@shared/types'
 import { useFormat, useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useProjectStore } from '../../store/projectStore'
-import { Button, EmptyState, IconButton, Input, Modal, Select, Spinner, Textarea, cn, useConfirm } from '../../ui'
+import {
+  Button,
+  Checkbox,
+  EmptyState,
+  IconButton,
+  Input,
+  Modal,
+  Select,
+  Spinner,
+  Textarea,
+  cn,
+  useConfirm,
+} from '../../ui'
 import { CloseIcon, PlusIcon } from '../../ui/icons'
+
+type MemorySort = 'importance' | 'length' | 'access'
 
 export interface AgentMemoryPanelProps {
   agent: Agent
@@ -19,7 +34,40 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [sort, setSort] = useState<MemorySort>('importance')
+  const [checkedIds, setCheckedIds] = useState<Set<number>>(() => new Set())
+  const [busy, setBusy] = useState(false)
   const { confirm, dialog } = useConfirm()
+
+  const sorted = useMemo(() => {
+    // The list arrives ordered by importance and recency; sort is stable, so ties keep that order.
+    if (sort === 'importance') return memories
+    const measure = (memory: AgentMemory): number =>
+      sort === 'length' ? memory.value.length : memory.accessCount
+    return [...memories].sort((a, b) => measure(b) - measure(a))
+  }, [memories, sort])
+
+  // Same builder as the prompt, uncapped, so the number shows how big the index really is.
+  const indexChars = useMemo(() => buildMemoryIndex(memories, Infinity).text.length, [memories])
+  // A prompt only ever sees one project plus the global entries, so the cap applies per project.
+  const indexCapped = useMemo(() => {
+    const projectIds = new Set(memories.map((memory) => memory.projectId))
+    return [...projectIds].some((projectId) => {
+      const scoped = memories.filter((memory) => memory.projectId === projectId || memory.projectId === null)
+      return buildMemoryIndex(scoped).omitted > 0
+    })
+  }, [memories])
+  const checkedCount = memories.filter((memory) => checkedIds.has(memory.id)).length
+  const allChecked = memories.length > 0 && checkedCount === memories.length
+
+  const sortOptions = useMemo(
+    () => [
+      { value: 'importance', label: t('memory.sort.importance') },
+      { value: 'length', label: t('memory.sort.length') },
+      { value: 'access', label: t('memory.sort.access') },
+    ],
+    [t],
+  )
 
   const load = useCallback(async (agentId: string): Promise<void> => {
     setLoading(true)
@@ -35,8 +83,45 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
   }, [])
 
   useEffect(() => {
+    setCheckedIds(new Set())
     void load(agent.id)
   }, [agent.id, load])
+
+  function toggleChecked(id: number): void {
+    setCheckedIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll(): void {
+    setCheckedIds(allChecked ? new Set() : new Set(memories.map((memory) => memory.id)))
+  }
+
+  async function removeChecked(): Promise<void> {
+    const ids = memories.filter((memory) => checkedIds.has(memory.id)).map((memory) => memory.id)
+    if (ids.length === 0) return
+    const confirmed = await confirm({
+      title: t('memory.deleteMany.title'),
+      message: t('memory.deleteMany.message', { count: ids.length }),
+      confirmLabel: t('common.delete'),
+      danger: true,
+    })
+    if (!confirmed) return
+    setBusy(true)
+    try {
+      await window.api.memory.removeMany({ ids })
+      const removed = new Set(ids)
+      setMemories((current) => current.filter((item) => !removed.has(item.id)))
+      setCheckedIds(new Set())
+    } catch (caught) {
+      setError(toErrorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function remove(memory: AgentMemory): Promise<void> {
     const confirmed = await confirm({
@@ -65,6 +150,7 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
     try {
       await window.api.memory.clear({ agentId: agent.id })
       setMemories([])
+      setCheckedIds(new Set())
     } catch (caught) {
       setError(toErrorMessage(caught))
     }
@@ -100,6 +186,43 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
         </p>
       )}
 
+      {memories.length > 0 && (
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5">
+          <label className="flex cursor-pointer select-none items-center gap-1.5 text-xs text-ink-muted">
+            <Checkbox
+              checked={allChecked}
+              indeterminate={checkedCount > 0 && !allChecked}
+              onChange={toggleAll}
+            />
+            {t('memory.selectAll')}
+          </label>
+          <span className="min-w-0 flex-1 truncate text-xs text-ink-faint">
+            {t('memory.summary', { count: memories.length, chars: format.number(indexChars) })}
+            {indexCapped &&
+              ` · ${t('memory.summaryCapped', { limit: format.number(MEMORY_INDEX_CHAR_LIMIT) })}`}
+          </span>
+          <Select
+            options={sortOptions}
+            value={sort}
+            onChange={(event) => setSort(event.target.value as MemorySort)}
+            className="w-44"
+          />
+        </div>
+      )}
+
+      {checkedCount > 0 && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-line bg-raised px-3 py-1.5">
+          <span className="text-xs text-ink-muted">{t('memory.selected', { count: checkedCount })}</span>
+          <div className="flex-1" />
+          <Button size="sm" disabled={busy} onClick={() => setCheckedIds(new Set())}>
+            {t('memory.clearSelection')}
+          </Button>
+          <Button size="sm" variant="danger" disabled={busy} onClick={() => void removeChecked()}>
+            {t('common.delete')}
+          </Button>
+        </div>
+      )}
+
       {!loading && memories.length === 0 ? (
         <EmptyState
           title={t('memory.empty.title')}
@@ -107,11 +230,20 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
         />
       ) : (
         <ul className="min-h-0 flex-1 overflow-auto p-3">
-          {memories.map((memory) => (
+          {sorted.map((memory) => (
             <li
               key={memory.id}
-              className="mb-2 flex items-start gap-2 rounded-lg border border-line bg-surface p-3"
+              className={cn(
+                'mb-2 flex items-start gap-2 rounded-lg border bg-surface p-3',
+                checkedIds.has(memory.id) ? 'border-accent' : 'border-line',
+              )}
             >
+              <Checkbox
+                className="mt-0.5"
+                checked={checkedIds.has(memory.id)}
+                onChange={() => toggleChecked(memory.id)}
+                aria-label={memory.key}
+              />
               <ImportanceDots value={memory.importance} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-mono text-xs text-ink">{memory.key}</p>
@@ -121,6 +253,7 @@ export function AgentMemoryPanel({ agent }: AgentMemoryPanelProps) {
                 <p className="mt-1.5 text-[11px] text-ink-faint">
                   {projectLabel(memory.projectId)} ·{' '}
                   {memory.source === 'user' ? t('memory.source.user') : t('memory.source.agent')} ·{' '}
+                  {t('memory.length', { chars: format.number(memory.value.length) })} ·{' '}
                   {t('memory.readCount', { count: memory.accessCount })} ·{' '}
                   {format.dateTime(memory.updatedAt)}
                 </p>
