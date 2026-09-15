@@ -9,4 +9,13 @@ export const skillsHandlers: DomainHandlers<'skills'> = {
     skills.remove(id)
     return { ok: true }
   },
+  previewImport: (input) => skills.previewImport(input),
+  confirmImport: (input) => skills.confirmImport(input),
+  discardImport: ({ token }) => {
+    skills.discardImport(token)
+    return { ok: true }
+  },
+  addFile: (input) => skills.addFile(input),
+  removeFile: (input) => skills.removeFile(input),
+  export: ({ id }) => skills.exportSkill(id),
 }

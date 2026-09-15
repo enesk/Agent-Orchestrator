@@ -1,8 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { copyFileSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { app } from 'electron'
 import { scopedLogger } from '../Logger'
+import { resolveSkillFilePath } from '../skills/skillPackage'
+import { skillFilePath } from '../skills/SkillFileStore'
 
 const log = scopedLogger('claude.skills')
 
@@ -18,10 +20,13 @@ const SAFE_SEGMENT = /^[A-Za-z0-9-]+$/
 const SAFE_SLUG = /^[a-z0-9-]+$/
 
 export interface RunSkill {
+  id: string
   slug: string
   name: string
   description: string
   content: string
+  /** Beidateien unter `userData/skill-files/<id>/` — landen neben der `SKILL.md`. */
+  files: readonly { relPath: string }[]
 }
 
 function agentSkillsRoot(): string {
@@ -56,7 +61,10 @@ export function prepareSkillDirectory(agentId: string, skills: readonly RunSkill
     return null
   }
 
-  const fingerprint = createHash('sha256').update(JSON.stringify(usable)).digest('hex')
+  // Beidateien gehen mit Größe und Änderungszeit ein — sonst bliebe ein ersetzter Inhalt unbemerkt.
+  const fingerprint = createHash('sha256')
+    .update(JSON.stringify(usable.map((skill) => ({ ...skill, files: fileStamps(skill) }))))
+    .digest('hex')
   if (readFingerprint(target) === fingerprint) return target
 
   mkdirSync(root, { recursive: true })
@@ -69,6 +77,17 @@ export function prepareSkillDirectory(agentId: string, skills: readonly RunSkill
   }
   log.debug('Skill-Ordner geschrieben', { agentId, skills: usable.map((skill) => skill.slug) })
   return target
+}
+
+function fileStamps(skill: RunSkill): { relPath: string; size: number; mtimeMs: number }[] {
+  return skill.files.map((file) => {
+    try {
+      const stats = statSync(skillFilePath(skill.id, file.relPath))
+      return { relPath: file.relPath, size: stats.size, mtimeMs: stats.mtimeMs }
+    } catch {
+      return { relPath: file.relPath, size: -1, mtimeMs: 0 }
+    }
+  })
 }
 
 function readFingerprint(dir: string): string | null {
@@ -89,8 +108,28 @@ function writeTree(dir: string, skills: readonly RunSkill[], fingerprint: string
     const skillDir = join(dir, 'skills', skill.slug)
     mkdirSync(skillDir, { recursive: true })
     writeFileSync(join(skillDir, 'SKILL.md'), renderSkillFile(skill))
+    for (const file of skill.files) copySkillFile(skill, skillDir, file.relPath)
   }
   writeFileSync(join(dir, FINGERPRINT_FILE), fingerprint)
+}
+
+/**
+ * Pfad bleibt wie importiert — der Rumpf verweist genau so darauf. Beide Seiten werden gegen
+ * ihren Ordner geprüft, auch wenn die Datenbank nur geprüfte Pfade enthält.
+ */
+function copySkillFile(skill: RunSkill, skillDir: string, relPath: string): void {
+  const target = resolveSkillFilePath(skillDir, relPath)
+  if (!target) {
+    log.warn('Beidatei mit ungültigem Pfad übersprungen', { slug: skill.slug, relPath })
+    return
+  }
+  try {
+    mkdirSync(dirname(target), { recursive: true })
+    copyFileSync(skillFilePath(skill.id, relPath), target)
+  } catch (error) {
+    // Ein fehlender Verweis ist schlecht, ein ganz abgebrochener Lauf wäre schlechter.
+    log.error('Beidatei fehlt auf der Platte', { slug: skill.slug, relPath, error: String(error) })
+  }
 }
 
 /**

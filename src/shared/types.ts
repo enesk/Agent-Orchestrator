@@ -49,9 +49,31 @@ export interface Skill {
   /** Verzeichnis- und Aufrufname: klein, nur `[a-z0-9-]`, global eindeutig. */
   slug: string
   description: string
+  /** Rumpf der `SKILL.md` ohne Frontmatter — bearbeitbar im Editor. */
   content: string
+  /** Beidateien (`references/…`, `assets/…`) — liegen auf der Platte, nur anzeig- und entfernbar. */
+  files: SkillFile[]
   createdAt: string
   updatedAt: string
+}
+
+export interface SkillFile {
+  id: string
+  /** Relativ zur `SKILL.md`, Groß- und Kleinschreibung wie beim Import — der Rumpf verweist so. */
+  relPath: string
+  size: number
+  createdAt: string
+}
+
+/** Was ein gelesener, noch nicht gespeicherter Import enthält — Grundlage der Vorschau. */
+export interface SkillImportPreview {
+  token: string
+  name: string
+  /** Bereits normalisiert und eindeutig; beim Bestätigen wird erneut geprüft. */
+  slug: string
+  description: string
+  contentLength: number
+  files: { relPath: string; size: number }[]
 }
 
 /** Ein Agent in seiner Rolle innerhalb eines Projekts (Join über `project_agents`). */

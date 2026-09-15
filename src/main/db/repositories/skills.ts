@@ -1,6 +1,6 @@
 import { getDb, nowIso } from '../connection'
 import { buildUpdate, newId } from '../utils'
-import type { Skill } from '@shared/types'
+import type { Skill, SkillFile } from '@shared/types'
 
 interface SkillRow {
   id: string
@@ -8,8 +8,27 @@ interface SkillRow {
   slug: string
   description: string
   content: string
+  /** JSON-Array aus der Unterabfrage in `SKILL_COLUMNS`. */
+  files_json: string | null
   created_at: string
   updated_at: string
+}
+
+const SKILL_COLUMNS = `s.*,
+  (SELECT json_group_array(json_object(
+            'id', f.id, 'relPath', f.rel_path, 'size', f.size, 'createdAt', f.created_at))
+     FROM skill_files f WHERE f.skill_id = s.id) AS files_json`
+
+function parseFiles(raw: string | null): SkillFile[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw) as SkillFile[]
+    return Array.isArray(parsed)
+      ? parsed.sort((a, b) => a.relPath.localeCompare(b.relPath))
+      : []
+  } catch {
+    return []
+  }
 }
 
 function toSkill(row: SkillRow): Skill {
@@ -19,6 +38,7 @@ function toSkill(row: SkillRow): Skill {
     slug: row.slug,
     description: row.description,
     content: row.content,
+    files: parseFiles(row.files_json),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -40,19 +60,21 @@ export interface UpdateSkillInput {
 
 export function listSkills(): Skill[] {
   return getDb()
-    .prepare<[], SkillRow>('SELECT * FROM skills ORDER BY name COLLATE NOCASE')
+    .prepare<[], SkillRow>(`SELECT ${SKILL_COLUMNS} FROM skills s ORDER BY s.name COLLATE NOCASE`)
     .all()
     .map(toSkill)
 }
 
 export function getSkill(id: string): Skill | null {
-  const row = getDb().prepare<[string], SkillRow>('SELECT * FROM skills WHERE id = ?').get(id)
+  const row = getDb()
+    .prepare<[string], SkillRow>(`SELECT ${SKILL_COLUMNS} FROM skills s WHERE s.id = ?`)
+    .get(id)
   return row ? toSkill(row) : null
 }
 
 export function getSkillBySlug(slug: string): Skill | null {
   const row = getDb()
-    .prepare<[string], SkillRow>('SELECT * FROM skills WHERE slug = ?')
+    .prepare<[string], SkillRow>(`SELECT ${SKILL_COLUMNS} FROM skills s WHERE s.slug = ?`)
     .get(slug)
   return row ? toSkill(row) : null
 }
@@ -61,7 +83,7 @@ export function getSkillBySlug(slug: string): Skill | null {
 export function listSkillsForAgent(agentId: string): Skill[] {
   return getDb()
     .prepare<[string], SkillRow>(
-      `SELECT s.* FROM agent_skills ask
+      `SELECT ${SKILL_COLUMNS} FROM agent_skills ask
          JOIN skills s ON s.id = ask.skill_id
         WHERE ask.agent_id = ?
         ORDER BY s.slug`,
@@ -89,6 +111,30 @@ export function createSkill(input: CreateSkillInput): Skill {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(id, input.name, input.slug, input.description ?? '', input.content ?? '', now, now)
+  return getSkill(id)!
+}
+
+/**
+ * Legt Skill und Beidatei-Zeilen in einer Transaktion an. `writeFiles` läuft innerhalb der
+ * Transaktion — wirft es, gibt es auch keinen Skill ohne seine Dateien.
+ */
+export function createSkillWithFiles(
+  input: CreateSkillInput,
+  files: readonly { relPath: string; size: number }[],
+  writeFiles: (skillId: string) => void,
+): Skill {
+  const db = getDb()
+  const id = db.transaction(() => {
+    const skill = createSkill(input)
+    const insert = db.prepare(
+      `INSERT INTO skill_files (id, skill_id, rel_path, size, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    const now = nowIso()
+    for (const file of files) insert.run(newId(), skill.id, file.relPath, file.size, now)
+    writeFiles(skill.id)
+    return skill.id
+  })()
   return getSkill(id)!
 }
 

@@ -4,5 +4,6 @@
  */
 export function toErrorMessage(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error)
-  return raw.replace(/^Error: /, '').replace(/^Error invoking remote method '[^']*': /, '')
+  // Electron verpackt als `Error invoking remote method '…': Error: <Meldung>` — erst die Hülle, dann das Präfix.
+  return raw.replace(/^Error invoking remote method '[^']*': /, '').replace(/^Error: /, '')
 }

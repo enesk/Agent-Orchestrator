@@ -83,14 +83,31 @@ export const agentSchema = z.object({
   updatedAt: z.string(),
 })
 
+export const skillFileSchema = z.object({
+  id: z.string(),
+  relPath: z.string(),
+  size: z.number(),
+  createdAt: z.string(),
+})
+
 export const skillSchema = z.object({
   id: z.string(),
   name: z.string(),
   slug: z.string(),
   description: z.string(),
   content: z.string(),
+  files: z.array(skillFileSchema),
   createdAt: z.string(),
   updatedAt: z.string(),
+})
+
+export const skillImportPreviewSchema = z.object({
+  token: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  description: z.string(),
+  contentLength: z.number(),
+  files: z.array(z.object({ relPath: z.string(), size: z.number() })),
 })
 
 export const projectAgentSchema = agentSchema.extend({
@@ -567,6 +584,39 @@ export const ipcContract = {
     create: { request: createSkillSchema, response: skillSchema },
     update: { request: updateSkillSchema, response: skillSchema },
     remove: { request: idSchema, response: okSchema },
+    /**
+     * Liest eine `.md` oder `.zip` und hält das Ergebnis im Main-Prozess bereit, ohne zu
+     * speichern. Erst `confirmImport` legt den Skill samt Beidateien an.
+     */
+    previewImport: {
+      request: z.object({ fileName: z.string().min(1), dataBase64: z.string() }),
+      response: skillImportPreviewSchema,
+    },
+    confirmImport: {
+      request: z.object({
+        token: z.string(),
+        name: z.string().min(1),
+        slug: z.string().optional(),
+      }),
+      response: skillSchema,
+    },
+    discardImport: { request: z.object({ token: z.string() }), response: okSchema },
+    /** Legt eine Beidatei nachträglich an. Ein vorhandener Pfad wird nicht überschrieben. */
+    addFile: {
+      request: z.object({
+        skillId: z.string(),
+        relPath: z.string().min(1),
+        dataBase64: z.string(),
+      }),
+      response: skillSchema,
+    },
+    /** Entfernt die Beidatei aus der Datenbank und von der Platte. */
+    removeFile: {
+      request: z.object({ skillId: z.string(), fileId: z.string() }),
+      response: skillSchema,
+    },
+    /** Schreibt `<slug>.zip` mit `SKILL.md` und Beidateien an einen vom Nutzer gewählten Ort. */
+    export: { request: idSchema, response: z.object({ path: z.string().nullable() }) },
   },
   documents: {
     list: {

@@ -13,6 +13,9 @@ interface SkillState {
   create: (input: IpcRequest<'skills', 'create'>) => Promise<Skill>
   update: (id: string, patch: IpcRequest<'skills', 'update'>['patch']) => Promise<Skill>
   remove: (id: string) => Promise<void>
+  confirmImport: (input: IpcRequest<'skills', 'confirmImport'>) => Promise<Skill>
+  addFile: (input: IpcRequest<'skills', 'addFile'>) => Promise<Skill>
+  removeFile: (skillId: string, fileId: string) => Promise<Skill>
   subscribe: () => () => void
 }
 
@@ -52,6 +55,24 @@ export const useSkillStore = create<SkillState>((set, get) => ({
   remove: async (id) => {
     await window.api.skills.remove({ id })
     set({ skills: get().skills.filter((item) => item.id !== id) })
+  },
+
+  confirmImport: async (input) => {
+    const skill = await window.api.skills.confirmImport(input)
+    set({ skills: sortSkills([...get().skills.filter((item) => item.id !== skill.id), skill]) })
+    return skill
+  },
+
+  addFile: async (input) => {
+    const skill = await window.api.skills.addFile(input)
+    set({ skills: get().skills.map((item) => (item.id === skill.id ? skill : item)) })
+    return skill
+  },
+
+  removeFile: async (skillId, fileId) => {
+    const skill = await window.api.skills.removeFile({ skillId, fileId })
+    set({ skills: get().skills.map((item) => (item.id === skill.id ? skill : item)) })
+    return skill
   },
 
   subscribe: () =>
