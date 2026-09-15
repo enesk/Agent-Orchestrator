@@ -5,6 +5,7 @@ import { useT } from '../../i18n'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useActiveProject } from '../../store/projectStore'
+import { useSkillStore } from '../../store/skillStore'
 import { useUiStore, type AgentsTab } from '../../store/uiStore'
 import { Button, EmptyState, Spinner, cn, useConfirm } from '../../ui'
 import { AgentIcon, PlusIcon } from '../../ui/icons'
@@ -13,11 +14,13 @@ import { AgentList } from './AgentList'
 import { AgentMemoryPanel } from './AgentMemoryPanel'
 import { CreateAgentModal } from './CreateAgentModal'
 import { ProjectAgentsPanel } from './ProjectAgentsPanel'
+import { SkillsPanel } from './SkillsPanel'
 
 const TABS: { id: AgentsTab; labelKey: TranslationKey }[] = [
   { id: 'editor', labelKey: 'agents.tab.editor' },
   { id: 'project', labelKey: 'agents.tab.project' },
   { id: 'memory', labelKey: 'agents.tab.memory' },
+  { id: 'skills', labelKey: 'agents.tab.skills' },
 ]
 
 export function AgentsView() {
@@ -33,6 +36,8 @@ export function AgentsView() {
   const subscribe = useAgentStore((state) => state.subscribe)
   const create = useAgentStore((state) => state.create)
   const remove = useAgentStore((state) => state.remove)
+  const loadSkills = useSkillStore((state) => state.load)
+  const subscribeSkills = useSkillStore((state) => state.subscribe)
 
   const tab = useUiStore((state) => state.agentsTab)
   const setTab = useUiStore((state) => state.setAgentsTab)
@@ -50,6 +55,13 @@ export function AgentsView() {
   }, [projectId, load])
 
   useEffect(() => subscribe(), [subscribe])
+
+  // Der Agenten-Editor braucht die Skills genauso wie der Skill-Reiter.
+  useEffect(() => {
+    void loadSkills()
+  }, [loadSkills])
+
+  useEffect(() => subscribeSkills(), [subscribeSkills])
 
   // Auswahl gültig halten, wenn Agenten dazukommen oder verschwinden.
   useEffect(() => {
@@ -76,6 +88,7 @@ export function AgentsView() {
         effort: agent.effort,
         color: agent.color,
         avatar: agent.avatar,
+        skillIds: agent.skillIds,
       })
       setSelectedId(copy.id)
     } catch (caught) {
@@ -128,7 +141,9 @@ export function AgentsView() {
         </p>
       )}
 
-      {tab === 'project' ? (
+      {tab === 'skills' ? (
+        <SkillsPanel agents={allAgents} />
+      ) : tab === 'project' ? (
         project ? (
           <ProjectAgentsPanel project={project} />
         ) : (

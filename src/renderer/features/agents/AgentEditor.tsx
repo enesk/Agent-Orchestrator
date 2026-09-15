@@ -12,13 +12,14 @@ import type { Agent } from '@shared/types'
 import { useT } from '../../i18n'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
-import { Button, Input, Select, Textarea, cn } from '../../ui'
+import { useSkillStore } from '../../store/skillStore'
+import { useUiStore } from '../../store/uiStore'
+import { Button, Checkbox, Input, Select, Textarea, cn } from '../../ui'
 import { AgentAvatar } from './AgentAvatar'
 import { GeneratePromptModal } from './GeneratePromptModal'
 import { effortLabelKey, previewMentionKey, roleDescriptionKey, roleLabelKey } from './agentHelpers'
 
 const CUSTOM_MODEL = '__custom__'
-
 
 interface Draft {
   name: string
@@ -30,6 +31,7 @@ interface Draft {
   color: string
   avatar: string
   systemPrompt: string
+  skillIds: string[]
 }
 
 function toDraft(agent: Agent): Draft {
@@ -43,6 +45,7 @@ function toDraft(agent: Agent): Draft {
     color: agent.color,
     avatar: agent.avatar ?? '',
     systemPrompt: agent.systemPrompt,
+    skillIds: [...agent.skillIds].sort(),
   }
 }
 
@@ -55,6 +58,8 @@ export interface AgentEditorProps {
 export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) {
   const t = useT()
   const update = useAgentStore((state) => state.update)
+  const skills = useSkillStore((state) => state.skills)
+  const setAgentsTab = useUiStore((state) => state.setAgentsTab)
 
   const modelOptions = useMemo(
     () => [
@@ -95,6 +100,17 @@ export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) 
     // Bewusst nur an der Id: fremde Aktualisierungen dürfen den offenen Entwurf nicht überschreiben.
   }, [agent.id])
 
+  // Ein gelöschter Skill verschwindet auch aus dem offenen Entwurf — sonst scheitert das Speichern
+  // am Fremdschlüssel und der Entwurf gälte grundlos als ungespeichert.
+  const skillsLoaded = useSkillStore((state) => state.loaded)
+  useEffect(() => {
+    if (!skillsLoaded) return
+    setDraft((current) => {
+      const known = current.skillIds.filter((id) => skills.some((skill) => skill.id === id))
+      return known.length === current.skillIds.length ? current : { ...current, skillIds: known }
+    })
+  }, [skills, skillsLoaded])
+
   const dirty = useMemo(() => !sameDraft(draft, toDraft(agent)), [draft, agent])
   const effortIgnored = resolveEffortForModel(draft.model, draft.effort) === null
   const modelMissing = draft.model.trim().length === 0
@@ -120,6 +136,7 @@ export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) 
         color: draft.color,
         avatar: draft.avatar.trim() || null,
         systemPrompt: draft.systemPrompt,
+        skillIds: draft.skillIds,
       })
       setSaved(true)
     } catch (caught) {
@@ -127,6 +144,11 @@ export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) 
     } finally {
       setSaving(false)
     }
+  }
+
+  function toggleSkill(skillId: string, checked: boolean): void {
+    const next = draft.skillIds.filter((id) => id !== skillId)
+    set('skillIds', (checked ? [...next, skillId] : next).sort())
   }
 
   function applyGeneratedPrompt(systemPrompt: string, title: string | null): void {
@@ -245,6 +267,44 @@ export function AgentEditor({ agent, onDuplicate, onDelete }: AgentEditorProps) 
         )}
 
         <div>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs font-medium text-ink-muted">{t('agentEditor.skills')}</span>
+            <Button size="sm" variant="ghost" onClick={() => setAgentsTab('skills')}>
+              {t('agentEditor.skillsManage')}
+            </Button>
+          </div>
+          {skills.length === 0 ? (
+            <p className="rounded-md border border-line px-3 py-2 text-xs text-ink-faint">
+              {t('agentEditor.skillsEmpty')}
+            </p>
+          ) : (
+            <ul className="max-h-56 divide-y divide-line overflow-auto rounded-md border border-line">
+              {skills.map((skill) => (
+                <li key={skill.id}>
+                  <label className="flex cursor-pointer items-start gap-2 px-3 py-2 hover:bg-raised">
+                    <Checkbox
+                      className="mt-0.5"
+                      checked={draft.skillIds.includes(skill.id)}
+                      onChange={(event) => toggleSkill(skill.id, event.target.checked)}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-baseline gap-2">
+                        <span className="truncate text-xs font-medium text-ink">{skill.name}</span>
+                        <span className="truncate font-mono text-[11px] text-ink-faint">{skill.slug}</span>
+                      </span>
+                      {skill.description && (
+                        <span className="mt-0.5 block text-[11px] text-ink-muted">{skill.description}</span>
+                      )}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-1 text-xs text-ink-faint">{t('agentEditor.skillsHint')}</p>
+        </div>
+
+        <div>
           <span className="mb-1 block text-xs font-medium text-ink-muted">{t('agentEditor.color')}</span>
           <div className="flex flex-wrap gap-2">
             {AGENT_COLORS.map((color) => (
@@ -309,5 +369,11 @@ function isKnownModel(model: string): boolean {
 }
 
 function sameDraft(a: Draft, b: Draft): boolean {
-  return (Object.keys(a) as (keyof Draft)[]).every((key) => a[key] === b[key])
+  return (Object.keys(a) as (keyof Draft)[]).every((key) => {
+    const left = a[key]
+    const right = b[key]
+    return Array.isArray(left) && Array.isArray(right)
+      ? left.length === right.length && left.every((value, index) => value === right[index])
+      : left === right
+  })
 }

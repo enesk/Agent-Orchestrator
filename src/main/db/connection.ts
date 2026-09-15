@@ -4,6 +4,7 @@ import Database from 'better-sqlite3'
 import { app } from 'electron'
 import { APP_NAME } from '@shared/constants'
 import initial001 from './migrations/001_v2_initial.sql?raw'
+import skills002 from './migrations/002_skills.sql?raw'
 
 /**
  * Migrationen werden als Rohtext eingebettet, damit sie im gebauten Paket ohne
@@ -11,6 +12,7 @@ import initial001 from './migrations/001_v2_initial.sql?raw'
  */
 const MIGRATIONS: readonly { name: string; sql: string }[] = [
   { name: '001_v2_initial', sql: initial001 },
+  { name: '002_skills', sql: skills002 },
 ]
 
 let db: Database.Database | null = null

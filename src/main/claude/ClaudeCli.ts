@@ -180,6 +180,8 @@ export interface ClaudeArgsOptions {
   resumeId?: string | null
   systemPromptAppend?: string | null
   mcp?: { configJson: string; allowedTools: string[] } | null
+  /** Plugin-Ordner mit den Skills des Agenten. `--disable-slash-commands` würde sie abschalten. */
+  pluginDir?: string | null
 }
 
 /** Baut die Argumentliste eines Laufs. Rein, damit sie sich prüfen und protokollieren lässt. */
@@ -207,6 +209,8 @@ export function buildClaudeArgs(options: ClaudeArgsOptions): string[] {
       args.push('--allowedTools', options.mcp.allowedTools.join(','))
     }
   }
+
+  if (options.pluginDir) args.push('--plugin-dir', options.pluginDir)
 
   if (options.resumeId) args.push('--resume', options.resumeId)
 

@@ -86,6 +86,13 @@ export function deleteSessionsForProject(projectId: string): void {
   getDb().prepare("DELETE FROM claude_sessions WHERE scope_key LIKE ?").run(`${projectId}|%`)
 }
 
+/** Alle Sessions eines Agenten über sämtliche Projekte, Vorhaben und Tickets hinweg. */
+export function deleteSessionsForAgent(agentId: string): void {
+  getDb()
+    .prepare('DELETE FROM claude_sessions WHERE scope_key LIKE ? OR scope_key LIKE ?')
+    .run(`%|${agentId}`, `%|${agentId}|%`)
+}
+
 export function clearSessions(): void {
   getDb().prepare('DELETE FROM claude_sessions').run()
 }

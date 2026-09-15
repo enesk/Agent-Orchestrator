@@ -10,6 +10,7 @@ import { memoryHandlers } from './memory'
 import { projectsHandlers } from './projects'
 import { registerDomain } from './registry'
 import { settingsHandlers } from './settings'
+import { skillsHandlers } from './skills'
 import { ticketsHandlers } from './tickets'
 
 export function registerIpcHandlers(): void {
@@ -18,6 +19,7 @@ export function registerIpcHandlers(): void {
   registerDomain('chat', chatHandlers)
   registerDomain('tickets', ticketsHandlers)
   registerDomain('documents', documentsHandlers)
+  registerDomain('skills', skillsHandlers)
   registerDomain('memory', memoryHandlers)
   registerDomain('goals', goalsHandlers)
   registerDomain('settings', settingsHandlers)

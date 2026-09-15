@@ -1,5 +1,5 @@
 import { getDb, nowIso } from '../connection'
-import { buildUpdate, fromBool, newId, toBool } from '../utils'
+import { buildUpdate, fromBool, newId, parseStringArray, toBool } from '../utils'
 import {
   AGENT_COLORS,
   DEFAULT_AGENT_EFFORT,
@@ -20,6 +20,8 @@ interface AgentRow {
   effort: AgentEffort
   color: string
   avatar: string | null
+  /** JSON-Array aus der Unterabfrage in `AGENT_COLUMNS`. */
+  skill_ids: string | null
   created_at: string
   updated_at: string
 }
@@ -42,6 +44,7 @@ function toAgent(row: AgentRow): Agent {
     effort: row.effort,
     color: row.color,
     avatar: row.avatar,
+    skillIds: parseStringArray(row.skill_ids),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -66,6 +69,7 @@ export interface CreateAgentInput {
   effort?: AgentEffort
   color?: string
   avatar?: string | null
+  skillIds?: string[]
 }
 
 export interface UpdateAgentInput {
@@ -78,14 +82,17 @@ export interface UpdateAgentInput {
   effort?: AgentEffort
   color?: string
   avatar?: string | null
+  skillIds?: string[]
 }
 
 const AGENT_COLUMNS = `a.id, a.name, a.title, a.mention_key, a.role, a.system_prompt,
-  a.model, a.effort, a.color, a.avatar, a.created_at, a.updated_at`
+  a.model, a.effort, a.color, a.avatar, a.created_at, a.updated_at,
+  (SELECT json_group_array(ask.skill_id) FROM agent_skills ask WHERE ask.agent_id = a.id)
+    AS skill_ids`
 
 export function listAgents(): Agent[] {
   return getDb()
-    .prepare<[], AgentRow>('SELECT * FROM agents ORDER BY name COLLATE NOCASE')
+    .prepare<[], AgentRow>(`SELECT ${AGENT_COLUMNS} FROM agents a ORDER BY a.name COLLATE NOCASE`)
     .all()
     .map(toAgent)
 }
@@ -101,13 +108,13 @@ export function listAgentsAsProjectAgents(): ProjectAgent[] {
 }
 
 export function getAgent(id: string): Agent | null {
-  const row = getDb().prepare<[string], AgentRow>('SELECT * FROM agents WHERE id = ?').get(id)
+  const row = getDb().prepare<[string], AgentRow>(`SELECT ${AGENT_COLUMNS} FROM agents a WHERE a.id = ?`).get(id)
   return row ? toAgent(row) : null
 }
 
 export function getAgentByMentionKey(mentionKey: string): Agent | null {
   const row = getDb()
-    .prepare<[string], AgentRow>('SELECT * FROM agents WHERE mention_key = ?')
+    .prepare<[string], AgentRow>(`SELECT ${AGENT_COLUMNS} FROM agents a WHERE a.mention_key = ?`)
     .get(mentionKey)
   return row ? toAgent(row) : null
 }
@@ -160,6 +167,7 @@ export function createAgent(input: CreateAgentInput): Agent {
       now,
       now,
     )
+  if (input.skillIds) setAgentSkills(id, input.skillIds)
   return getAgent(id)!
 }
 
@@ -180,9 +188,23 @@ export function updateAgent(id: string, patch: UpdateAgentInput): Agent {
       .prepare(`UPDATE agents SET ${clause}, updated_at = ? WHERE id = ?`)
       .run(...values, nowIso(), id)
   }
+  if (patch.skillIds) setAgentSkills(id, patch.skillIds)
   const agent = getAgent(id)
   if (!agent) throw new Error(`Agent ${id} existiert nicht`)
   return agent
+}
+
+/** Ersetzt die Skill-Zuordnung vollständig. Unbekannte IDs scheitern am Fremdschlüssel. */
+export function setAgentSkills(agentId: string, skillIds: string[]): void {
+  const db = getDb()
+  const remove = db.prepare('DELETE FROM agent_skills WHERE agent_id = ?')
+  const insert = db.prepare(
+    'INSERT OR IGNORE INTO agent_skills (agent_id, skill_id) VALUES (?, ?)',
+  )
+  db.transaction(() => {
+    remove.run(agentId)
+    for (const skillId of skillIds) insert.run(agentId, skillId)
+  })()
 }
 
 export function deleteAgent(id: string): void {

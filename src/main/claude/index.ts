@@ -22,6 +22,7 @@ export {
   type RunRequest,
   type RunResult,
 } from './ClaudeRunner'
+export { prepareSkillDirectory, type RunSkill } from './SkillDirectory'
 export {
   acquire,
   buildScopeKey,

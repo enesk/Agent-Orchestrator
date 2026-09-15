@@ -36,6 +36,7 @@ import {
   type ListMessagesOptions,
 } from '../db/repositories/messages'
 import { getProject } from '../db/repositories/projects'
+import { listSkillsForAgent } from '../db/repositories/skills'
 import { deleteSessionsForProject, getSession } from '../db/repositories/sessions'
 import { emitEvent } from '../ipc/events'
 import { withRunContext } from '../mcp'
@@ -279,6 +280,7 @@ async function execute(
         effort: agent.effort,
         scope,
         mcp: context.mcp,
+        skills: listSkillsForAgent(agent.id),
         label: 'chat',
       })
       activeRuns.set(message.id, runHandle)

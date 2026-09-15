@@ -13,6 +13,8 @@ import {
   type CreateAgentInput,
   type UpdateAgentInput,
 } from '../db/repositories/agents'
+import { deleteSessionsForAgent } from '../db/repositories/sessions'
+import { prepareSkillDirectory } from '../claude/SkillDirectory'
 import { emitEvent } from '../ipc/events'
 import { scopedLogger } from '../Logger'
 import { cancelAgentRuns } from './runControl'
@@ -47,13 +49,21 @@ export function create(input: CreateAgentInput): Agent {
 export function update(id: string, patch: UpdateAgentInput): Agent {
   const mentionKey =
     patch.mentionKey === undefined ? undefined : normalizeMentionKey(patch.mentionKey, id)
+  const skillsBefore = patch.skillIds ? getAgent(id)?.skillIds : undefined
   const agent = updateAgent(id, { ...patch, mentionKey })
+  if (skillsBefore && !sameIds(skillsBefore, agent.skillIds)) {
+    // Ein fortgesetztes Transkript enthält bereits geladene Skill-Inhalte; ohne Kaltstart
+    // wirkte ein entfernter Skill weiter.
+    deleteSessionsForAgent(id)
+  }
   emitEvent('agent.changed', { agentId: agent.id, projectId: null, action: 'updated' })
   return agent
 }
 
 export function remove(id: string): void {
   deleteAgent(id)
+  // Ohne Skills räumt der Aufruf den Plugin-Ordner des Agenten weg.
+  prepareSkillDirectory(id, [])
   emitEvent('agent.changed', { agentId: id, projectId: null, action: 'removed' })
   log.info('Agent gelöscht', { id })
 }
@@ -103,6 +113,10 @@ export function generatePrompt(
   request: PromptGenerationRequest,
 ): Promise<PromptGenerationResult> {
   return generateAgentPrompt(request)
+}
+
+function sameIds(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((id) => b.includes(id))
 }
 
 /**

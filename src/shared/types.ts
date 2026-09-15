@@ -33,6 +33,23 @@ export interface Agent {
   effort: AgentEffort
   color: string
   avatar: string | null
+  /** Zugewiesene Skills — jeder Lauf bekommt genau diese über `--plugin-dir`. */
+  skillIds: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+/**
+ * Anweisungspaket im Claude-Code-Sinn. Claude sieht pro Lauf nur Name und Beschreibung und
+ * lädt den Inhalt erst, wenn die Beschreibung auf die Aufgabe passt.
+ */
+export interface Skill {
+  id: string
+  name: string
+  /** Verzeichnis- und Aufrufname: klein, nur `[a-z0-9-]`, global eindeutig. */
+  slug: string
+  description: string
+  content: string
   createdAt: string
   updatedAt: string
 }

@@ -14,7 +14,7 @@ export const SECTION_LABEL_KEYS: Record<Section, TranslationKey> = {
 }
 
 /** Reiter des Agenten-Bereichs — im Store, damit andere Ansichten gezielt dorthin führen. */
-export type AgentsTab = 'editor' | 'project' | 'memory'
+export type AgentsTab = 'editor' | 'project' | 'memory' | 'skills'
 
 interface UiState {
   activeProjectId: string | null

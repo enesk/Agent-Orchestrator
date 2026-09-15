@@ -2,6 +2,7 @@ import { RateLimitError, run as runClaude } from '../claude'
 import { toolLabel } from '../chat'
 import { withRunContext, type GoalReport } from '../mcp'
 import { createMessage } from '../db/repositories/messages'
+import { listSkillsForAgent } from '../db/repositories/skills'
 import { emitEvent } from '../ipc/events'
 import { describeError, scopedLogger } from '../Logger'
 import { buildSystemAppend } from './prompts'
@@ -103,6 +104,7 @@ function execute(
       scope,
       mcp: context.mcp,
       systemPromptAppend,
+      skills: listSkillsForAgent(input.agent.id),
       label: input.label,
     })
 

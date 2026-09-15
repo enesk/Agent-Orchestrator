@@ -38,6 +38,8 @@ export function AgentList({ agents, selectedId, onSelect }: AgentListProps) {
               </span>
               <span className="mt-0.5 block truncate text-[11px] text-ink-faint">
                 {agent.title ?? agent.mentionKey} · {modelLabel(agent.model)}
+                {agent.skillIds.length > 0 &&
+                  ` · ${t('agents.list.skillCount', { count: agent.skillIds.length })}`}
               </span>
             </span>
             <Badge className="shrink-0">{t(roleLabelKey(agent.role))}</Badge>

@@ -78,6 +78,17 @@ export const agentSchema = z.object({
   effort: agentEffortSchema,
   color: z.string(),
   avatar: z.string().nullable(),
+  skillIds: z.array(z.string()),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+export const skillSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  description: z.string(),
+  content: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })
@@ -278,6 +289,7 @@ export const createAgentSchema = z.object({
   effort: agentEffortSchema.optional(),
   color: z.string().optional(),
   avatar: z.string().nullable().optional(),
+  skillIds: z.array(z.string()).optional(),
 })
 
 export const updateAgentSchema = z.object({
@@ -292,6 +304,24 @@ export const updateAgentSchema = z.object({
     effort: agentEffortSchema.optional(),
     color: z.string().optional(),
     avatar: z.string().nullable().optional(),
+    skillIds: z.array(z.string()).optional(),
+  }),
+})
+
+export const createSkillSchema = z.object({
+  name: z.string().min(1),
+  slug: z.string().optional(),
+  description: z.string().default(''),
+  content: z.string().default(''),
+})
+
+export const updateSkillSchema = z.object({
+  id: z.string(),
+  patch: z.object({
+    name: z.string().min(1).optional(),
+    slug: z.string().min(1).optional(),
+    description: z.string().optional(),
+    content: z.string().optional(),
   }),
 })
 
@@ -532,6 +562,12 @@ export const ipcContract = {
       }),
     },
   },
+  skills: {
+    list: { request: z.void(), response: z.array(skillSchema) },
+    create: { request: createSkillSchema, response: skillSchema },
+    update: { request: updateSkillSchema, response: skillSchema },
+    remove: { request: idSchema, response: okSchema },
+  },
   documents: {
     list: {
       request: z.object({ projectId: z.string() }),
@@ -652,6 +688,10 @@ export const ipcEvents = {
   'document.changed': z.object({
     projectId: z.string(),
     documentId: z.string(),
+    action: changeActionSchema,
+  }),
+  'skill.changed': z.object({
+    skillId: z.string(),
     action: changeActionSchema,
   }),
   'agent.changed': z.object({

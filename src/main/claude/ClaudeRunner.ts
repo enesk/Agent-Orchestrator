@@ -13,6 +13,7 @@ import {
 } from './SessionCache'
 import { StreamParser, detectRateLimit, type RateLimitHint } from './StreamParser'
 import { RunError } from './RunError'
+import { prepareSkillDirectory, type RunSkill } from './SkillDirectory'
 import { resolveClaudeBinary } from './status'
 import { describeError, scopedLogger } from '../Logger'
 import { LANGUAGE_NAMES_DE } from '@shared/i18n'
@@ -46,6 +47,11 @@ export interface RunRequest {
   scope: SessionScope
   mcp?: RunMcpConfig | null
   systemPromptAppend?: string | null
+  /**
+   * Skills des Agenten aus `scope.agentId`. Sie gehen ausschließlich als Plugin-Ordner an die
+   * CLI, nie in den Prompt — sonst kosteten sie jeden Lauf, statt nur bei Bedarf geladen zu werden.
+   */
+  skills?: readonly RunSkill[] | null
   /** Freies Etikett fürs Protokoll und für `killByFilter`, z.B. `chat` oder `goal-worker`. */
   label?: string
 }
@@ -252,6 +258,8 @@ export function run(request: RunRequest): RunHandle {
     try {
       assertUsableCwd(request.cwd)
       const binary = await resolveClaudeBinary()
+      // Vor jedem Lauf neu aus der Datenbank — so kann der Ordner nie veralten.
+      const pluginDir = prepareSkillDirectory(request.scope.agentId, request.skills ?? [])
 
       const session = acquire(scopeKey, request.cwd)
       owned = session.owned
@@ -261,7 +269,7 @@ export function run(request: RunRequest): RunHandle {
         return { text: '', thinking: '', sessionId: null, turnCount: session.turnCount, aborted: true, durationMs: 0 }
       }
 
-      return await execute(binary, session.resumeId, session.turnCount, owned)
+      return await execute(binary, session.resumeId, session.turnCount, owned, pluginDir)
     } finally {
       finished = true
       if (killTimer) clearTimeout(killTimer)
@@ -275,6 +283,7 @@ export function run(request: RunRequest): RunHandle {
     resumeId: string | null,
     priorTurnCount: number,
     owned: boolean,
+    pluginDir: string | null,
   ): Promise<RunResult> {
     const args = buildClaudeArgs({
       model: request.model,
@@ -284,6 +293,7 @@ export function run(request: RunRequest): RunHandle {
         .filter((part): part is string => Boolean(part?.trim()))
         .join('\n\n'),
       mcp: request.mcp,
+      pluginDir,
     })
 
     log.info('Lauf gestartet', {
@@ -294,6 +304,8 @@ export function run(request: RunRequest): RunHandle {
       cwd: request.cwd,
       resume: resumeId,
       mcp: Boolean(request.mcp),
+      pluginDir,
+      skills: (request.skills ?? []).map((skill) => skill.slug),
     })
 
     return new Promise<RunResult>((resolve, reject) => {
