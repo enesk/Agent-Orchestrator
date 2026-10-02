@@ -16,6 +16,7 @@ const KIND_ICONS = {
   markdown: MarkdownIcon,
   html: CodeFileIcon,
   table: TableIcon,
+  code: CodeFileIcon,
   document: DocumentIcon,
 } as const
 
@@ -24,6 +25,7 @@ const KIND_LABEL_KEYS: Record<AttachmentKind, TranslationKey> = {
   markdown: 'attachment.kind.markdown',
   html: 'attachment.kind.html',
   table: 'attachment.kind.table',
+  code: 'attachment.kind.code',
   document: 'attachment.kind.document',
 }
 

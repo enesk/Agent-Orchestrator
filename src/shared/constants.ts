@@ -168,6 +168,7 @@ export const ATTACHMENT_EXTENSIONS: readonly string[] = [
   '.log',
   '.yml',
   '.yaml',
+  '.css',
   '.pdf',
 ]
 

@@ -3,7 +3,7 @@ import { formatBytes, type Translator } from '@shared/i18n'
 import type { MessageAttachment } from '@shared/types'
 import { activeT } from '../../i18n/active'
 
-export type AttachmentKind = 'image' | 'markdown' | 'html' | 'table' | 'document'
+export type AttachmentKind = 'image' | 'markdown' | 'html' | 'table' | 'code' | 'document'
 
 export function attachmentUrl(attachment: MessageAttachment): string {
   return `attachment://${attachment.relativePath}`
@@ -17,6 +17,8 @@ const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']
 const MARKDOWN_EXTENSIONS = ['.md', '.markdown']
 const HTML_EXTENSIONS = ['.html', '.htm']
 const TABLE_EXTENSIONS = ['.csv']
+/** Eigene Liste, damit `.scss`, `.less` oder `.js` später eine Zeile bleiben. */
+const CODE_EXTENSIONS = ['.css']
 
 export function extensionOf(fileName: string): string {
   const dot = fileName.lastIndexOf('.')
@@ -33,10 +35,12 @@ export function attachmentKind(fileName: string, mimeType: string | null): Attac
   if (MARKDOWN_EXTENSIONS.includes(extension)) return 'markdown'
   if (HTML_EXTENSIONS.includes(extension)) return 'html'
   if (TABLE_EXTENSIONS.includes(extension)) return 'table'
+  if (CODE_EXTENSIONS.includes(extension)) return 'code'
   if (extension === '') {
     if ((mimeType ?? '').startsWith('image/')) return 'image'
     if (mimeType === 'text/markdown') return 'markdown'
     if (mimeType === 'text/html') return 'html'
+    if (mimeType === 'text/css') return 'code'
   }
   return 'document'
 }
