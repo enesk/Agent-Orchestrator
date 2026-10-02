@@ -102,7 +102,7 @@ export function readClientMessage(raw: string, t: Translator): ReadResult {
 }
 
 /**
- * Führt einen gelesenen Aufruf aus. Die fünf nativen Methoden werden **vor** dem Vertragsweg
+ * Führt einen gelesenen Aufruf aus. Die nativen Methoden werden **vor** dem Vertragsweg
  * abgewiesen, damit sie keinen Dialog auf dem Mac öffnen.
  */
 export async function runWireCall(call: WireCall, deps: WireDeps): Promise<WireResult> {

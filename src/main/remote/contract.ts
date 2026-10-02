@@ -11,15 +11,19 @@ import { ipcContract, ipcEventNames, type IpcChannelDefinition } from '@shared/i
  */
 
 /**
- * Die fünf Methoden, die einen nativen Dialog öffnen oder das Betriebssystem bemühen. Über die
+ * Die sechs Methoden, die einen nativen Dialog öffnen oder das Betriebssystem bemühen. Über die
  * Brücke würden sie etwas auf dem Mac aufmachen, das am Telefon niemand sieht — deshalb werden
- * sie dort abgelehnt. Die Liste ist im Drahtprotokoll festgeschrieben.
+ * sie dort abgelehnt. Die Liste ist im Drahtprotokoll festgeschrieben, samt dieser Reihenfolge:
+ * sie geht in den Vertragshash ein.
  */
 export const UNSUPPORTED_METHODS: readonly string[] = [
   'projects.pickPath',
   'settings.pickClaudePath',
   'attachments.open',
   'app.openDatabaseFolder',
+  // Nachgetragen am 02.10.2026: zeigt die Datenbankdatei im Finder, also dieselbe Kategorie
+  // wie `app.openDatabaseFolder`.
+  'app.showDatabaseFile',
   'skills.export',
 ]
 

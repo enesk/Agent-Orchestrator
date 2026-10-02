@@ -220,16 +220,32 @@ test('HTTP nimmt keine schreibenden Methoden an', async () => {
 })
 
 // ---------------------------------------------------------------------------
-// 4. Die fünf nativen Methoden: `unsupported`, kein Dialog auf dem Mac
+// 4. Die nativen Methoden: `unsupported`, kein Dialog auf dem Mac
 // ---------------------------------------------------------------------------
 
-test('die fünf nativen Methoden werden abgelehnt, ohne den Handler zu rufen', async () => {
+/** Die Liste aus dem Drahtprotokoll, Stand 02.10.2026 — hier ausgeschrieben, nicht abgeleitet. */
+const NATIVE_METHODS = [
+  'projects.pickPath',
+  'settings.pickClaudePath',
+  'attachments.open',
+  'app.openDatabaseFolder',
+  'app.showDatabaseFile',
+  'skills.export',
+] as const
+
+test('die Liste der nativen Methoden steht genau so im Drahtprotokoll', () => {
+  // Beide Seiten der Brücke richten sich nach dieser Liste, und ihre Reihenfolge geht in den
+  // Vertragshash ein. Ein stilles Kürzen oder Umsortieren fällt hier auf.
+  assert.deepEqual([...UNSUPPORTED_METHODS], [...NATIVE_METHODS])
+})
+
+test('die nativen Methoden werden abgelehnt, ohne den Handler zu rufen', async () => {
   clearContractHandlers()
   setDispatchHooks(null)
 
   const called: string[] = []
-  // Jede der fünf bekommt einen Handler, der sich meldet, wenn er doch dran kommt.
-  for (const entry of UNSUPPORTED_METHODS) {
+  // Jede bekommt einen Handler, der sich meldet, wenn er doch dran kommt.
+  for (const entry of NATIVE_METHODS) {
     const [domain, method] = entry.split('.') as [string, string]
     setContractHandler(domain, method, () => {
       called.push(entry)
@@ -237,7 +253,7 @@ test('die fünf nativen Methoden werden abgelehnt, ohne den Handler zu rufen', a
     })
   }
 
-  for (const entry of UNSUPPORTED_METHODS) {
+  for (const entry of NATIVE_METHODS) {
     const [domain, method] = entry.split('.') as [string, string]
     const answer = await handleClientMessage(
       JSON.stringify({ t: 'call', id: 'x1', domain, method, payload: undefined }),
@@ -247,11 +263,46 @@ test('die fünf nativen Methoden werden abgelehnt, ohne den Handler zu rufen', a
     assert.equal(answer.ok, false, entry)
     assert.equal(answer.error?.code, 'unsupported', entry)
     assert.match(String(answer.error?.message), /nicht möglich/, entry)
+    assert.ok(String(answer.error?.message).includes(entry), entry)
   }
 
   assert.deepEqual(called, [], 'kein nativer Handler darf gelaufen sein')
   assert.ok(isUnsupportedMethod('attachments', 'open'))
   assert.ok(!isUnsupportedMethod('chat', 'send'))
+  clearContractHandlers()
+})
+
+test('app.showDatabaseFile öffnet über die Brücke keinen Finder', async () => {
+  clearContractHandlers()
+  setDispatchHooks(null)
+
+  // Nachgetragen am 02.10.2026: die Methode zeigt die Datenbankdatei im Finder, also dieselbe
+  // Kategorie wie `app.openDatabaseFolder`. Der Handler hier steht für genau diesen Finder.
+  let finderOpened = 0
+  setContractHandler('app', 'showDatabaseFile', () => {
+    finderOpened += 1
+    return { ok: true }
+  })
+
+  // Auch mit erfundener Nutzlast, mit `null` und ohne Nutzlast: die Prüfung sitzt davor.
+  for (const payload of [undefined, null, {}, { force: true }]) {
+    const answer = await handleClientMessage(
+      JSON.stringify({ t: 'call', id: 'finder', domain: 'app', method: 'showDatabaseFile', payload }),
+      { t },
+    )
+    assert.ok(!('dropped' in answer))
+    assert.equal(answer.ok, false)
+    assert.equal(answer.error?.code, 'unsupported')
+  }
+
+  assert.equal(finderOpened, 0, 'der Finder darf über die Brücke nicht aufgehen')
+  assert.ok(isUnsupportedMethod('app', 'showDatabaseFile'))
+  assert.ok(buildContractDescription('2.0.0').unsupported.includes('app.showDatabaseFile'))
+
+  // Gegenprobe: über den IPC-Weg bleibt sie erreichbar — die Desktop-App braucht sie.
+  const direct = await callContractMethod('app', 'showDatabaseFile', undefined)
+  assert.equal(direct.ok, true)
+  assert.equal(finderOpened, 1)
   clearContractHandlers()
 })
 
