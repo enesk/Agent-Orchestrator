@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { LANGUAGES, LANGUAGE_LABELS, type Language } from '@shared/i18n'
-import type { AppInfo, ClaudeStatus } from '@shared/types'
+import type { AppInfo, ClaudeStatus, RemoteStatus } from '@shared/types'
 import { useT } from '../../i18n'
 import { useClaudeStore } from '../../store/claudeStore'
 import { useSettingsStore } from '../../store/settingsStore'
@@ -63,6 +63,13 @@ export function SettingsView() {
           />
         </div>
       </Panel>
+
+      <RemoteSection
+        enabled={settings.remoteEnabled}
+        port={settings.remotePort}
+        webuiPath={settings.webuiPath}
+        onSave={(patch) => void save(patch)}
+      />
 
       <AboutSection />
     </div>
@@ -180,6 +187,142 @@ function ClaudeSection({ claudePath, onSavePath }: ClaudeSectionProps) {
             <code className="rounded bg-raised px-1 py-0.5 font-mono text-[11px] text-ink">
               npm install -g @anthropic-ai/claude-code
             </code>
+          </p>
+        )}
+      </div>
+    </Panel>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
+interface RemoteSectionProps {
+  enabled: boolean
+  port: number
+  webuiPath: string | null
+  onSave: (patch: { remoteEnabled?: boolean; remotePort?: number; webuiPath?: string | null }) => void
+}
+
+/**
+ * Fernzugriff: Schalter, Port, Adressen zum Abtippen und die Zahl verbundener Geräte. Der
+ * Zustand kommt aus dem Main-Prozess und wird über `remote.changed` nachgezogen — die Zahl der
+ * Geräte ändert sich, ohne dass hier etwas gespeichert wurde.
+ */
+function RemoteSection({ enabled, port, webuiPath, onSave }: RemoteSectionProps) {
+  const t = useT()
+  const [status, setStatus] = useState<RemoteStatus | null>(null)
+  const [portDraft, setPortDraft] = useState(String(port))
+  const [pathDraft, setPathDraft] = useState(webuiPath ?? '')
+  const [portError, setPortError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setPortDraft(String(port))
+  }, [port])
+
+  useEffect(() => {
+    setPathDraft(webuiPath ?? '')
+  }, [webuiPath])
+
+  useEffect(() => {
+    window.api.remote.status().then(setStatus).catch(() => undefined)
+    return window.api.on('remote.changed', setStatus)
+  }, [])
+
+  const commitPort = (value: string): void => {
+    const parsed = Number.parseInt(value.trim(), 10)
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+      setPortError(t('settings.remote.portInvalid'))
+      return
+    }
+    setPortError(null)
+    if (parsed !== port) onSave({ remotePort: parsed })
+  }
+
+  const commitPath = (value: string): void => {
+    const trimmed = value.trim()
+    const next = trimmed === '' ? null : trimmed
+    if (next !== webuiPath) onSave({ webuiPath: next })
+  }
+
+  return (
+    <Panel title={t('settings.remote')}>
+      <div className="flex flex-col gap-4">
+        <p className="text-xs text-ink-muted">{t('settings.remote.intro')}</p>
+
+        <Switch
+          label={t('settings.remote.enable')}
+          hint={t('settings.remote.enableHint')}
+          checked={enabled}
+          onChange={(checked) => onSave({ remoteEnabled: checked })}
+        />
+
+        <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          {t('settings.remote.warning')}
+        </p>
+
+        <div className="flex items-end gap-2">
+          <Input
+            className="w-28 font-mono"
+            label={t('settings.remote.port')}
+            value={portDraft}
+            inputMode="numeric"
+            onChange={(event) => setPortDraft(event.target.value)}
+            onBlur={(event) => commitPort(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') commitPort(event.currentTarget.value)
+            }}
+          />
+          {status && (
+            <Badge tone={status.running ? 'success' : 'neutral'} className="mb-2">
+              {status.running ? t('settings.remote.running') : t('settings.remote.stopped')}
+            </Badge>
+          )}
+          {status && (
+            <span className="mb-2 text-xs text-ink-muted">
+              {t('settings.remote.clients', { count: status.clientCount })}
+            </span>
+          )}
+        </div>
+
+        {portError && <p className="text-xs text-danger">{portError}</p>}
+        {status?.error && <p className="text-xs text-danger">{status.error}</p>}
+
+        <div>
+          <p className="text-xs text-ink-faint">{t('settings.remote.addresses')}</p>
+          {status && status.addresses.length > 0 ? (
+            <ul className="mt-1 flex flex-col gap-0.5">
+              {status.addresses.map((address) => (
+                <li key={address} className="select-text font-mono text-xs text-ink">
+                  {address}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1 text-xs text-ink-muted">{t('settings.remote.noAddresses')}</p>
+          )}
+        </div>
+
+        <div>
+          <Input
+            className="font-mono"
+            label={t('settings.remote.webuiPath')}
+            placeholder={status?.staticRoot ?? ''}
+            value={pathDraft}
+            onChange={(event) => setPathDraft(event.target.value)}
+            onBlur={(event) => commitPath(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') commitPath(event.currentTarget.value)
+            }}
+          />
+          <p className="mt-1 text-xs text-ink-faint">
+            {t('settings.remote.webuiPathHint', { path: status?.staticRoot ?? '' })}
+          </p>
+        </div>
+
+        {status && (
+          <p className="truncate text-[11px] text-ink-faint">
+            {t('settings.remote.contractVersion')}:{' '}
+            <span className="select-text font-mono">{status.contractVersion}</span>
           </p>
         )}
       </div>

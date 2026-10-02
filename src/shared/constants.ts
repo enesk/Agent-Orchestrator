@@ -179,3 +179,9 @@ export const ATTACHMENT_ACCEPT = ATTACHMENT_EXTENSIONS.join(',')
  * Oberfläche für Sekunden blockieren.
  */
 export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
+
+/**
+ * Standardport der Fernzugriff-Brücke. Sie ist standardmäßig aus; wird sie eingeschaltet,
+ * lauscht sie auf allen Netzwerkadressen, damit das Telefon im WLAN herankommt.
+ */
+export const DEFAULT_REMOTE_PORT = 7331

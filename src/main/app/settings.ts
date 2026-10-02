@@ -8,6 +8,7 @@ import {
   type Language,
   type Translator,
 } from '@shared/i18n'
+import { DEFAULT_REMOTE_PORT } from '@shared/constants'
 import type { AppSettings } from '@shared/types'
 
 const DEFAULTS: AppSettings = {
@@ -15,6 +16,11 @@ const DEFAULTS: AppSettings = {
   minimizeToTray: true,
   notificationsEnabled: true,
   language: DEFAULT_LANGUAGE,
+  // Die Fernzugriff-Brücke ist aus, bis sie eingeschaltet wird: ohne Schalter verhält sich die
+  // App genau wie vorher.
+  remoteEnabled: false,
+  remotePort: DEFAULT_REMOTE_PORT,
+  webuiPath: null,
 }
 
 // `language` steht bewusst nicht in den Store-Defaults: sonst läge dort ab dem ersten Start
@@ -46,6 +52,9 @@ export function getSettings(): AppSettings {
     minimizeToTray: store.get('minimizeToTray') ?? DEFAULTS.minimizeToTray,
     notificationsEnabled: store.get('notificationsEnabled') ?? DEFAULTS.notificationsEnabled,
     language: isLanguage(stored) ? stored : defaultLanguage(),
+    remoteEnabled: store.get('remoteEnabled') ?? DEFAULTS.remoteEnabled,
+    remotePort: store.get('remotePort') ?? DEFAULTS.remotePort,
+    webuiPath: store.get('webuiPath') ?? null,
   }
 }
 

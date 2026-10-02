@@ -25,6 +25,6 @@
       "@renderer/*": ["src/renderer/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "electron.vite.config.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.mts", "electron.vite.config.ts"],
   "exclude": ["node_modules", "out", "dist", "release"]
 }

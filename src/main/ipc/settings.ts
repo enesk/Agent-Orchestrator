@@ -3,16 +3,27 @@ import { getSettings, mainT, saveSettings } from '../app/settings'
 import { refreshTray } from '../app/tray'
 import { getMainWindow } from '../app/window'
 import { refreshClaudeStatus } from '../claude'
+import { applySettings as applyRemoteSettings } from '../remote'
 import type { DomainHandlers } from './registry'
 
 export const settingsHandlers: DomainHandlers<'settings'> = {
   get: () => getSettings(),
   save: (patch) => {
-    const before = getSettings().claudePath
+    const previous = getSettings()
     const settings = saveSettings(patch)
     // Ein neuer CLI-Pfad macht den gemerkten Status ungültig; das Ergebnis kommt als Event.
-    if (settings.claudePath !== before) void refreshClaudeStatus().finally(refreshTray)
+    if (settings.claudePath !== previous.claudePath) void refreshClaudeStatus().finally(refreshTray)
     else refreshTray()
+
+    // An und aus wirkt sofort, ohne Neustart. Das Ergebnis kommt als `remote.changed`.
+    if (
+      settings.remoteEnabled !== previous.remoteEnabled ||
+      settings.remotePort !== previous.remotePort ||
+      settings.webuiPath !== previous.webuiPath
+    ) {
+      void applyRemoteSettings()
+    }
+
     return settings
   },
   pickClaudePath: async () => {

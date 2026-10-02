@@ -244,6 +244,20 @@ export const appSettingsSchema = z.object({
   minimizeToTray: z.boolean(),
   notificationsEnabled: z.boolean(),
   language: z.enum(['de', 'en', 'tr']),
+  remoteEnabled: z.boolean(),
+  remotePort: z.number().int().min(1).max(65535),
+  webuiPath: z.string().nullable(),
+})
+
+export const remoteStatusSchema = z.object({
+  enabled: z.boolean(),
+  running: z.boolean(),
+  port: z.number().int().nullable(),
+  addresses: z.array(z.string()),
+  clientCount: z.number().int(),
+  staticRoot: z.string(),
+  contractVersion: z.string(),
+  error: z.string().nullable(),
 })
 
 export const appInfoSchema = z.object({
@@ -714,6 +728,13 @@ export const ipcContract = {
       response: z.array(logEntrySchema),
     },
   },
+  /**
+   * Die Fernzugriff-Brücke. Ein- und ausgeschaltet wird sie über `settings.save`; hier steht
+   * nur, was zur Laufzeit gilt — Port, erreichbare Adressen, verbundene Geräte.
+   */
+  remote: {
+    status: { request: z.void(), response: remoteStatusSchema },
+  },
 } as const satisfies Record<string, Record<string, IpcChannelDefinition>>
 
 // ---------------------------------------------------------------------------
@@ -776,6 +797,8 @@ export const ipcEvents = {
   }),
   'claude.status': claudeStatusSchema,
   'log.entry': logEntrySchema,
+  /** Brücke an oder aus, Gerät gekommen oder gegangen. */
+  'remote.changed': remoteStatusSchema,
 } as const satisfies Record<string, z.ZodType>
 
 // ---------------------------------------------------------------------------

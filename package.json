@@ -10,9 +10,10 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:security": "tsx --test src/main/app/attachment-path.test.ts src/main/mcp/auth.test.ts src/main/skills/skillPackage.test.ts",
+    "test:security": "tsx --test src/main/app/attachment-path.test.ts src/main/mcp/auth.test.ts src/main/skills/skillPackage.test.ts src/main/remote/remote.test.ts",
     "dist:mac": "electron-vite build && electron-builder --mac",
-    "postinstall": "electron-rebuild -f -w better-sqlite3"
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "contract:types": "tsx scripts/contract-types.mts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

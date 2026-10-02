@@ -8,6 +8,7 @@ import { resumeInterrupted, shutdown as shutdownGoals } from '../goals'
 import { getCachedClaudeStatus, listRuns, refreshClaudeStatus } from '../claude'
 import { registerIpcHandlers } from '../ipc'
 import { releaseAll, start as startMcpServer, stop as stopMcpServer } from '../mcp'
+import { applySettings as applyRemoteSettings, stop as stopRemote } from '../remote'
 import { describeError, logger } from '../Logger'
 import { registerAttachmentProtocol, registerAttachmentSchemePrivileges } from './attachments'
 import { getSettings } from './settings'
@@ -91,6 +92,9 @@ async function bootstrap(): Promise<void> {
   // Erst nach dem Fenster, damit die Oberfläche die ersten Ereignisse mitbekommt.
   resumeInterrupted()
 
+  // Die Fernzugriff-Brücke startet nur, wenn sie in den Einstellungen eingeschaltet ist.
+  void applyRemoteSettings()
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
     else getMainWindow()?.show()
@@ -102,6 +106,7 @@ app.on('before-quit', () => {
   shutdownGoals()
   releaseAll()
   void stopMcpServer()
+  void stopRemote()
 })
 
 app.on('window-all-closed', () => {

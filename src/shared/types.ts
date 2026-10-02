@@ -239,6 +239,24 @@ export interface AppSettings {
   notificationsEnabled: boolean
   /** Sprache der Oberfläche und der Texte, die der Main-Prozess erzeugt. */
   language: Language
+  /** Fernzugriff-Brücke. Standardmäßig aus — ohne Schalter lauscht nichts. */
+  remoteEnabled: boolean
+  remotePort: number
+  /** Verzeichnis mit dem Bau der Weboberfläche; leer heißt `userData/webui`. */
+  webuiPath: string | null
+}
+
+/** Laufzeitzustand der Fernzugriff-Brücke, nicht gespeichert. */
+export interface RemoteStatus {
+  enabled: boolean
+  running: boolean
+  port: number | null
+  /** Adressen zum Abtippen am Telefon, inklusive Port und Schema. */
+  addresses: string[]
+  clientCount: number
+  staticRoot: string
+  contractVersion: string
+  error: string | null
 }
 
 export interface AppInfo {
