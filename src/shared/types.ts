@@ -76,6 +76,48 @@ export interface SkillImportPreview {
   files: { relPath: string; size: number }[]
 }
 
+export type McpTransport = 'http' | 'sse' | 'stdio'
+
+/**
+ * Ein externer MCP-Server. Global definiert, Projekten zugewiesen — der `name` ist zugleich
+ * das Werkzeug-Präfix der CLI (`mcp__<name>__…`).
+ *
+ * Header- und Umgebungswerte stehen hier **nicht**: sie können Zugangsdaten enthalten, liegen
+ * mit `safeStorage` verschlüsselt in der Datenbank und verlassen den Main-Prozess nie. Die
+ * Oberfläche kennt nur die Schlüssel.
+ */
+export interface McpServer {
+  id: string
+  name: string
+  transport: McpTransport
+  /** Bei `http` und `sse`. */
+  url: string | null
+  /** Bei `stdio`. */
+  command: string | null
+  args: string[]
+  headerKeys: string[]
+  envKeys: string[]
+  description: string
+  /** Werkzeuganzahl des letzten „Prüfen"-Laufs, `null` wenn noch nie geprüft. */
+  toolCount: number | null
+  checkedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** Was der „Prüfen"-Knopf vom Server erfährt. */
+export interface McpProbeResult {
+  serverName: string | null
+  serverVersion: string | null
+  toolNames: string[]
+  /**
+   * Länge des `instructions`-Texts in Zeichen, `null` wenn der Server keinen mitschickt.
+   * Dieser Text geht in jeden Lauf — bei Unity ist er der größte Einzelposten.
+   */
+  instructionsLength: number | null
+  durationMs: number
+}
+
 /** Ein Agent in seiner Rolle innerhalb eines Projekts (Join über `project_agents`). */
 export interface ProjectAgent extends Agent {
   projectId: string | null

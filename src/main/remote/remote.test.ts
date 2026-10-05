@@ -223,7 +223,7 @@ test('HTTP nimmt keine schreibenden Methoden an', async () => {
 // 4. Die nativen Methoden: `unsupported`, kein Dialog auf dem Mac
 // ---------------------------------------------------------------------------
 
-/** Die Liste aus dem Drahtprotokoll, Stand 02.10.2026 — hier ausgeschrieben, nicht abgeleitet. */
+/** Die Liste aus dem Drahtprotokoll, Stand 05.10.2026 — hier ausgeschrieben, nicht abgeleitet. */
 const NATIVE_METHODS = [
   'projects.pickPath',
   'settings.pickClaudePath',
@@ -231,6 +231,16 @@ const NATIVE_METHODS = [
   'app.openDatabaseFolder',
   'app.showDatabaseFile',
   'skills.export',
+  // Keine nativen Dialoge, sondern die MCP-Verwaltung: dort liegen Zugangsdaten, und die
+  // Brücke ist ohne Zugangsschutz erreichbar.
+  'mcp.list',
+  'mcp.listForProject',
+  'mcp.create',
+  'mcp.update',
+  'mcp.remove',
+  'mcp.assign',
+  'mcp.unassign',
+  'mcp.probe',
 ] as const
 
 test('die Liste der nativen Methoden steht genau so im Drahtprotokoll', () => {

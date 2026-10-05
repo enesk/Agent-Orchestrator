@@ -4,9 +4,11 @@ import { useT } from '../../i18n'
 import { roleLabelKey } from '../agents/agentHelpers'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
+import { useMcpStore } from '../../store/mcpStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useUiStore } from '../../store/uiStore'
 import { Badge, Button, IconButton, Input, Modal, Textarea } from '../../ui'
+import { describeTarget, transportLabelKey } from '../mcp/mcpHelpers'
 import { CloseIcon, FolderIcon, PlusIcon } from '../../ui/icons'
 
 interface MetadataPair {
@@ -52,12 +54,20 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
   const loadAllAgents = useAgentStore((state) => state.loadAll)
   const addManyToProject = useAgentStore((state) => state.addManyToProject)
 
+  const mcpServers = useMcpStore((state) => state.servers)
+  const loadMcpServers = useMcpStore((state) => state.load)
+  const loadMcpForProject = useMcpStore((state) => state.loadForProject)
+  const assignMcp = useMcpStore((state) => state.assign)
+  const unassignMcp = useMcpStore((state) => state.unassign)
+
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [path, setPath] = useState('')
   const [pairs, setPairs] = useState<MetadataPair[]>([])
   /** `null` heißt „noch nichts angefasst" — dann gilt die Vorauswahl aller Worker. */
   const [agentIds, setAgentIds] = useState<string[] | null>(null)
+  /** Die angekreuzten MCP-Server. `null`, bis die Zuweisungen des Projekts geladen sind. */
+  const [mcpIds, setMcpIds] = useState<string[] | null>(null)
   const [pathWarning, setPathWarning] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -69,11 +79,33 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
 
   useEffect(() => {
     if (!open) return
+    void loadMcpServers()
+  }, [open, loadMcpServers])
+
+  // Die Zuweisungen gehören dem Projekt, nicht dem Entwurf — frisch laden, sobald es offen ist.
+  useEffect(() => {
+    if (!open) return
+    if (!project) {
+      setMcpIds([])
+      return
+    }
+    let active = true
+    void loadMcpForProject(project.id).then((assigned) => {
+      if (active) setMcpIds(assigned.map((server) => server.id))
+    })
+    return () => {
+      active = false
+    }
+  }, [open, project, loadMcpForProject])
+
+  useEffect(() => {
+    if (!open) return
     setName(project?.name ?? '')
     setDescription(project?.description ?? '')
     setPath(project?.path ?? '')
     setPairs(project ? toPairs(project.metadata) : [])
     setAgentIds(null)
+    setMcpIds(null)
     setPathWarning(null)
     setError(null)
     setSaving(false)
@@ -81,6 +113,15 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
 
   const selectedAgentIds =
     agentIds ?? allAgents.filter((agent) => agent.role === 'worker').map((agent) => agent.id)
+
+  function toggleMcp(serverId: string): void {
+    const current = mcpIds ?? []
+    setMcpIds(
+      current.includes(serverId)
+        ? current.filter((id) => id !== serverId)
+        : [...current, serverId],
+    )
+  }
 
   function toggleAgent(agentId: string): void {
     setAgentIds(
@@ -128,6 +169,21 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
             setError(t('projectForm.agentsAssignFailed', { error: toErrorMessage(caught) }))
             return
           }
+        }
+      }
+
+      if (mcpIds) {
+        const assigned = project ? (await loadMcpForProject(result.id)).map((s) => s.id) : []
+        try {
+          for (const serverId of mcpIds.filter((id) => !assigned.includes(id))) {
+            await assignMcp(result.id, serverId)
+          }
+          for (const serverId of assigned.filter((id) => !mcpIds.includes(id))) {
+            await unassignMcp(result.id, serverId)
+          }
+        } catch (caught) {
+          setError(t('projectForm.mcpAssignFailed', { error: toErrorMessage(caught) }))
+          return
         }
       }
 
@@ -255,6 +311,51 @@ export function ProjectFormModal({ open, project, onClose }: ProjectFormModalPro
             )}
           </div>
         )}
+
+        <div>
+          <span className="mb-1 block text-xs font-medium text-ink-muted">{t('projectForm.mcp')}</span>
+          {mcpServers.length === 0 ? (
+            <div className="rounded-md border border-line bg-base px-2 py-2">
+              <p className="text-xs text-ink-faint">{t('projectForm.noMcp')}</p>
+              <Button
+                size="sm"
+                className="mt-1.5"
+                onClick={() => {
+                  onClose()
+                  openAgents('mcp')
+                }}
+              >
+                {t('projectForm.toMcp')}
+              </Button>
+            </div>
+          ) : (
+            <>
+              <ul className="max-h-44 space-y-0.5 overflow-auto rounded-md border border-line bg-base p-1">
+                {mcpServers.map((server) => (
+                  <li key={server.id}>
+                    <label className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 hover:bg-raised">
+                      <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 shrink-0 accent-accent"
+                        checked={(mcpIds ?? []).includes(server.id)}
+                        onChange={() => toggleMcp(server.id)}
+                      />
+                      <span className="truncate font-mono text-sm text-ink">{server.name}</span>
+                      <Badge>{t(transportLabelKey(server.transport))}</Badge>
+                      {server.toolCount !== null && (
+                        <Badge>{t('mcp.probe.tools', { count: server.toolCount })}</Badge>
+                      )}
+                      <span className="ml-auto min-w-0 shrink truncate font-mono text-[11px] text-ink-faint">
+                        {describeTarget(server)}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 text-xs text-ink-faint">{t('projectForm.mcpHint')}</p>
+            </>
+          )}
+        </div>
 
         <div>
           <div className="mb-1 flex items-center justify-between">

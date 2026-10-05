@@ -6,6 +6,7 @@ import { APP_NAME } from '@shared/constants'
 import initial001 from './migrations/001_v2_initial.sql?raw'
 import skills002 from './migrations/002_skills.sql?raw'
 import skillFiles003 from './migrations/003_skill_files.sql?raw'
+import mcpServers004 from './migrations/004_mcp_servers.sql?raw'
 
 /**
  * Migrationen werden als Rohtext eingebettet, damit sie im gebauten Paket ohne
@@ -15,6 +16,7 @@ const MIGRATIONS: readonly { name: string; sql: string }[] = [
   { name: '001_v2_initial', sql: initial001 },
   { name: '002_skills', sql: skills002 },
   { name: '003_skill_files', sql: skillFiles003 },
+  { name: '004_mcp_servers', sql: mcpServers004 },
 ]
 
 let db: Database.Database | null = null

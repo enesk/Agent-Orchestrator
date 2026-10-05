@@ -11,10 +11,16 @@ import { ipcContract, ipcEventNames, type IpcChannelDefinition } from '@shared/i
  */
 
 /**
- * Die sechs Methoden, die einen nativen Dialog öffnen oder das Betriebssystem bemühen. Über die
- * Brücke würden sie etwas auf dem Mac aufmachen, das am Telefon niemand sieht — deshalb werden
- * sie dort abgelehnt. Die Liste ist im Drahtprotokoll festgeschrieben, samt dieser Reihenfolge:
- * sie geht in den Vertragshash ein.
+ * Was die Brücke nicht durchlässt. Zwei Gruppen:
+ *
+ * 1. Methoden, die einen nativen Dialog öffnen oder das Betriebssystem bemühen. Über die
+ *    Brücke würden sie etwas auf dem Mac aufmachen, das am Telefon niemand sieht.
+ * 2. Die Verwaltung der externen MCP-Server. Dort liegen Zugangsdaten für Header und
+ *    Umgebung, und `ao.eneskul.com` ist ohne Zugangsschutz erreichbar. MCP-Verwaltung ist
+ *    Einrichtung, keine Bedienung — sie gehört an den Rechner.
+ *
+ * Die Liste ist im Drahtprotokoll festgeschrieben, samt dieser Reihenfolge: sie geht in den
+ * Vertragshash ein.
  */
 export const UNSUPPORTED_METHODS: readonly string[] = [
   'projects.pickPath',
@@ -25,6 +31,15 @@ export const UNSUPPORTED_METHODS: readonly string[] = [
   // wie `app.openDatabaseFolder`.
   'app.showDatabaseFile',
   'skills.export',
+  // Nachgetragen am 05.10.2026 mit FEAT-13: die gesamte MCP-Verwaltung, siehe oben.
+  'mcp.list',
+  'mcp.listForProject',
+  'mcp.create',
+  'mcp.update',
+  'mcp.remove',
+  'mcp.assign',
+  'mcp.unassign',
+  'mcp.probe',
 ]
 
 const unsupportedLookup = new Set(UNSUPPORTED_METHODS)

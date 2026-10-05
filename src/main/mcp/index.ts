@@ -13,5 +13,10 @@ export {
   type GoalReportKind,
   type RunContext,
 } from './RunContextRegistry'
+export { probeServer, type ProbeTarget } from './probeServer'
+export {
+  isSecretStorageAvailable,
+  type SecretMap,
+} from './secretStore'
 export { TOOL_INSTRUCTIONS } from './toolInstructions'
 export { withRunContext, type RunContextHandle } from './withRunContext'

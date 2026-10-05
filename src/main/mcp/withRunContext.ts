@@ -28,7 +28,7 @@ export async function withRunContext<T>(
   try {
     return await fn({
       token,
-      mcp: buildMcpConfig(token),
+      mcp: buildMcpConfig(token, context.projectId),
       takeReport: () => takeReport(token),
     })
   } finally {

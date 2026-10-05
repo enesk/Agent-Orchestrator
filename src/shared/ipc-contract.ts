@@ -30,6 +30,7 @@ export const ticketCategorySchema = z.enum([
 ])
 export const ticketAuthorTypeSchema = z.enum(['user', 'agent'])
 export const memorySourceSchema = z.enum(['agent', 'user'])
+export const mcpTransportSchema = z.enum(['http', 'sse', 'stdio'])
 export const goalModeSchema = z.enum(['ai', 'selected'])
 export const goalStatusSchema = z.enum([
   'pending',
@@ -108,6 +109,69 @@ export const skillImportPreviewSchema = z.object({
   description: z.string(),
   contentLength: z.number(),
   files: z.array(z.object({ relPath: z.string(), size: z.number() })),
+})
+
+/**
+ * Ein externer MCP-Server. Header- und Umgebungswerte fehlen hier mit Absicht: sie können
+ * Zugangsdaten enthalten, liegen verschlüsselt in der Datenbank und gehen nie über IPC zurück.
+ */
+export const mcpServerSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  transport: mcpTransportSchema,
+  url: z.string().nullable(),
+  command: z.string().nullable(),
+  args: z.array(z.string()),
+  headerKeys: z.array(z.string()),
+  envKeys: z.array(z.string()),
+  description: z.string(),
+  toolCount: z.number().nullable(),
+  checkedAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+export const mcpProbeResultSchema = z.object({
+  serverName: z.string().nullable(),
+  serverVersion: z.string().nullable(),
+  toolNames: z.array(z.string()),
+  instructionsLength: z.number().nullable(),
+  durationMs: z.number(),
+})
+
+/**
+ * Ein Schlüssel-Wert-Paar für Header oder Umgebung. `value: null` heißt „unverändert" — die
+ * Oberfläche kennt gespeicherte Werte nicht und schickt nur geänderte mit. Schlüssel, die
+ * fehlen, werden gelöscht.
+ */
+export const mcpSecretPairSchema = z.object({
+  key: z.string().min(1),
+  value: z.string().nullable(),
+})
+
+export const createMcpServerSchema = z.object({
+  name: z.string().min(1),
+  transport: mcpTransportSchema,
+  url: z.string().nullable().optional(),
+  command: z.string().nullable().optional(),
+  args: z.array(z.string()).optional(),
+  headers: z.array(mcpSecretPairSchema).optional(),
+  env: z.array(mcpSecretPairSchema).optional(),
+  description: z.string().optional(),
+})
+
+export const updateMcpServerSchema = z.object({
+  id: z.string(),
+  patch: z.object({
+    name: z.string().min(1).optional(),
+    transport: mcpTransportSchema.optional(),
+    url: z.string().nullable().optional(),
+    command: z.string().nullable().optional(),
+    args: z.array(z.string()).optional(),
+    headers: z.array(mcpSecretPairSchema).optional(),
+    env: z.array(mcpSecretPairSchema).optional(),
+    description: z.string().optional(),
+  }),
 })
 
 export const projectAgentSchema = agentSchema.extend({
@@ -632,6 +696,38 @@ export const ipcContract = {
     /** Schreibt `<slug>.zip` mit `SKILL.md` und Beidateien an einen vom Nutzer gewählten Ort. */
     export: { request: idSchema, response: z.object({ path: z.string().nullable() }) },
   },
+  /**
+   * Externe MCP-Server. **Alle** Methoden stehen in `UNSUPPORTED_METHODS` der
+   * Fernzugriff-Brücke: hier werden Zugangsdaten verwaltet, und die Brücke ist ohne
+   * Zugangsschutz erreichbar. MCP-Einrichtung gehört an den Rechner, nicht ans Telefon.
+   */
+  mcp: {
+    list: { request: z.void(), response: z.array(mcpServerSchema) },
+    listForProject: {
+      request: z.object({ projectId: z.string() }),
+      response: z.array(mcpServerSchema),
+    },
+    create: { request: createMcpServerSchema, response: mcpServerSchema },
+    update: { request: updateMcpServerSchema, response: mcpServerSchema },
+    remove: { request: idSchema, response: okSchema },
+    /** Weist den Server einem Projekt zu und liefert die neue Liste des Projekts. */
+    assign: {
+      request: z.object({ projectId: z.string(), serverId: z.string() }),
+      response: z.array(mcpServerSchema),
+    },
+    unassign: {
+      request: z.object({ projectId: z.string(), serverId: z.string() }),
+      response: z.array(mcpServerSchema),
+    },
+    /**
+     * `initialize` → `notifications/initialized` → `tools/list` gegen den Server. Mit `id`
+     * gegen den gespeicherten Stand (samt Geheimnissen), ohne `id` gegen einen Entwurf.
+     */
+    probe: {
+      request: createMcpServerSchema.partial().extend({ id: z.string().nullable().optional() }),
+      response: mcpProbeResultSchema,
+    },
+  },
   documents: {
     list: {
       request: z.object({ projectId: z.string() }),
@@ -768,6 +864,12 @@ export const ipcEvents = {
   }),
   'skill.changed': z.object({
     skillId: z.string(),
+    action: changeActionSchema,
+  }),
+  /** `projectId` ist gesetzt, wenn sich eine Zuweisung geändert hat, sonst der Server selbst. */
+  'mcpServer.changed': z.object({
+    serverId: z.string(),
+    projectId: z.string().nullable(),
     action: changeActionSchema,
   }),
   'agent.changed': z.object({

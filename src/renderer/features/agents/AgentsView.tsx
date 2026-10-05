@@ -5,6 +5,7 @@ import { useT } from '../../i18n'
 import { useAgentStore } from '../../store/agentStore'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useActiveProject } from '../../store/projectStore'
+import { useMcpStore } from '../../store/mcpStore'
 import { useSkillStore } from '../../store/skillStore'
 import { useUiStore, type AgentsTab } from '../../store/uiStore'
 import { Button, EmptyState, Spinner, cn, useConfirm } from '../../ui'
@@ -15,12 +16,14 @@ import { AgentMemoryPanel } from './AgentMemoryPanel'
 import { CreateAgentModal } from './CreateAgentModal'
 import { ProjectAgentsPanel } from './ProjectAgentsPanel'
 import { SkillsPanel } from './SkillsPanel'
+import { McpServersPanel } from '../mcp/McpServersPanel'
 
 const TABS: { id: AgentsTab; labelKey: TranslationKey }[] = [
   { id: 'editor', labelKey: 'agents.tab.editor' },
   { id: 'project', labelKey: 'agents.tab.project' },
   { id: 'memory', labelKey: 'agents.tab.memory' },
   { id: 'skills', labelKey: 'agents.tab.skills' },
+  { id: 'mcp', labelKey: 'agents.tab.mcp' },
 ]
 
 export function AgentsView() {
@@ -38,6 +41,8 @@ export function AgentsView() {
   const remove = useAgentStore((state) => state.remove)
   const loadSkills = useSkillStore((state) => state.load)
   const subscribeSkills = useSkillStore((state) => state.subscribe)
+  const loadMcp = useMcpStore((state) => state.load)
+  const subscribeMcp = useMcpStore((state) => state.subscribe)
 
   const tab = useUiStore((state) => state.agentsTab)
   const setTab = useUiStore((state) => state.setAgentsTab)
@@ -62,6 +67,12 @@ export function AgentsView() {
   }, [loadSkills])
 
   useEffect(() => subscribeSkills(), [subscribeSkills])
+
+  useEffect(() => {
+    void loadMcp()
+  }, [loadMcp])
+
+  useEffect(() => subscribeMcp(), [subscribeMcp])
 
   // Auswahl gültig halten, wenn Agenten dazukommen oder verschwinden.
   useEffect(() => {
@@ -141,7 +152,9 @@ export function AgentsView() {
         </p>
       )}
 
-      {tab === 'skills' ? (
+      {tab === 'mcp' ? (
+        <McpServersPanel />
+      ) : tab === 'skills' ? (
         <SkillsPanel agents={allAgents} />
       ) : tab === 'project' ? (
         project ? (
