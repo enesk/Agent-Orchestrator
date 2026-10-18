@@ -12,6 +12,15 @@ export interface TicketMeta {
 export interface TicketImportResult {
   created: number
   updated: number
+  guidelines: {
+    documentId: string
+    title: string
+    sectionKeys: string[]
+    charCount: number
+    created: boolean
+  } | null
+  carriedTicketFields: string[]
+  unrepresented: string[]
   warnings: string[]
 }
 
@@ -224,6 +233,9 @@ export const useTicketStore = create<TicketState>((set, get) => ({
     return {
       created: result.created,
       updated: result.updated,
+      guidelines: result.guidelines,
+      carriedTicketFields: result.carriedTicketFields,
+      unrepresented: result.unrepresented,
       warnings: readWarnings(result),
     }
   },

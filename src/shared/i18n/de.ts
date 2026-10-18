@@ -325,6 +325,17 @@ export const de = {
   'ticketImport.invalid': 'Die Datei ist nicht gültig:',
   'ticketImport.preview': '{created} neu, {updated} aktualisiert',
   'ticketImport.done': 'Import abgeschlossen: {created} neu, {updated} aktualisiert.',
+  'ticketImport.carriedFields': '{count} zusätzliche Felder je Ticket übernommen: {names}',
+  'ticketImport.carriedNone': 'Keine zusätzlichen Ticketfelder in dieser Datei.',
+  'ticketImport.guidelinesDoc':
+    'Vorgaben-Dokument wird angelegt/aktualisiert: „{title}" — {sections} Abschnitte, {chars} Zeichen',
+  'ticketImport.guidelinesNone':
+    'Kein Vorgaben-Dokument — meta enthält nichts außer project, feature_key und schema_version.',
+  'ticketImport.guidelinesCreated':
+    'Vorgaben-Dokument angelegt: „{title}" — {sections} Abschnitte, {chars} Zeichen.',
+  'ticketImport.guidelinesUpdated':
+    'Vorgaben-Dokument aktualisiert: „{title}" — {sections} Abschnitte, {chars} Zeichen.',
+  'ticketImport.unrepresented': 'Nicht übernommen, weil nicht abbildbar: {names}',
 
   'ticketDetail.close': 'Detail schließen',
   'ticketDetail.status': 'Status',

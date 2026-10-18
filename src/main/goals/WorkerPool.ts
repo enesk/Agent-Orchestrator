@@ -178,6 +178,25 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
     return open
   }
 
+  /**
+   * Die Vorgaben des Ticketsets, aus dem das Ticket stammt. Tickets, die ein Agent während
+   * des Vorhabens selbst anlegt, haben keinen eigenen Verweis — sie erben die Vorgaben der
+   * übrigen Tickets, aber nur wenn diese eindeutig sind. Geraten wird nichts.
+   */
+  function guidelinesFor(ticket: Ticket): string | null {
+    const documentId = ticket.guidelinesDocumentId ?? sharedGuidelinesId()
+    if (!documentId) return null
+    return getDocument(documentId)?.content ?? null
+  }
+
+  function sharedGuidelinesId(): string | null {
+    const ids = new Set<string>()
+    for (const entry of workset.values()) {
+      if (entry.guidelinesDocumentId) ids.add(entry.guidelinesDocumentId)
+    }
+    return ids.size === 1 ? ([...ids][0] ?? null) : null
+  }
+
   function isReady(ticket: Ticket): boolean {
     return listDependencies(ticket.id).every((id) => getTicket(id)?.status === 'done')
   }
@@ -288,6 +307,7 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
         prompt: buildWorkerPrompt({
           ticket,
           spec,
+          guidelines: guidelinesFor(ticket),
           otherTickets: [...workset.values()].filter((entry) => entry.id !== ticket.id),
           dependencies: listDependencies(ticket.id)
             .map((id) => getTicket(id))

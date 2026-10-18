@@ -2,6 +2,7 @@ import { removeAttachmentFolders } from '../app/attachments'
 import { mainT } from '../app/settings'
 import { withTransaction } from '../db/connection'
 import { listAgents } from '../db/repositories/agents'
+import { createDocument, findDocumentByTitle, updateDocument } from '../db/repositories/documents'
 import { deleteAttachment, getAttachment } from '../db/repositories/messages'
 import {
   addTicketComment,
@@ -27,6 +28,7 @@ import { scopedLogger } from '../Logger'
 import {
   parseTicketImportFile,
   planTicketImport,
+  type GuidelinesDocument,
   type PlannedTicket,
 } from '@shared/ticketImport'
 import type { MessageAttachment, Ticket, TicketComment, TicketDetail } from '@shared/types'
@@ -171,10 +173,22 @@ export function setDependencies(ticketId: string, dependsOn: string[]): TicketDe
   return getTicketDetail(ticketId)!
 }
 
+export interface ImportGuidelinesResult {
+  documentId: string
+  title: string
+  sectionKeys: string[]
+  charCount: number
+  /** `false` heißt: das Dokument gab es schon und wurde überschrieben. */
+  created: boolean
+}
+
 export interface ImportResult {
   created: number
   updated: number
   tickets: Ticket[]
+  guidelines: ImportGuidelinesResult | null
+  carriedTicketFields: string[]
+  unrepresented: string[]
   warnings: string[]
 }
 
@@ -198,7 +212,17 @@ export function importJson(projectId: string, json: string): ImportResult {
   const warnings = [...plan.warnings]
   const assignees = buildAssigneeIndex()
 
-  const result = withTransaction((): { created: number; updated: number; tickets: Ticket[] } => {
+  interface ImportOutcome {
+    created: number
+    updated: number
+    tickets: Ticket[]
+    guidelines: ImportGuidelinesResult | null
+  }
+
+  const result = withTransaction((): ImportOutcome => {
+    // Zuerst die Vorgaben — die Tickets zeigen danach darauf.
+    const guidelines = upsertGuidelines(projectId, plan.guidelines)
+
     const byExternalId = new Map<string, Ticket>()
     let created = 0
     let updated = 0
@@ -213,6 +237,7 @@ export function importJson(projectId: string, json: string): ImportResult {
           description: planned.description,
           category: planned.category,
           sortOrder: planned.sortOrder,
+          guidelinesDocumentId: guidelines?.documentId ?? null,
           ...(assignedAgentId ? { assignedAgentId } : {}),
         })
         byExternalId.set(planned.externalId, ticket)
@@ -226,6 +251,7 @@ export function importJson(projectId: string, json: string): ImportResult {
           category: planned.category,
           externalId: planned.externalId,
           assignedAgentId,
+          guidelinesDocumentId: guidelines?.documentId ?? null,
           sortOrder: planned.sortOrder,
         })
         byExternalId.set(planned.externalId, ticket)
@@ -253,7 +279,7 @@ export function importJson(projectId: string, json: string): ImportResult {
       setTicketDependencies(ticket.id, ids)
     }
 
-    return { created, updated, tickets: [...byExternalId.values()] }
+    return { created, updated, tickets: [...byExternalId.values()], guidelines }
   })
 
   for (const ticket of result.tickets) {
@@ -263,10 +289,41 @@ export function importJson(projectId: string, json: string): ImportResult {
     projectId,
     created: result.created,
     updated: result.updated,
+    guidelines: result.guidelines?.title ?? null,
+    carriedTicketFields: plan.carriedTicketFields,
     warnings: warnings.length,
   })
 
-  return { ...result, warnings }
+  return {
+    ...result,
+    carriedTicketFields: plan.carriedTicketFields,
+    unrepresented: plan.unrepresented,
+    warnings,
+  }
+}
+
+/**
+ * Das Vorgaben-Dokument gehört dem Ticketset, nicht dem einzelnen Import: ein zweiter Lauf
+ * schreibt denselben Titel fort, statt ein zweites Dokument daneben zu legen.
+ */
+function upsertGuidelines(
+  projectId: string,
+  guidelines: GuidelinesDocument | null,
+): ImportGuidelinesResult | null {
+  if (!guidelines) return null
+
+  const existing = findDocumentByTitle(projectId, guidelines.title)
+  const document = existing
+    ? updateDocument(existing.id, { content: guidelines.content, updatedByAgentId: null })
+    : createDocument({ projectId, title: guidelines.title, content: guidelines.content })
+
+  return {
+    documentId: document.id,
+    title: document.title,
+    sectionKeys: guidelines.sectionKeys,
+    charCount: guidelines.charCount,
+    created: existing === null,
+  }
 }
 
 function collectExternalIds(ids: string[], epicId: string | undefined): string[] {

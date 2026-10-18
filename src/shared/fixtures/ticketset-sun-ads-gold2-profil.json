@@ -1,0 +1,241 @@
+{
+  "meta": {
+    "project": "SUN Platform",
+    "feature_key": "SUN-ADS-GOLD2-PROFIL",
+    "schema_version": "1.0",
+    "created_at": "2026-10-18",
+    "author": "Enes Kul",
+    "agents": {
+      "Matthias": "PM – Koordination, keine Umsetzung",
+      "Dimitri": "Backend – Werbemittel und Belegungen in zentraler DB",
+      "Steffen": "Backend/Filament – Portal-Einstellungen (ad_settings)"
+    },
+    "global_rules": [
+      "Scope ist ausschließlich: Werbemittel anlegen, Belegungen anlegen, Portal-Einstellungen setzen, veröffentlichen. KEINE Tests, KEINE Messungen, KEINE Analysen, KEINE Zusatztickets, KEINE weiteren Befunde.",
+      "Kein Dienst eines Drittanbieters wird angesprochen – kein Google-/AdSense-Konto, keine Google-API, keine lesenden Probeaufrufe. Alle IDs sind in diesem Ticketset vorgegeben.",
+      "Werbeplätze (Slots) werden NICHT neu angelegt oder geändert. Es werden nur die bestehenden Slots des Seitentyps `company` aus `config/ad-slots.php` belegt.",
+      "Keine Test-Dateien schreiben.",
+      "Alle Daten liegen in der ZENTRALEN Datenbank (ad_units, ad_placements, ad_settings), nicht in Tenant-Datenbanken.",
+      "Bevorzugter Weg: Daten-Seeder bzw. Artisan-Command, der idempotent ist (Upsert per eindeutigem Namen/Slot-ID), damit die Einpflege reproduzierbar ist. Alternativ manuell über das Panel – dann Ergebnis exakt wie spezifiziert.",
+      "Interner Name in `ad_units` = AdSense-Name + Suffix ` [pub-1901800422608466]` (z. B. `GOLD - Profil - Top [pub-1901800422608466]`), weil dieselben AdSense-Namen in mehreren Konten existieren und der Upsert per Name sonst kollidiert.",
+      "`responsive` darf nicht auf Slots mit 90/100-px-Höhenreservierung gesetzt werden. Erlaubte Formate je Slot kommen aus `config/ad-slots.php`.",
+      "Sprache in UI/Kommentaren: Deutsch.",
+      "Dieses Set ist unabhängig vom Set SUN-ADS-GOLD (Konto pub-2563111817853634). Beide können parallel oder nacheinander laufen; die Werbemittel unterscheiden sich durch den Namens-Suffix."
+    ],
+    "architecture_decisions": [
+      "Publisher-ID kommt aus `ad_settings` je Portal, nicht aus dem Werbemittel.",
+      "ads.txt wird je Domain automatisch aus `ad_settings` gebaut; die Google-Zeile entsteht aus Publisher-ID + Hauptschalter. Die unten genannte Zeile muss im Ergebnis exakt so vorhanden sein.",
+      "Belegungen gelten nur für die fünf genannten Tenants (`applies_to_all_tenants = false`), nicht netzweit.",
+      "Je Position ein eigener AdSense-Anzeigenblock (bereits im Konto angelegt), damit die AdSense-Reports je Slot trennbar sind."
+    ],
+    "tenants": {
+      "domains": [
+        "geruestbauer.gmbh",
+        "fliesenleger.io",
+        "kfzwerkstatt.io",
+        "elektrikerportal.com",
+        "fahrschulefinder.de",
+        "malerfinder.de",
+        "metallbauer.io",
+        "mjet.net"
+      ],
+      "publisher_id": "ca-pub-1901800422608466",
+      "ads_txt_line": "google.com, pub-1901800422608466, DIRECT, f08c47fec0942fa0"
+    },
+    "ad_units": [
+      {
+        "name": "GOLD - Profil - Top",
+        "ad_slot": "7857921592",
+        "format": "display",
+        "position": "Hauptspalte, erster Slot oberhalb der Profil-Karte",
+        "device": "all"
+      },
+      {
+        "name": "GOLD - Profil - Content 1",
+        "ad_slot": "7666349905",
+        "format": "in_article",
+        "position": "Hauptspalte, direkt nach der Profil-Karte (nur mobil)",
+        "device": "mobile"
+      },
+      {
+        "name": "GOLD - Profil - Content 2",
+        "ad_slot": "5214526510",
+        "format": "in_article",
+        "position": "Hauptspalte, zwischen Fotos und Öffnungszeiten",
+        "device": "all"
+      },
+      {
+        "name": "GOLD - Profil - Content 3",
+        "ad_slot": "5873002064",
+        "format": "in_article",
+        "position": "Hauptspalte, zwischen Standort und Bewertungen",
+        "device": "all"
+      },
+      {
+        "name": "GOLD - Profil - Bottom Multiplex",
+        "ad_slot": "8962199836",
+        "format": "multiplex",
+        "position": "Hauptspalte, nach den Bewertungen",
+        "device": "all"
+      },
+      {
+        "name": "GOLD - Profil - Sidebar Top",
+        "ad_slot": "2222451539",
+        "format": "display_300x250",
+        "position": "Seitenspalte, erster Kasten oben (nur Desktop)",
+        "device": "desktop"
+      },
+      {
+        "name": "GOLD - Profil - Sidebar Sticky",
+        "ad_slot": "3709873156",
+        "format": "display_300x600",
+        "position": "Seitenspalte, zweiter Kasten unter der Kontakt-Box (nur Desktop)",
+        "device": "desktop"
+      }
+    ],
+    "priority_mapping": {
+      "P1": "critical",
+      "P2": "high",
+      "P3": "medium"
+    },
+    "ad_units_internal_name_suffix": " [pub-1901800422608466]"
+  },
+  "epic": {
+    "id": "SUN-ADS-GOLD2-EPIC",
+    "title": "AdSense GOLD-Anzeigenblöcke auf Firmenprofil für 8 Tenants einpflegen und veröffentlichen",
+    "goal": "Die sieben im AdSense-Konto ca-pub-1901800422608466 angelegten Anzeigenblöcke 'GOLD - Profil - *' sind als Werbemittel angelegt, auf den company-Slots der Tenants geruestbauer.gmbh, fliesenleger.io, kfzwerkstatt.io, elektrikerportal.com, fahrschulefinder.de, malerfinder.de, metallbauer.io und mjet.net aktiv belegt, die Portal-Einstellungen sind gesetzt und die ads.txt enthält die Google-Zeile. Danach ist Schluss – keine weiteren Arbeiten.",
+    "owner": "Matthias",
+    "estimate_hours": 5
+  },
+  "tickets": [
+    {
+      "id": "SUN-ADS-GOLD2-001",
+      "title": "Portal-Einstellungen (ad_settings) für die 8 Tenants setzen: Publisher-ID, Hauptschalter, ads.txt",
+      "type": "task",
+      "priority": "P1",
+      "status": "todo",
+      "assignee": "Steffen",
+      "role": "Backend/Filament",
+      "epic": "SUN-ADS-GOLD2-EPIC",
+      "estimate_hours": 1.5,
+      "labels": [
+        "ads",
+        "adsense",
+        "ad_settings",
+        "tenant-config"
+      ],
+      "depends_on": [],
+      "description": "Für jeden Tenant, der zu den Domains geruestbauer.gmbh, fliesenleger.io, kfzwerkstatt.io, elektrikerportal.com, fahrschulefinder.de, malerfinder.de, metallbauer.io und mjet.net gehört, in der zentralen Tabelle `ad_settings` die Publisher-ID `ca-pub-1901800422608466` hinterlegen und den Hauptschalter `ads_enabled` auf aktiv setzen. Bestehende Werte für Auto Ads unverändert lassen (Auto Ads bleibt laut Festlegung vom 16.10.2026 an). Die generierte ads.txt jeder dieser Domains muss anschließend die Zeile `google.com, pub-1901800422608466, DIRECT, f08c47fec0942fa0` enthalten.",
+      "acceptance_criteria": [
+        "Alle Tenants, deren Domain oder Subdomain auf eine der acht Domains aus `meta.tenants.domains` endet, haben in `ad_settings` publisher_id = `ca-pub-1901800422608466`.",
+        "Für diese Tenants ist `ads_enabled` = true.",
+        "Auto-Ads-Einstellung dieser Tenants wurde nicht verändert.",
+        "Aufruf von https://<domain>/ads.txt liefert für jede der acht Domains die Zeile `google.com, pub-1901800422608466, DIRECT, f08c47fec0942fa0` exakt einmal.",
+        "Keine anderen Tenants wurden verändert."
+      ],
+      "technical_notes": [
+        "Zuordnung der acht Domains zu Tenants über die Tenant-Domains-Tabelle von Stancl Tenancy, nicht über Tenant-Namen raten. Keine Wildcard-Domains in diesem Set.",
+        "Die Google-Zeile wird vom Modul automatisch aus Publisher-ID + Hauptschalter erzeugt. Nur wenn sie im Ergebnis fehlt, die Zeile zusätzlich in `ads_settings.ads_txt_extra` (Zusatzzeilen) eintragen – dabei sicherstellen, dass sie nicht doppelt ausgegeben wird.",
+        "Idempotent umsetzen (Upsert je Tenant), damit der Seeder/Command mehrfach laufen kann.",
+        "Nach dem Setzen den Resolver-Cache für diese Tenants invalidieren (siehe Caching je Portal + Seitentyp)."
+      ],
+      "files": [
+        "database/seeders/AdSettingsGoldSeeder.php (neu, oder bestehender Ads-Seeder erweitern)",
+        "app/Console/Commands/ (nur falls Command statt Seeder gewählt wird)"
+      ],
+      "definition_of_done": [
+        "Seeder/Command eingecheckt und auf Produktion ausgeführt.",
+        "ads.txt der genannten Domains enthält die Google-Zeile.",
+        "Kurze Notiz im Ticket, welche Tenant-IDs betroffen waren."
+      ]
+    },
+    {
+      "id": "SUN-ADS-GOLD2-002",
+      "title": "7 AdSense-Werbemittel 'GOLD - Profil - *' in ad_units anlegen",
+      "type": "task",
+      "priority": "P1",
+      "status": "todo",
+      "assignee": "Dimitri",
+      "role": "Backend",
+      "epic": "SUN-ADS-GOLD2-EPIC",
+      "estimate_hours": 1.5,
+      "labels": [
+        "ads",
+        "adsense",
+        "ad_units"
+      ],
+      "depends_on": [],
+      "description": "Die sieben Anzeigenblöcke aus `meta.ad_units` als Werbemittel vom Typ AdSense in der zentralen Tabelle `ad_units` anlegen. Name exakt wie im AdSense-Konto, `data-ad-slot` = die angegebene Ziffernfolge, Status aktiv. Das Format wird auf die im Modul registrierten Format-Schlüssel abgebildet; die Zuordnung in `meta.ad_units.format` ist die fachliche Vorgabe und muss auf die tatsächlich vorhandenen Format-Keys übersetzt werden.",
+      "acceptance_criteria": [
+        "In `ad_units` existieren genau sieben aktive Datensätze vom Typ AdSense mit den Namen (jeweils mit Suffix ` [pub-1901800422608466]`) `GOLD - Profil - Top`, `GOLD - Profil - Content 1`, `GOLD - Profil - Content 2`, `GOLD - Profil - Content 3`, `GOLD - Profil - Bottom Multiplex`, `GOLD - Profil - Sidebar Top`, `GOLD - Profil - Sidebar Sticky`.",
+        "Die `data-ad-slot`-Werte sind exakt: 7857921592, 7666349905, 5214526510, 5873002064, 8962199836, 2222451539, 3709873156 (nur Ziffern, keine Leerzeichen).",
+        "Content 1–3 haben das In-Article-Format; Bottom Multiplex das Multiplex-Format; Sidebar Top ein festes 300x250-Display-Format; Sidebar Sticky ein festes 300x600-Display-Format; Top ein Display-Format, das zur Höhenreservierung des Ziel-Slots passt (kein `responsive` auf 90/100-px-Slots).",
+        "Kein Werbemittel vom Typ HTML wurde angelegt oder verändert.",
+        "Erneutes Ausführen des Seeders erzeugt keine Duplikate."
+      ],
+      "technical_notes": [
+        "Format-Keys aus dem Modul lesen (Provider-Registrierung / Format-Enum), nicht erfinden. Falls kein festes 300x600-Format registriert ist: das nächstpassende registrierte Display-Format verwenden, das in die Höhenreservierung des Sidebar-Sticky-Slots passt – KEIN neues Format anlegen (das wäre Code-Änderung außerhalb des Scopes).",
+        "Für Content 1–3 (In-Article) ist kein Layout-Key nötig; Feld leer lassen.",
+        "Publisher-ID NICHT am Werbemittel speichern – kommt aus `ad_settings`.",
+        "Upsert per `name` (inkl. Suffix ` [pub-1901800422608466]`)."
+      ],
+      "files": [
+        "database/seeders/AdUnitsGoldSeeder.php (neu)"
+      ],
+      "definition_of_done": [
+        "Seeder eingecheckt und auf Produktion ausgeführt.",
+        "Sieben Werbemittel im Panel sichtbar mit korrekten Slot-IDs."
+      ]
+    },
+    {
+      "id": "SUN-ADS-GOLD2-003",
+      "title": "Belegungen (ad_placements) für Seitentyp company auf den 8 Tenants anlegen und aktiv schalten",
+      "type": "task",
+      "priority": "P1",
+      "status": "todo",
+      "assignee": "Dimitri",
+      "role": "Backend",
+      "epic": "SUN-ADS-GOLD2-EPIC",
+      "estimate_hours": 2,
+      "labels": [
+        "ads",
+        "adsense",
+        "ad_placements",
+        "company",
+        "go-live"
+      ],
+      "depends_on": [
+        "SUN-ADS-GOLD2-001",
+        "SUN-ADS-GOLD2-002"
+      ],
+      "description": "Die sieben Werbemittel aus SUN-ADS-GOLD2-002 auf die sieben Slots des Seitentyps `company` aus `config/ad-slots.php` belegen – je Slot genau eine Belegung, Status `active`, Zeitraum unbefristet, `applies_to_all_tenants = false`, Portalliste = alle Tenants der Domains geruestbauer.gmbh, fliesenleger.io, kfzwerkstatt.io, elektrikerportal.com, fahrschulefinder.de, malerfinder.de, metallbauer.io, mjet.net. Die Zuordnung Werbemittel → Slot erfolgt nach der Position in `meta.ad_units.position` und dem erlaubten Gerät des Slots. Anschließend Resolver-Cache invalidieren und damit veröffentlichen.",
+      "acceptance_criteria": [
+        "Für jeden der sieben `company`-Slots existiert genau eine aktive Belegung mit dem laut Position passenden GOLD-Werbemittel.",
+        "Gerät je Belegung: Top = all; Content 1 = mobile (Slot `company_after_header_card`); Content 2 = all; Content 3 = all; Bottom Multiplex = all; Sidebar Top = desktop; Sidebar Sticky = desktop. Weicht der Katalog-Slot davon ab (erlaubt z. B. nur ein Gerät), gilt das Gerät des Slots.",
+        "Alle Belegungen: status = active, starts_at = null, ends_at = null, priority = 10, applies_to_all_tenants = false, Portalliste enthält genau die Tenants aus SUN-ADS-GOLD2-001 und keine weiteren.",
+        "Das Format jedes Werbemittels ist in der Formatliste des belegten Slots erlaubt.",
+        "Resolver-Cache für die betroffenen Tenants und page_type `company` wurde invalidiert.",
+        "Auf einer Firmenprofil-Seite eines der acht Tenants werden nach Marketing-Einwilligung die AdSense-Slots mit den oben genannten `data-ad-slot`-Werten ausgegeben (mobil die Hauptspalten-Slots, Desktop zusätzlich die beiden Sidebar-Slots).",
+        "Keine Belegungen auf anderen Seitentypen (home, search, city, guide, guide_index) wurden angelegt."
+      ],
+      "technical_notes": [
+        "Zuerst `config/ad-slots.php` Abschnitt `company` lesen und die sieben Slot-Keys mit Position, erlaubten Geräten und erlaubten Formaten notieren. Dann Mapping zu den sieben Werbemitteln festlegen und als Konstante im Seeder hinterlegen.",
+        "Erwartete Reihenfolge der Hauptspalte von oben nach unten: Top → (nur mobil) after_header_card → Content 2 → Content 3 → Bottom Multiplex. Sidebar: Top, dann Sticky. Falls die Katalog-Beschriftungen anders lauten, nach Layout-Position zuordnen, nicht nach Namen.",
+        "Passt ein Werbemittel-Format nicht in die Formatliste des Ziel-Slots, am Werbemittel ein anderes erlaubtes Format setzen (Rücksprache mit SUN-ADS-GOLD2-002), NICHT den Slot ändern.",
+        "Belegungen idempotent per (slot_key, page_type, ad_unit_id) upserten.",
+        "Portalliste über Tenant-IDs füllen, die in SUN-ADS-GOLD2-001 ermittelt wurden – gleiche Quelle (Tenant-Domains), damit beide Tickets dieselbe Menge treffen.",
+        "Veröffentlichung = Seeder auf Produktion ausführen + Cache-Invalidierung. Kein weiteres Deployment nötig, sofern keine Code-Änderung außer den Seedern erfolgt."
+      ],
+      "files": [
+        "database/seeders/AdPlacementsGoldCompanySeeder.php (neu)",
+        "config/ad-slots.php (nur lesen)"
+      ],
+      "definition_of_done": [
+        "Seeder eingecheckt und auf Produktion ausgeführt.",
+        "Belegungen im Panel unter Seitentyp company für die acht Tenants sichtbar und aktiv.",
+        "Firmenprofil-Seite eines Tenants zeigt die AdSense-Container mit den vorgegebenen Slot-IDs.",
+        "Epic abgeschlossen – keine Folgetickets anlegen."
+      ]
+    }
+  ]
+}

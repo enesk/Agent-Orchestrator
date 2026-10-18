@@ -219,6 +219,7 @@ export const ticketSchema = z.object({
   goalId: z.number().nullable(),
   externalId: z.string().nullable(),
   epicId: z.string().nullable(),
+  guidelinesDocumentId: z.string().nullable(),
   sortOrder: z.number(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -444,6 +445,7 @@ export const updateTicketSchema = z.object({
     goalId: z.number().int().nullable().optional(),
     externalId: z.string().nullable().optional(),
     epicId: z.string().nullable().optional(),
+    guidelinesDocumentId: z.string().nullable().optional(),
     sortOrder: z.number().int().optional(),
   }),
 })
@@ -652,6 +654,20 @@ export const ipcContract = {
         created: z.number(),
         updated: z.number(),
         tickets: z.array(ticketSchema),
+        /** Das Vorgaben-Dokument des Sets, sofern `meta` Zusatzangaben enthielt. */
+        guidelines: z
+          .object({
+            documentId: z.string(),
+            title: z.string(),
+            sectionKeys: z.array(z.string()),
+            charCount: z.number(),
+            created: z.boolean(),
+          })
+          .nullable(),
+        /** Zusätzlich mitgeführte Ticketfelder — der Beleg, dass nichts verloren ging. */
+        carriedTicketFields: z.array(z.string()),
+        /** Was sich nicht abbilden ließ. Leer heißt: alles ist angekommen. */
+        unrepresented: z.array(z.string()),
         /** Tolerierte Ungereimtheiten der Datei — der Import läuft trotzdem durch. */
         warnings: z.array(z.string()),
       }),

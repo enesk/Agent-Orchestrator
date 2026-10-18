@@ -320,6 +320,17 @@ export const tr: Catalog = {
   'ticketImport.invalid': 'Dosya geçerli değil:',
   'ticketImport.preview': '{created} yeni, {updated} güncellendi',
   'ticketImport.done': 'İçe aktarma bitti: {created} yeni, {updated} güncellendi.',
+  'ticketImport.carriedFields': 'Her bilet için {count} ek alan aktarıldı: {names}',
+  'ticketImport.carriedNone': 'Bu dosyada ek bilet alanı yok.',
+  'ticketImport.guidelinesDoc':
+    'Kurallar belgesi oluşturulacak/güncellenecek: „{title}" — {sections} bölüm, {chars} karakter',
+  'ticketImport.guidelinesNone':
+    'Kurallar belgesi yok — meta içinde project, feature_key ve schema_version dışında bir şey yok.',
+  'ticketImport.guidelinesCreated':
+    'Kurallar belgesi oluşturuldu: „{title}" — {sections} bölüm, {chars} karakter.',
+  'ticketImport.guidelinesUpdated':
+    'Kurallar belgesi güncellendi: „{title}" — {sections} bölüm, {chars} karakter.',
+  'ticketImport.unrepresented': 'Aktarılamadı, çünkü karşılığı yok: {names}',
 
   'ticketDetail.close': 'Ayrıntıları kapat',
   'ticketDetail.status': 'Durum',

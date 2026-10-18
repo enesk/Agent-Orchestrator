@@ -1,6 +1,10 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import type { Ticket } from '@shared/types'
-import { isSupportedSchemaVersion, ticketImportFileSchema } from '@shared/ticketImport'
+import {
+  isSupportedSchemaVersion,
+  planTicketImport,
+  ticketImportFileSchema,
+} from '@shared/ticketImport'
 import { useT } from '../../i18n'
 import { toErrorMessage } from '../../store/errorMessage'
 import { useTicketStore, type TicketImportResult } from '../../store/ticketStore'
@@ -10,6 +14,21 @@ interface Preview {
   created: number
   updated: number
   issues: string[]
+  /** Die zusätzlich mitgeführten Ticketfelder — Namen, nicht nur eine Zahl. */
+  carried: string[]
+  guidelines: { title: string; sections: number; chars: number } | null
+  /** Was sich nicht abbilden lässt. Wird ausdrücklich genannt, nicht verschwiegen. */
+  unrepresented: string[]
+  warnings: string[]
+}
+
+const EMPTY: Omit<Preview, 'issues'> = {
+  created: 0,
+  updated: 0,
+  carried: [],
+  guidelines: null,
+  unrepresented: [],
+  warnings: [],
 }
 
 export interface ImportTicketsModalProps {
@@ -41,14 +60,13 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
     try {
       parsed = JSON.parse(json)
     } catch (caught) {
-      return { created: 0, updated: 0, issues: [`JSON: ${toErrorMessage(caught)}`] }
+      return { ...EMPTY, issues: [`JSON: ${toErrorMessage(caught)}`] }
     }
 
     const checked = ticketImportFileSchema.safeParse(parsed)
     if (!checked.success) {
       return {
-        created: 0,
-        updated: 0,
+        ...EMPTY,
         issues: checked.error.issues.map(
           (issue) =>
             `${issue.path.length ? issue.path.join('.') : t('ticketImport.root')}: ${issue.message}`,
@@ -63,15 +81,27 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
     if (checked.data.tickets.length === 0) {
       issues.push(t('ticketImport.noTickets'))
     }
-    if (issues.length > 0) return { created: 0, updated: 0, issues }
+    if (issues.length > 0) return { ...EMPTY, issues }
 
-    let created = 0
-    let updated = 0
-    for (const ticket of checked.data.tickets) {
-      if (knownExternalIds.has(ticket.id)) updated += 1
-      else created += 1
+    // Dieselbe Planung wie im Hauptprozess — die Vorschau kann sich dadurch nicht irren.
+    const plan = planTicketImport(checked.data, {
+      existingExternalIds: [...knownExternalIds],
+    })
+    return {
+      created: plan.tickets.filter((ticket) => ticket.isNew).length,
+      updated: plan.tickets.filter((ticket) => !ticket.isNew).length,
+      issues: [],
+      carried: plan.carriedTicketFields,
+      guidelines: plan.guidelines
+        ? {
+            title: plan.guidelines.title,
+            sections: plan.guidelines.sectionKeys.length,
+            chars: plan.guidelines.charCount,
+          }
+        : null,
+      unrepresented: plan.unrepresented,
+      warnings: plan.warnings,
     }
-    return { created, updated, issues: [] }
   }, [json, knownExternalIds, t])
 
   function reset(): void {
@@ -181,9 +211,38 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
         )}
 
         {importable && !result && (
-          <p className="rounded-md border border-line bg-raised px-2 py-1.5 text-xs text-ink-muted">
-            {t('ticketImport.preview', { created: preview.created, updated: preview.updated })}
-          </p>
+          <div className="space-y-1 rounded-md border border-line bg-raised px-2 py-1.5 text-xs text-ink-muted">
+            <p>
+              {t('ticketImport.preview', { created: preview.created, updated: preview.updated })}
+            </p>
+            <p>
+              {preview.carried.length > 0
+                ? t('ticketImport.carriedFields', {
+                    count: preview.carried.length,
+                    names: preview.carried.join(', '),
+                  })
+                : t('ticketImport.carriedNone')}
+            </p>
+            <p>
+              {preview.guidelines
+                ? t('ticketImport.guidelinesDoc', {
+                    title: preview.guidelines.title,
+                    sections: preview.guidelines.sections,
+                    chars: preview.guidelines.chars,
+                  })
+                : t('ticketImport.guidelinesNone')}
+            </p>
+            {preview.unrepresented.length > 0 && (
+              <p className="text-warning">
+                {t('ticketImport.unrepresented', { names: preview.unrepresented.join(', ') })}
+              </p>
+            )}
+            {preview.warnings.map((warning) => (
+              <p key={warning} className="text-warning">
+                {warning}
+              </p>
+            ))}
+          </div>
         )}
 
         {error && (
@@ -197,6 +256,25 @@ export function ImportTicketsModal({ open, projectId, tickets, onClose }: Import
             <p className="text-xs text-ink">
               {t('ticketImport.done', { created: result.created, updated: result.updated })}
             </p>
+            {result.guidelines && (
+              <p className="text-[11px] text-ink-muted">
+                {t(
+                  result.guidelines.created
+                    ? 'ticketImport.guidelinesCreated'
+                    : 'ticketImport.guidelinesUpdated',
+                  {
+                    title: result.guidelines.title,
+                    sections: result.guidelines.sectionKeys.length,
+                    chars: result.guidelines.charCount,
+                  },
+                )}
+              </p>
+            )}
+            {result.unrepresented.length > 0 && (
+              <p className="text-[11px] text-warning">
+                {t('ticketImport.unrepresented', { names: result.unrepresented.join(', ') })}
+              </p>
+            )}
             {result.warnings.length > 0 && (
               <ul className="space-y-0.5">
                 {result.warnings.map((warning) => (

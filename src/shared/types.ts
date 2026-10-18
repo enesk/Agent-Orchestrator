@@ -170,6 +170,8 @@ export interface Ticket {
   /** Kennung aus einem fremden System, z.B. beim JSON-Import. */
   externalId: string | null
   epicId: string | null
+  /** Das Vorgaben-Dokument des Ticketsets, aus dem dieses Ticket stammt. */
+  guidelinesDocumentId: string | null
   sortOrder: number
   createdAt: string
   updatedAt: string

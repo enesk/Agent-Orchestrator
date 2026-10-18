@@ -1,18 +1,15 @@
-import { TICKET_CATEGORIES, TICKET_STATUS_LABELS } from '@shared/constants'
-import {
-  TICKET_ATTACHMENT_INTRO,
-  TICKET_ATTACHMENT_TITLE,
-  attachmentPromptBody,
-} from '../agents/attachmentPrompt'
 import { TOOL_INSTRUCTIONS } from '../mcp'
 import * as memory from '../memory/MemoryService'
-import type { Agent, Goal, MessageAttachment, Ticket } from '@shared/types'
+import { clamp } from './workerPrompt'
+import type { Agent, Goal, Ticket } from '@shared/types'
 import { mainT } from '../app/settings'
 
-/** So viel Pflichtenheft passt in einen Worker-Prompt, ohne ihn zu sprengen. */
-const SPEC_EXCERPT_LIMIT = 2_000
-
-const CATEGORY_LABELS = new Map(TICKET_CATEGORIES.map((entry) => [entry.value, entry.label]))
+export {
+  WORKER_ROLE_NOTE,
+  buildWorkerPrompt,
+  SPEC_EXCERPT_LIMIT,
+  type WorkerPromptInput,
+} from './workerPrompt'
 
 /** Titel, unter dem ein Vorhaben sein Pflichtenheft ablegt. Pro Projekt eindeutig. */
 export function specDocumentTitle(goal: Goal): string {
@@ -103,128 +100,6 @@ export function buildTicketsPrompt(goal: Goal, spec: string, maxTickets: number)
   ].join('\n')
 }
 
-// --- Arbeit -----------------------------------------------------------------
-
-export const WORKER_ROLE_NOTE = `Du arbeitest gerade autonom an einem Ticket eines Vorhabens.
-Du hast keinen Chat-Verlauf und kannst niemanden fragen — alles, was du brauchst, steht in der
-Aufgabe. Melde das Ergebnis über die Werkzeuge, nicht im Fließtext.`
-
-export interface WorkerPromptInput {
-  ticket: Ticket
-  spec: string | null
-  otherTickets: readonly Ticket[]
-  dependencies: readonly Ticket[]
-  /** Die Dateien am Ticket — sie gehen als Pfad in den Prompt, nicht als Inhalt. */
-  attachments: readonly MessageAttachment[]
-  /** Der wievielte Anlauf dieses Tickets gerade beginnt; 1 ist der erste. */
-  attempt?: number
-  /** Die letzte Begründung des vorigen Agenten aus `ticket_comment`. */
-  lastComment?: string | null
-}
-
-/** So viel vom letzten Kommentar wandert in den Wiederholungs-Prompt. */
-const LAST_COMMENT_LIMIT = 1_200
-
-/**
- * Selbsttragend: der Lauf bekommt keinen Chat-Kontext, deshalb steht hier alles, was zum
- * Abarbeiten nötig ist. Im Chat landet nur eine kurze Zeile, nicht dieser Text.
- */
-export function buildWorkerPrompt(input: WorkerPromptInput): string {
-  const { ticket, spec, otherTickets, dependencies } = input
-  const attempt = input.attempt ?? 1
-  const lines = [
-    `# Ticket #${ticket.number}: ${ticket.title}`,
-    '',
-    `Kategorie: ${CATEGORY_LABELS.get(ticket.category) ?? ticket.category}`,
-    '',
-    '## Beschreibung',
-    '',
-    ticket.description?.trim() || '(keine Beschreibung hinterlegt)',
-  ]
-
-  const attachments = attachmentPromptBody(input.attachments, TICKET_ATTACHMENT_INTRO)
-  if (attachments) {
-    lines.push('', `## ${TICKET_ATTACHMENT_TITLE}`, '', attachments)
-  }
-
-  if (dependencies.length > 0) {
-    lines.push(
-      '',
-      '## Vorarbeit',
-      '',
-      'Diese Tickets sind bereits erledigt und ihre Ergebnisse liegen im Repository:',
-      '',
-      ...dependencies.map((entry) => `- #${entry.number}: ${entry.title}`),
-    )
-  }
-
-  if (spec?.trim()) {
-    lines.push('', '## Pflichtenheft (Auszug)', '', clamp(spec.trim(), SPEC_EXCERPT_LIMIT))
-  }
-
-  if (otherTickets.length > 0) {
-    lines.push(
-      '',
-      '## Übrige Tickets des Vorhabens',
-      '',
-      'Nur zur Orientierung — fass sie nicht an:',
-      '',
-      ...otherTickets.map(
-        (entry) => `- #${entry.number} [${TICKET_STATUS_LABELS[entry.status]}] ${entry.title}`,
-      ),
-    )
-  }
-
-  if (attempt > 1) {
-    lines.push(
-      '',
-      '## Wiederholung',
-      '',
-      `Das ist Versuch ${attempt} an diesem Ticket — die vorigen Anläufe haben es nicht`,
-      'abgeschlossen. Wiederhole nicht, was schon gescheitert ist, sondern wähle einen anderen',
-      'Weg und bring das Ticket diesmal zu Ende.',
-    )
-    const last = input.lastComment?.trim()
-    if (last) {
-      lines.push(
-        '',
-        'Zuletzt hat der vorige Agent das hier hinterlassen:',
-        '',
-        clamp(last, LAST_COMMENT_LIMIT),
-      )
-    }
-  }
-
-  lines.push(
-    '',
-    '## Regeln',
-    '',
-    '1. Arbeite die Akzeptanzkriterien vollständig ab und dokumentiere das Ergebnis mit',
-    '   `ticket_comment` — was du geändert hast und in welchen Dateien.',
-    `2. Bist du fertig, rufe \`ticket_update\` mit \`number: ${ticket.number}\` und`,
-    '   `status: "done"` auf. Ohne diesen Aufruf gilt das Ticket als offen.',
-    '3. Du entscheidest selbst und wartest nie auf Rückfragen. Gibt es mehrere vertretbare Wege,',
-    '   wähle den, der am wenigsten kaputt macht, und halte deine Annahme mit `ticket_comment`',
-    '   fest. Frage nicht nach Bestätigung — es liest niemand mit.',
-    '4. `goal_report` mit `kind: "blocked_by"` ist nur für **echte, umfangreiche** Vorbedingungen',
-    '   gedacht: ein anderes, noch offenes Ticket, dessen Arbeit erst getan sein muss. Ist die',
-    '   Vorarbeit klein und liegt in Reichweite, **erledige sie selbst** und vermerke das mit',
-    '   `ticket_comment`, statt zurückzumelden.',
-    '5. Stößt du auf notwendige Arbeit, die nicht in dieses Ticket gehört, lege dafür mit',
-    '   `ticket_create` ein eigenes Ticket an. Es wird automatisch Teil dieses Vorhabens und',
-    '   abgearbeitet.',
-    '6. Führe **keine** Test-Suites und **keine** vollständigen Builds aus. Zum Absichern genügt',
-    '   der günstigste Weg, etwa ein Typecheck der geänderten Datei. Tests schreibst oder',
-    '   startest du nur, wenn dieses Ticket sie ausdrücklich verlangt.',
-    '7. Hast du etwas gelernt, das über dieses Ticket hinaus gilt — Architektur, Konventionen,',
-    '   Befehle —, halte es mit `memory_save` fest: höchstens drei Einträge, nur stabile',
-    '   Tatsachen, nicht was du in diesem Ticket geändert hast. Ein Eintrag ist **ein Satz**,',
-    '   keine Erklärung.',
-  )
-
-  return lines.join('\n')
-}
-
 /** Die kurze Zeile, die im Chat-Verlauf erscheint — der volle Prompt bleibt draußen. */
 export function workerChatLine(ticket: Ticket): string {
   return mainT()('main.goal.chat.worker', { number: ticket.number, title: ticket.title })
@@ -295,8 +170,4 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 function ticketLines(tickets: readonly Ticket[]): string {
   if (tickets.length === 0) return '—'
   return tickets.map((ticket) => `- #${ticket.number}: ${ticket.title}`).join('\n')
-}
-
-function clamp(text: string, limit: number): string {
-  return text.length > limit ? `${text.slice(0, limit).trimEnd()}…` : text
 }

@@ -16,6 +16,7 @@ interface TicketRow {
   goal_id: number | null
   external_id: string | null
   epic_id: string | null
+  guidelines_document_id: string | null
   sort_order: number
   created_at: string
   updated_at: string
@@ -43,6 +44,7 @@ function toTicket(row: TicketRow): Ticket {
     goalId: row.goal_id,
     externalId: row.external_id,
     epicId: row.epic_id,
+    guidelinesDocumentId: row.guidelines_document_id,
     sortOrder: row.sort_order,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -159,6 +161,7 @@ export interface CreateTicketInput {
   goalId?: number | null
   externalId?: string | null
   epicId?: string | null
+  guidelinesDocumentId?: string | null
   sortOrder?: number
 }
 
@@ -170,9 +173,9 @@ export function createTicket(input: CreateTicketInput): Ticket {
     const number = nextTicketNumber(input.projectId)
     db.prepare(
       `INSERT INTO tickets (id, project_id, number, title, description, status, category,
-                            assigned_agent_id, goal_id, external_id, epic_id, sort_order,
-                            created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                            assigned_agent_id, goal_id, external_id, epic_id,
+                            guidelines_document_id, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       id,
       input.projectId,
@@ -185,6 +188,7 @@ export function createTicket(input: CreateTicketInput): Ticket {
       input.goalId ?? null,
       input.externalId ?? null,
       input.epicId ?? null,
+      input.guidelinesDocumentId ?? null,
       input.sortOrder ?? number,
       now,
       now,
@@ -203,6 +207,7 @@ export interface UpdateTicketInput {
   goalId?: number | null
   externalId?: string | null
   epicId?: string | null
+  guidelinesDocumentId?: string | null
   sortOrder?: number
 }
 
@@ -216,6 +221,7 @@ export function updateTicket(id: string, patch: UpdateTicketInput): Ticket {
     goal_id: patch.goalId,
     external_id: patch.externalId,
     epic_id: patch.epicId,
+    guidelines_document_id: patch.guidelinesDocumentId,
     sort_order: patch.sortOrder,
   })
   if (clause) {

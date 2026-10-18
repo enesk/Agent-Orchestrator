@@ -320,6 +320,17 @@ export const en: Catalog = {
   'ticketImport.invalid': 'The file is not valid:',
   'ticketImport.preview': '{created} new, {updated} updated',
   'ticketImport.done': 'Import finished: {created} new, {updated} updated.',
+  'ticketImport.carriedFields': '{count} extra fields carried per ticket: {names}',
+  'ticketImport.carriedNone': 'No extra ticket fields in this file.',
+  'ticketImport.guidelinesDoc':
+    'Guidelines document will be created/updated: "{title}" — {sections} sections, {chars} characters',
+  'ticketImport.guidelinesNone':
+    'No guidelines document — meta holds nothing beyond project, feature_key and schema_version.',
+  'ticketImport.guidelinesCreated':
+    'Guidelines document created: "{title}" — {sections} sections, {chars} characters.',
+  'ticketImport.guidelinesUpdated':
+    'Guidelines document updated: "{title}" — {sections} sections, {chars} characters.',
+  'ticketImport.unrepresented': 'Not carried over because it cannot be represented: {names}',
 
   'ticketDetail.close': 'Close details',
   'ticketDetail.status': 'Status',
