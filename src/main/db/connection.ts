@@ -8,6 +8,7 @@ import skills002 from './migrations/002_skills.sql?raw'
 import skillFiles003 from './migrations/003_skill_files.sql?raw'
 import mcpServers004 from './migrations/004_mcp_servers.sql?raw'
 import ticketGuidelines005 from './migrations/005_ticket_guidelines.sql?raw'
+import push006 from './migrations/006_push.sql?raw'
 
 /**
  * Migrationen werden als Rohtext eingebettet, damit sie im gebauten Paket ohne
@@ -19,6 +20,7 @@ const MIGRATIONS: readonly { name: string; sql: string }[] = [
   { name: '003_skill_files', sql: skillFiles003 },
   { name: '004_mcp_servers', sql: mcpServers004 },
   { name: '005_ticket_guidelines', sql: ticketGuidelines005 },
+  { name: '006_push', sql: push006 },
 ]
 
 let db: Database.Database | null = null

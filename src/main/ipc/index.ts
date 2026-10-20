@@ -9,6 +9,7 @@ import { logsHandlers } from './logs'
 import { mcpHandlers } from './mcp'
 import { memoryHandlers } from './memory'
 import { projectsHandlers } from './projects'
+import { pushHandlers } from './push'
 import { registerDomain } from './registry'
 import { remoteHandlers } from './remote'
 import { settingsHandlers } from './settings'
@@ -31,6 +32,7 @@ export function registerIpcHandlers(): void {
   registerDomain('app', appHandlers)
   registerDomain('attachments', attachmentsHandlers)
   registerDomain('remote', remoteHandlers)
+  registerDomain('push', pushHandlers)
 }
 
 export { emitEvent, observeEvents } from './events'

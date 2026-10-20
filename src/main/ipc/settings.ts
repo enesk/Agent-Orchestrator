@@ -3,6 +3,7 @@ import { getSettings, mainT, saveSettings } from '../app/settings'
 import { refreshTray } from '../app/tray'
 import { getMainWindow } from '../app/window'
 import { refreshClaudeStatus } from '../claude'
+import { applySettings as applyPushSettings } from '../push'
 import { applySettings as applyRemoteSettings } from '../remote'
 import type { DomainHandlers } from './registry'
 
@@ -22,6 +23,15 @@ export const settingsHandlers: DomainHandlers<'settings'> = {
       settings.webuiPath !== previous.webuiPath
     ) {
       void applyRemoteSettings()
+    }
+
+    // An und aus wirkt sofort. Die Anlässe brauchen keinen Anstoß — der Zuhörer liest sie bei
+    // jedem Ereignis frisch aus den Einstellungen.
+    if (
+      settings.pushEnabled !== previous.pushEnabled ||
+      settings.pushEnvironment !== previous.pushEnvironment
+    ) {
+      void applyPushSettings()
     }
 
     return settings

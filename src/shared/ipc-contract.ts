@@ -45,6 +45,8 @@ export const goalLogStatusSchema = z.enum(['running', 'success', 'failed'])
 export const logLevelSchema = z.enum(['debug', 'info', 'warn', 'error'])
 export const agentActivitySchema = z.enum(['idle', 'thinking', 'writing', 'tool', 'error'])
 export const changeActionSchema = z.enum(['created', 'updated', 'removed'])
+export const pushEnvironmentSchema = z.enum(['sandbox', 'production'])
+export const pushEnvironmentChoiceSchema = z.enum(['auto', 'sandbox', 'production'])
 
 // ---------------------------------------------------------------------------
 // Entitäten
@@ -304,6 +306,16 @@ export const claudeStatusSchema = z.object({
   checkedAt: z.string(),
 })
 
+export const pushTriggersSchema = z.object({
+  goalDone: z.boolean(),
+  goalFailed: z.boolean(),
+  goalCancelled: z.boolean(),
+  ticketStuck: z.boolean(),
+  rateLimit: z.boolean(),
+  chatDone: z.boolean(),
+  liveActivity: z.boolean(),
+})
+
 export const appSettingsSchema = z.object({
   claudePath: z.string().nullable(),
   minimizeToTray: z.boolean(),
@@ -312,6 +324,9 @@ export const appSettingsSchema = z.object({
   remoteEnabled: z.boolean(),
   remotePort: z.number().int().min(1).max(65535),
   webuiPath: z.string().nullable(),
+  pushEnabled: z.boolean(),
+  pushEnvironment: pushEnvironmentChoiceSchema,
+  pushTriggers: pushTriggersSchema,
 })
 
 export const remoteStatusSchema = z.object({
@@ -323,6 +338,44 @@ export const remoteStatusSchema = z.object({
   staticRoot: z.string(),
   contractVersion: z.string(),
   error: z.string().nullable(),
+})
+
+/**
+ * Ein angemeldetes Gerät. Das Activity-Token fehlt mit Absicht: die Oberfläche braucht es
+ * nicht, und was nicht hinausgeht, kann auch nicht verloren gehen.
+ */
+export const pushDeviceSchema = z.object({
+  deviceToken: z.string(),
+  bundleId: z.string(),
+  environment: pushEnvironmentSchema,
+  hasActivityToken: z.boolean(),
+  registeredAt: z.string(),
+  lastSeenAt: z.string(),
+  lastPushAt: z.string().nullable(),
+  lastPushKind: z.string().nullable(),
+  lastPushError: z.string().nullable(),
+})
+
+/**
+ * Was der Versand über sich erzählen darf. `.p8`, Key-ID und Team-ID stehen hier **nicht** —
+ * nur, ob sie hinterlegt sind.
+ */
+export const pushStatusSchema = z.object({
+  enabled: z.boolean(),
+  configured: z.boolean(),
+  hasKey: z.boolean(),
+  hasKeyId: z.boolean(),
+  hasTeamId: z.boolean(),
+  keyFileName: z.string().nullable(),
+  deviceCount: z.number().int(),
+  lastSentAt: z.string().nullable(),
+  lastError: z.string().nullable(),
+  safeStorageAvailable: z.boolean(),
+})
+
+export const pushSnapshotSchema = z.object({
+  status: pushStatusSchema,
+  devices: z.array(pushDeviceSchema),
 })
 
 export const appInfoSchema = z.object({
@@ -484,6 +537,30 @@ export const saveMemorySchema = z.object({
   value: z.string(),
   importance: z.number().int().min(1).max(3).optional(),
   source: memorySourceSchema.optional(),
+})
+
+/**
+ * Die Anmeldung eines Geräts. `activityToken` ist das Push-to-Update-Token einer laufenden
+ * Live Activity — die App schickt es mit, sobald sie eine startet, und `null`, wenn keine
+ * läuft.
+ */
+export const registerPushDeviceSchema = z.object({
+  deviceToken: z.string().min(1).max(256),
+  bundleId: z.string().min(1).max(256),
+  environment: pushEnvironmentSchema,
+  activityToken: z.string().max(256).nullable().optional(),
+})
+
+export const pushDeviceTokenSchema = z.object({ deviceToken: z.string().min(1).max(256) })
+
+/**
+ * Key-ID und Team-ID aus dem Developer-Konto. Der `.p8`-Schlüssel steht hier **nicht**: er
+ * kommt über `push.pickKeyFile` aus einem Dateidialog im Main-Prozess und muss damit nie
+ * durch den Renderer.
+ */
+export const setPushCredentialsSchema = z.object({
+  keyId: z.string().min(1).max(64),
+  teamId: z.string().min(1).max(64),
 })
 
 // ---------------------------------------------------------------------------
@@ -847,6 +924,20 @@ export const ipcContract = {
   remote: {
     status: { request: z.void(), response: remoteStatusSchema },
   },
+  /**
+   * Der APNs-Versand. `register` und `unregister` müssen vom iPhone kommen und sind deshalb
+   * über die Brücke erreichbar; die Schlüsselverwaltung ist es nicht — sie gehört an den
+   * Rechner, auf dem der Schlüsselbund liegt.
+   */
+  push: {
+    register: { request: registerPushDeviceSchema, response: pushDeviceSchema },
+    unregister: { request: pushDeviceTokenSchema, response: okSchema },
+    status: { request: z.void(), response: pushStatusSchema },
+    devices: { request: z.void(), response: z.array(pushDeviceSchema) },
+    setCredentials: { request: setPushCredentialsSchema, response: pushStatusSchema },
+    clearCredentials: { request: z.void(), response: pushStatusSchema },
+    pickKeyFile: { request: z.void(), response: pushStatusSchema },
+  },
 } as const satisfies Record<string, Record<string, IpcChannelDefinition>>
 
 // ---------------------------------------------------------------------------
@@ -917,6 +1008,8 @@ export const ipcEvents = {
   'log.entry': logEntrySchema,
   /** Brücke an oder aus, Gerät gekommen oder gegangen. */
   'remote.changed': remoteStatusSchema,
+  /** Schlüssel hinterlegt, Gerät angemeldet, Meldung geschickt oder gescheitert. */
+  'push.changed': pushSnapshotSchema,
 } as const satisfies Record<string, z.ZodType>
 
 // ---------------------------------------------------------------------------

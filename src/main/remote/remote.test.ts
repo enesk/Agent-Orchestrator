@@ -241,6 +241,13 @@ const NATIVE_METHODS = [
   'mcp.assign',
   'mcp.unassign',
   'mcp.probe',
+  // Nachgetragen am 20.10.2026 mit IOS-2: die Verwaltung des APNs-Schlüssels. Er könnte
+  // Benachrichtigungen an jede App des Teams schicken und gehört an den Rechner.
+  // `push.register` und `push.unregister` stehen hier **nicht** — sie müssen vom iPhone
+  // kommen, siehe `src/main/push/push.test.ts`.
+  'push.setCredentials',
+  'push.clearCredentials',
+  'push.pickKeyFile',
 ] as const
 
 test('die Liste der nativen Methoden steht genau so im Drahtprotokoll', () => {

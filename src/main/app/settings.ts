@@ -9,7 +9,23 @@ import {
   type Translator,
 } from '@shared/i18n'
 import { DEFAULT_REMOTE_PORT } from '@shared/constants'
-import type { AppSettings } from '@shared/types'
+import type { AppSettings, PushEnvironmentChoice, PushTriggers } from '@shared/types'
+
+/**
+ * `chatDone` ist aus: ein beendeter Agentenlauf im Chat kommt oft genug, dass daraus sonst
+ * Dauerfeuer am Sperrbildschirm wird. Alles andere ist ein Ereignis, von dem man wissen will.
+ */
+const DEFAULT_PUSH_TRIGGERS: PushTriggers = {
+  goalDone: true,
+  goalFailed: true,
+  goalCancelled: true,
+  ticketStuck: true,
+  rateLimit: true,
+  chatDone: false,
+  liveActivity: true,
+}
+
+const PUSH_ENVIRONMENTS: readonly PushEnvironmentChoice[] = ['auto', 'sandbox', 'production']
 
 const DEFAULTS: AppSettings = {
   claudePath: null,
@@ -21,6 +37,11 @@ const DEFAULTS: AppSettings = {
   remoteEnabled: false,
   remotePort: DEFAULT_REMOTE_PORT,
   webuiPath: null,
+  // Der APNs-Versand ist aus, bis er eingeschaltet wird — und bis dahin wird nicht einmal
+  // eine Nutzlast gebaut.
+  pushEnabled: false,
+  pushEnvironment: 'auto',
+  pushTriggers: DEFAULT_PUSH_TRIGGERS,
 }
 
 // `language` steht bewusst nicht in den Store-Defaults: sonst läge dort ab dem ersten Start
@@ -55,7 +76,17 @@ export function getSettings(): AppSettings {
     remoteEnabled: store.get('remoteEnabled') ?? DEFAULTS.remoteEnabled,
     remotePort: store.get('remotePort') ?? DEFAULTS.remotePort,
     webuiPath: store.get('webuiPath') ?? null,
+    pushEnabled: store.get('pushEnabled') ?? DEFAULTS.pushEnabled,
+    pushEnvironment: pushEnvironment(store.get('pushEnvironment')),
+    // Ein alter Stand kennt neu hinzugekommene Anlässe nicht; der Standard füllt sie auf.
+    pushTriggers: { ...DEFAULT_PUSH_TRIGGERS, ...(store.get('pushTriggers') ?? {}) },
   }
+}
+
+function pushEnvironment(value: unknown): PushEnvironmentChoice {
+  return PUSH_ENVIRONMENTS.includes(value as PushEnvironmentChoice)
+    ? (value as PushEnvironmentChoice)
+    : 'auto'
 }
 
 export function saveSettings(patch: Partial<AppSettings>): AppSettings {

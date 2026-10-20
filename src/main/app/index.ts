@@ -8,6 +8,7 @@ import { resumeInterrupted, shutdown as shutdownGoals } from '../goals'
 import { getCachedClaudeStatus, listRuns, refreshClaudeStatus } from '../claude'
 import { registerIpcHandlers } from '../ipc'
 import { releaseAll, start as startMcpServer, stop as stopMcpServer } from '../mcp'
+import { applySettings as applyPushSettings, stop as stopPush } from '../push'
 import { applySettings as applyRemoteSettings, stop as stopRemote } from '../remote'
 import { describeError, logger } from '../Logger'
 import { registerAttachmentProtocol, registerAttachmentSchemePrivileges } from './attachments'
@@ -95,6 +96,9 @@ async function bootstrap(): Promise<void> {
   // Die Fernzugriff-Brücke startet nur, wenn sie in den Einstellungen eingeschaltet ist.
   void applyRemoteSettings()
 
+  // Dasselbe für den APNs-Versand: ausgeschaltet hängt kein Zuhörer am Ereignisstrom.
+  void applyPushSettings()
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
     else getMainWindow()?.show()
@@ -107,6 +111,7 @@ app.on('before-quit', () => {
   releaseAll()
   void stopMcpServer()
   void stopRemote()
+  void stopPush()
 })
 
 app.on('window-all-closed', () => {

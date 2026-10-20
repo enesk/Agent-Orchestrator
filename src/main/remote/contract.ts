@@ -40,6 +40,11 @@ export const UNSUPPORTED_METHODS: readonly string[] = [
   'mcp.assign',
   'mcp.unassign',
   'mcp.probe',
+  // Nachgetragen am 20.10.2026 mit IOS-2: die Verwaltung des APNs-Schlüssels. `push.register`
+  // und `push.unregister` stehen **nicht** hier — sie müssen vom iPhone kommen.
+  'push.setCredentials',
+  'push.clearCredentials',
+  'push.pickKeyFile',
 ]
 
 const unsupportedLookup = new Set(UNSUPPORTED_METHODS)

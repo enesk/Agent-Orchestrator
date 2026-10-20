@@ -1,11 +1,30 @@
 import { useEffect, useState } from 'react'
 import { LANGUAGES, LANGUAGE_LABELS, type Language } from '@shared/i18n'
-import type { AppInfo, ClaudeStatus, RemoteStatus } from '@shared/types'
-import { useT } from '../../i18n'
+import type {
+  AppInfo,
+  ClaudeStatus,
+  PushDevice,
+  PushEnvironmentChoice,
+  PushSnapshot,
+  PushStatus,
+  PushTriggers,
+  RemoteStatus,
+} from '@shared/types'
+import { useFormat, useT } from '../../i18n'
 import { useClaudeStore } from '../../store/claudeStore'
 import { useSettingsStore } from '../../store/settingsStore'
-import { Badge, Button, Input, Panel, Select, Spinner, Switch } from '../../ui'
-import { FolderIcon } from '../../ui/icons'
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Input,
+  Panel,
+  Select,
+  Spinner,
+  Switch,
+  useConfirm,
+} from '../../ui'
+import { FolderIcon, TrashIcon } from '../../ui/icons'
 
 export function SettingsView() {
   const t = useT()
@@ -68,6 +87,13 @@ export function SettingsView() {
         enabled={settings.remoteEnabled}
         port={settings.remotePort}
         webuiPath={settings.webuiPath}
+        onSave={(patch) => void save(patch)}
+      />
+
+      <PushSection
+        enabled={settings.pushEnabled}
+        environment={settings.pushEnvironment}
+        triggers={settings.pushTriggers}
         onSave={(patch) => void save(patch)}
       />
 
@@ -328,6 +354,296 @@ function RemoteSection({ enabled, port, webuiPath, onSave }: RemoteSectionProps)
       </div>
     </Panel>
   )
+}
+
+// ---------------------------------------------------------------------------
+
+interface PushSectionProps {
+  enabled: boolean
+  environment: PushEnvironmentChoice
+  triggers: PushTriggers
+  onSave: (patch: {
+    pushEnabled?: boolean
+    pushEnvironment?: PushEnvironmentChoice
+    pushTriggers?: PushTriggers
+  }) => void
+}
+
+/** Die Anlässe in der Reihenfolge, in der sie im Ticket stehen. */
+const TRIGGER_KEYS: readonly (keyof PushTriggers)[] = [
+  'goalDone',
+  'goalFailed',
+  'goalCancelled',
+  'ticketStuck',
+  'rateLimit',
+  'chatDone',
+  'liveActivity',
+]
+
+const TRIGGER_LABELS: Record<keyof PushTriggers, `settings.push.trigger.${keyof PushTriggers}`> = {
+  goalDone: 'settings.push.trigger.goalDone',
+  goalFailed: 'settings.push.trigger.goalFailed',
+  goalCancelled: 'settings.push.trigger.goalCancelled',
+  ticketStuck: 'settings.push.trigger.ticketStuck',
+  rateLimit: 'settings.push.trigger.rateLimit',
+  chatDone: 'settings.push.trigger.chatDone',
+  liveActivity: 'settings.push.trigger.liveActivity',
+}
+
+/**
+ * Benachrichtigungen aufs iPhone: Schalter, Schlüssel, Umgebung, Anlässe und die Liste der
+ * angemeldeten Geräte. Der Zustand kommt aus dem Main-Prozess und wird über `push.changed`
+ * nachgezogen — ein Gerät meldet sich von selbst an, ohne dass hier etwas gespeichert wurde.
+ *
+ * Der `.p8`-Schlüssel kommt **nie** zurück. Zu sehen ist nur, ob einer hinterlegt ist.
+ */
+function PushSection({ enabled, environment, triggers, onSave }: PushSectionProps) {
+  const t = useT()
+  const format = useFormat()
+  const { confirm, dialog } = useConfirm()
+  const [status, setStatus] = useState<PushStatus | null>(null)
+  const [devices, setDevices] = useState<PushDevice[]>([])
+  const [keyId, setKeyId] = useState('')
+  const [teamId, setTeamId] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const apply = (snapshot: PushSnapshot): void => {
+      setStatus(snapshot.status)
+      setDevices(snapshot.devices)
+    }
+    Promise.all([window.api.push.status(), window.api.push.devices()])
+      .then(([nextStatus, nextDevices]) => {
+        setStatus(nextStatus)
+        setDevices(nextDevices)
+      })
+      .catch(() => undefined)
+    return window.api.on('push.changed', apply)
+  }, [])
+
+  const run = async (action: () => Promise<unknown>): Promise<void> => {
+    setBusy(true)
+    setError(null)
+    try {
+      await action()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const saveIds = (): Promise<void> =>
+    run(async () => {
+      await window.api.push.setCredentials({ keyId: keyId.trim(), teamId: teamId.trim() })
+      setKeyId('')
+      setTeamId('')
+    })
+
+  const removeKey = async (): Promise<void> => {
+    const confirmed = await confirm({
+      title: t('settings.push.clearConfirmTitle'),
+      message: t('settings.push.clearConfirmMessage'),
+      confirmLabel: t('common.delete'),
+      danger: true,
+    })
+    if (!confirmed) return
+    await run(() => window.api.push.clearCredentials())
+  }
+
+  const idsReady = status?.hasKeyId === true && status.hasTeamId === true
+
+  return (
+    <Panel title={t('settings.push')}>
+      <div className="flex flex-col gap-4">
+        <p className="text-xs text-ink-muted">{t('settings.push.intro')}</p>
+
+        <Switch
+          label={t('settings.push.enable')}
+          hint={t('settings.push.enableHint')}
+          checked={enabled}
+          onChange={(checked) => onSave({ pushEnabled: checked })}
+        />
+
+        {status && !status.safeStorageAvailable && (
+          <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+            {t('settings.push.noSafeStorage')}
+          </p>
+        )}
+
+        <p className="text-xs text-ink-faint">{t('settings.push.accountHint')}</p>
+
+        <div className="flex items-end gap-2">
+          <Input
+            className="font-mono"
+            label={t('settings.push.keyId')}
+            placeholder={status?.hasKeyId ? t('settings.push.idsStored') : 'ABCD1234EF'}
+            value={keyId}
+            onChange={(event) => setKeyId(event.target.value)}
+          />
+          <Input
+            className="font-mono"
+            label={t('settings.push.teamId')}
+            placeholder={status?.hasTeamId ? t('settings.push.idsStored') : 'ABCDE12345'}
+            value={teamId}
+            onChange={(event) => setTeamId(event.target.value)}
+          />
+          <Button
+            variant="primary"
+            loading={busy}
+            disabled={keyId.trim() === '' || teamId.trim() === ''}
+            onClick={() => void saveIds()}
+          >
+            {t('settings.push.idsSave')}
+          </Button>
+        </div>
+
+        <div>
+          <p className="text-sm text-ink">{t('settings.push.key')}</p>
+          <p className="mt-0.5 text-xs text-ink-faint">{t('settings.push.keyHint')}</p>
+          <div className="mt-2 flex items-center gap-2">
+            <Button
+              icon={<FolderIcon width={16} height={16} />}
+              loading={busy}
+              disabled={!idsReady}
+              onClick={() => void run(() => window.api.push.pickKeyFile())}
+            >
+              {t('settings.push.keyChoose')}
+            </Button>
+            {status?.hasKey ? (
+              <Badge tone="success">
+                {status.keyFileName
+                  ? t('settings.push.keyStored', { name: status.keyFileName })
+                  : t('settings.push.keyStoredUnnamed')}
+              </Badge>
+            ) : (
+              <span className="text-xs text-ink-muted">{t('settings.push.keyMissing')}</span>
+            )}
+            {status && (status.hasKey || status.hasKeyId || status.hasTeamId) && (
+              <Button variant="ghost" onClick={() => void removeKey()}>
+                {t('settings.push.clear')}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {error && <p className="text-xs text-danger">{error}</p>}
+        {status?.lastError && (
+          <p className="text-xs text-danger">
+            {t('settings.push.lastError', { error: status.lastError })}
+          </p>
+        )}
+
+        <div>
+          <Select
+            label={t('settings.push.environment')}
+            options={[
+              { value: 'auto', label: t('settings.push.environment.auto') },
+              { value: 'sandbox', label: t('settings.push.environment.sandbox') },
+              { value: 'production', label: t('settings.push.environment.production') },
+            ]}
+            value={environment}
+            onChange={(event) =>
+              onSave({ pushEnvironment: event.target.value as PushEnvironmentChoice })
+            }
+          />
+          <p className="mt-1 text-xs text-ink-faint">{t('settings.push.environmentHint')}</p>
+        </div>
+
+        <div>
+          <p className="text-sm text-ink">{t('settings.push.triggers')}</p>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {TRIGGER_KEYS.map((key) => (
+              <label key={key} className="flex items-start gap-2 text-xs text-ink">
+                <Checkbox
+                  className="mt-0.5"
+                  checked={triggers[key]}
+                  onChange={(event) =>
+                    onSave({ pushTriggers: { ...triggers, [key]: event.target.checked } })
+                  }
+                />
+                <span>
+                  {t(TRIGGER_LABELS[key])}
+                  {key === 'chatDone' && (
+                    <span className="ml-1 text-ink-faint">
+                      {t('settings.push.trigger.chatDoneHint')}
+                    </span>
+                  )}
+                  {key === 'liveActivity' && (
+                    <span className="ml-1 text-ink-faint">
+                      {t('settings.push.trigger.liveActivityHint')}
+                    </span>
+                  )}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-sm text-ink">{t('settings.push.devices')}</p>
+          {devices.length === 0 ? (
+            <p className="mt-1 text-xs text-ink-muted">{t('settings.push.noDevices')}</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-2">
+              {devices.map((device) => (
+                <li
+                  key={device.deviceToken}
+                  className="flex items-start justify-between gap-3 rounded-md border border-line bg-raised px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-mono text-[11px] text-ink">
+                      {shortDeviceToken(device.deviceToken)}
+                    </p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-faint">
+                      <span>{device.bundleId}</span>
+                      <Badge tone="neutral">{device.environment}</Badge>
+                      {device.hasActivityToken && (
+                        <Badge tone="success">{t('settings.push.deviceLiveActivity')}</Badge>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-ink-faint">
+                      {t('settings.push.deviceSeen', { when: format.dateTime(device.lastSeenAt) })}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-ink-faint">
+                      {device.lastPushAt
+                        ? t('settings.push.deviceSent', {
+                            when: format.dateTime(device.lastPushAt),
+                            kind: device.lastPushKind ?? '—',
+                          })
+                        : t('settings.push.deviceNeverSent')}
+                    </p>
+                    {device.lastPushError && (
+                      <p className="mt-0.5 text-[11px] text-danger">{device.lastPushError}</p>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    icon={<TrashIcon width={16} height={16} />}
+                    aria-label={t('settings.push.deviceRemove', {
+                      device: shortDeviceToken(device.deviceToken),
+                    })}
+                    onClick={() =>
+                      void run(() =>
+                        window.api.push.unregister({ deviceToken: device.deviceToken }),
+                      )
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+      {dialog}
+    </Panel>
+  )
+}
+
+/** Ein 64-stelliges Hex-Token hilft niemandem — Anfang und Ende genügen zum Wiedererkennen. */
+function shortDeviceToken(token: string): string {
+  return token.length <= 12 ? token : `${token.slice(0, 8)}…${token.slice(-4)}`
 }
 
 // ---------------------------------------------------------------------------

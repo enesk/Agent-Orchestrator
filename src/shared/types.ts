@@ -288,6 +288,73 @@ export interface AppSettings {
   remotePort: number
   /** Verzeichnis mit dem Bau der Weboberfläche; leer heißt `userData/webui`. */
   webuiPath: string | null
+  /** APNs-Versand. Standardmäßig aus — ohne Schalter wird nichts gebaut und nichts geschickt. */
+  pushEnabled: boolean
+  /** `auto` nimmt die Umgebung, die das Gerät bei der Anmeldung genannt hat. */
+  pushEnvironment: PushEnvironmentChoice
+  pushTriggers: PushTriggers
+}
+
+/** APNs kennt zwei getrennte Welten mit getrennten Gerätetoken. */
+export type PushEnvironment = 'sandbox' | 'production'
+
+export type PushEnvironmentChoice = 'auto' | PushEnvironment
+
+/**
+ * Welche Anlässe eine Meldung wert sind. `chatDone` ist aus: ein beendeter Agentenlauf im
+ * Chat kommt oft genug, dass daraus sonst Dauerfeuer wird.
+ */
+export interface PushTriggers {
+  goalDone: boolean
+  goalFailed: boolean
+  goalCancelled: boolean
+  ticketStuck: boolean
+  rateLimit: boolean
+  chatDone: boolean
+  liveActivity: boolean
+}
+
+/**
+ * Ein angemeldetes iPhone. Der Gerätetoken ist kein Geheimnis des Developer-Kontos und bleibt
+ * sichtbar — die Oberfläche braucht ihn als Schlüssel zum Entfernen. Das Activity-Token
+ * verlässt den Main-Prozess nicht, von ihm kommt nur zurück, ob es da ist.
+ */
+export interface PushDevice {
+  deviceToken: string
+  bundleId: string
+  environment: PushEnvironment
+  hasActivityToken: boolean
+  registeredAt: string
+  /** Zeitstempel des letzten Kontakts, also der letzten Anmeldung.  */
+  lastSeenAt: string
+  lastPushAt: string | null
+  lastPushKind: string | null
+  lastPushError: string | null
+}
+
+/**
+ * Laufzeitzustand des Versands, nicht gespeichert. `.p8`, Key-ID und Team-ID stehen hier
+ * **nicht** — sie gehen nie über IPC zurück, nur die Auskunft, ob sie hinterlegt sind.
+ */
+export interface PushStatus {
+  enabled: boolean
+  /** Alle drei Angaben liegen vor, der Versand kann also überhaupt losgehen. */
+  configured: boolean
+  hasKey: boolean
+  hasKeyId: boolean
+  hasTeamId: boolean
+  /** Dateiname des hinterlegten `.p8` — zur Wiedererkennung, nicht sein Inhalt. */
+  keyFileName: string | null
+  deviceCount: number
+  lastSentAt: string | null
+  lastError: string | null
+  safeStorageAvailable: boolean
+}
+
+/** Status und Geräteliste in einem Zug — so kommt beides beim Ereignis `push.changed` an. */
+export interface PushSnapshot {
+  status: PushStatus
+  devices: PushDevice[]
 }
 
 /** Laufzeitzustand der Fernzugriff-Brücke, nicht gespeichert. */
