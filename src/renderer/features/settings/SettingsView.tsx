@@ -80,6 +80,12 @@ export function SettingsView() {
             checked={settings.notificationsEnabled}
             onChange={(checked) => void save({ notificationsEnabled: checked })}
           />
+          <Switch
+            label={t('settings.agentsMayWriteTests')}
+            hint={t('settings.agentsMayWriteTestsHint')}
+            checked={settings.agentsMayWriteTests}
+            onChange={(checked) => void save({ agentsMayWriteTests: checked })}
+          />
         </div>
       </Panel>
 

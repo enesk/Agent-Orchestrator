@@ -17,7 +17,10 @@ import { prepareSkillDirectory, type RunSkill } from './SkillDirectory'
 import { resolveClaudeBinary } from './status'
 import { describeError, scopedLogger } from '../Logger'
 import { LANGUAGE_NAMES_DE } from '@shared/i18n'
-import { getLanguage, mainT } from '../app/settings'
+import { getLanguage, getSettings, mainT } from '../app/settings'
+// Direkt aus der Datei, nicht über '../mcp': dieses Modul hat keine Importe und zieht so
+// keinen Kreis zwischen Runner und MCP-Server.
+import { buildRestraintBlock } from '../mcp/toolInstructions'
 
 const log = scopedLogger('claude.runner')
 
@@ -207,6 +210,15 @@ function languageRule(): string {
   ].join('\n')
 }
 
+/**
+ * Die Zurückhaltungsregel. Sie steht hier und nicht in den Prompt-Bausteinen, weil jeder Lauf
+ * durch diesen Runner geht — auch ein fortgesetzter, dessen Prompt nur noch frischen Kontext
+ * enthält. Der Systemanhang geht bei jedem Lauf erneut raus, der Block kann also nie veralten.
+ */
+function restraintRule(): string {
+  return buildRestraintBlock(getSettings().agentsMayWriteTests)
+}
+
 function workspaceRule(cwd: string): string {
   return [
     '## Arbeitsordner',
@@ -289,7 +301,15 @@ export function run(request: RunRequest): RunHandle {
       model: request.model,
       effort: request.effort,
       resumeId,
-      systemPromptAppend: [workspaceRule(request.cwd), languageRule(), request.systemPromptAppend]
+      // Die Reihenfolge ist Absicht: der Zurückhaltungsblock steht vor allem, was der
+      // Aufrufer mitbringt — also vor der Werkzeugliste und vor dem Rollenhinweis, der ihn
+      // für diesen Lauf punktuell aufhebt.
+      systemPromptAppend: [
+        workspaceRule(request.cwd),
+        languageRule(),
+        restraintRule(),
+        request.systemPromptAppend,
+      ]
         .filter((part): part is string => Boolean(part?.trim()))
         .join('\n\n'),
       mcp: request.mcp,

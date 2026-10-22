@@ -22,7 +22,12 @@ const CATEGORY_LABELS = new Map(TICKET_CATEGORIES.map((entry) => [entry.value, e
 
 export const WORKER_ROLE_NOTE = `Du arbeitest gerade autonom an einem Ticket eines Vorhabens.
 Du hast keinen Chat-Verlauf und kannst niemanden fragen — alles, was du brauchst, steht in der
-Aufgabe. Melde das Ergebnis über die Werkzeuge, nicht im Fließtext.`
+Aufgabe. Melde das Ergebnis über die Werkzeuge, nicht im Fließtext.
+
+Abweichend von der Zurückhaltungsregel „keine Tickets ungefragt" darfst du hier ein Ticket
+anlegen — aber nur für **notwendige** Arbeit, ohne die dieses Ticket nicht fertig wird und die
+nicht hineingehört. Nicht für Befunde am Rand: „Mir ist noch aufgefallen, dass…" bleibt ein Satz
+in \`ticket_comment\`. Alles andere am Block bleibt in Kraft.`
 
 export interface WorkerPromptInput {
   ticket: Ticket
@@ -147,16 +152,15 @@ export function buildWorkerPrompt(input: WorkerPromptInput): string {
     '   gedacht: ein anderes, noch offenes Ticket, dessen Arbeit erst getan sein muss. Ist die',
     '   Vorarbeit klein und liegt in Reichweite, **erledige sie selbst** und vermerke das mit',
     '   `ticket_comment`, statt zurückzumelden.',
-    '5. Stößt du auf notwendige Arbeit, die nicht in dieses Ticket gehört, lege dafür mit',
-    '   `ticket_create` ein eigenes Ticket an. Es wird automatisch Teil dieses Vorhabens und',
-    '   abgearbeitet.',
+    '5. Stößt du auf Arbeit, die **notwendig** ist, damit dieses Ticket fertig wird, aber nicht',
+    '   hineingehört, lege dafür mit `ticket_create` ein eigenes Ticket an. Es wird automatisch',
+    '   Teil dieses Vorhabens und abgearbeitet. Das ist die einzige Ausnahme: für alles, was dir',
+    '   nur **nebenbei auffällt** — ein Fehler woanders, eine unschöne Stelle, eine Idee —, legst',
+    '   du **kein** Ticket an. Das schreibst du in einem Satz in deinen `ticket_comment` und',
+    '   lässt es ansonsten liegen.',
     '6. Führe **keine** Test-Suites und **keine** vollständigen Builds aus. Zum Absichern genügt',
     '   der günstigste Weg, etwa ein Typecheck der geänderten Datei. Tests schreibst oder',
     '   startest du nur, wenn dieses Ticket sie ausdrücklich verlangt.',
-    '7. Hast du etwas gelernt, das über dieses Ticket hinaus gilt — Architektur, Konventionen,',
-    '   Befehle —, halte es mit `memory_save` fest: höchstens drei Einträge, nur stabile',
-    '   Tatsachen, nicht was du in diesem Ticket geändert hast. Ein Eintrag ist **ein Satz**,',
-    '   keine Erklärung.',
   )
 
   return lines.join('\n')

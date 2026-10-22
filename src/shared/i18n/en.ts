@@ -535,6 +535,9 @@ export const en: Catalog = {
   'settings.minimizeToTrayHint': 'The window disappears, the agents keep running. Quit from the tray menu.',
   'settings.notifications': 'Show notifications',
   'settings.notificationsHint': 'Reports finished agent runs and errors while the window is in the background.',
+  'settings.agentsMayWriteTests': 'Agents may write tests',
+  'settings.agentsMayWriteTestsHint':
+    'Off: the agents only write and run tests that were explicitly asked for. A typecheck is enough to make sure.',
   'settings.claude.title': 'Claude CLI',
   'settings.claude.intro': 'Every agent is a call to the Claude Code CLI. Leave empty if {command} is on the path.',
   'settings.claude.path': 'Path to the executable',

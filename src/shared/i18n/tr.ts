@@ -535,6 +535,9 @@ export const tr: Catalog = {
   'settings.minimizeToTrayHint': 'Pencere kaybolur, ajanlar çalışmaya devam eder. Çıkış tepsi menüsünden.',
   'settings.notifications': 'Bildirimleri göster',
   'settings.notificationsHint': 'Pencere arka plandayken biten ajan çalışmalarını ve hataları bildirir.',
+  'settings.agentsMayWriteTests': 'Ajanlar test yazabilir',
+  'settings.agentsMayWriteTestsHint':
+    'Kapalı: ajanlar yalnızca açıkça istenen testleri yazar ve çalıştırır. Doğrulama için tip denetimi yeterlidir.',
   'settings.claude.title': 'Claude CLI',
   'settings.claude.intro': 'Her ajan bir Claude Code CLI çağrısıdır. {command} zaten yol üzerindeyse boş bırakın.',
   'settings.claude.path': 'Çalıştırılabilir dosyanın yolu',

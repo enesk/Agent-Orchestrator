@@ -283,6 +283,11 @@ export interface AppSettings {
   notificationsEnabled: boolean
   /** Sprache der Oberfläche und der Texte, die der Main-Prozess erzeugt. */
   language: Language
+  /**
+   * Ob Agenten von sich aus Tests schreiben und ausführen dürfen. Standardmäßig aus: der
+   * Zurückhaltungsblock verbietet es dann zusätzlich in Großschreibung.
+   */
+  agentsMayWriteTests: boolean
   /** Fernzugriff-Brücke. Standardmäßig aus — ohne Schalter lauscht nichts. */
   remoteEnabled: boolean
   remotePort: number

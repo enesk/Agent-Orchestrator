@@ -18,5 +18,5 @@ export {
   isSecretStorageAvailable,
   type SecretMap,
 } from './secretStore'
-export { TOOL_INSTRUCTIONS } from './toolInstructions'
+export { TOOL_INSTRUCTIONS, buildRestraintBlock } from './toolInstructions'
 export { withRunContext, type RunContextHandle } from './withRunContext'

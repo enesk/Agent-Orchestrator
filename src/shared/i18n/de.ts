@@ -540,6 +540,9 @@ export const de = {
   'settings.minimizeToTrayHint': 'Das Fenster verschwindet, die Agenten laufen weiter. Beenden über das Tray-Menü.',
   'settings.notifications': 'Benachrichtigungen anzeigen',
   'settings.notificationsHint': 'Meldet fertige Agenten-Läufe und Fehler, wenn das Fenster nicht im Vordergrund ist.',
+  'settings.agentsMayWriteTests': 'Agenten dürfen Tests schreiben',
+  'settings.agentsMayWriteTestsHint':
+    'Aus: die Agenten schreiben und starten nur Tests, die ausdrücklich verlangt werden. Zum Absichern genügt ein Typecheck.',
   'settings.claude.title': 'Claude CLI',
   'settings.claude.intro': 'Jeder Agent ist ein Aufruf der Claude-Code-CLI. Leer lassen, wenn {command} im Pfad liegt.',
   'settings.claude.path': 'Pfad zur ausführbaren Datei',

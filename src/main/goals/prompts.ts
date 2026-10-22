@@ -38,7 +38,10 @@ export function buildSystemAppend(agent: Agent, projectId: string, roleNote: str
 
 export const SPEC_ROLE_NOTE = `Du arbeitest gerade autonom an einem Vorhaben; es sitzt niemand
 davor, den du fragen könntest. Liefere das Pflichtenheft vollständig ab und speichere es über
-\`doc_save\`. Lege in diesem Schritt keine Tickets an.`
+\`doc_save\`. Lege in diesem Schritt keine Tickets an.
+
+Abweichend von der Zurückhaltungsregel „keine Dokumente ungefragt" ist das Speichern genau
+dieses einen Dokuments hier die Aufgabe; alles andere am Block bleibt in Kraft.`
 
 export function buildSpecPrompt(goal: Goal): string {
   return [
@@ -70,7 +73,11 @@ export function buildSpecPrompt(goal: Goal): string {
 // --- Tickets ----------------------------------------------------------------
 
 export const TICKETS_ROLE_NOTE = `Du arbeitest gerade autonom an einem Vorhaben. Lege die Tickets
-über \`ticket_create\` an — sie werden dem Vorhaben automatisch zugeordnet. Ändere keinen Code.`
+über \`ticket_create\` an — sie werden dem Vorhaben automatisch zugeordnet. Ändere keinen Code.
+
+Abweichend von der Zurückhaltungsregel „keine Tickets ungefragt" ist das Anlegen der Tickets
+dieses Vorhabens hier ausdrücklich erlaubt und erwünscht — es ist die Aufgabe dieses Schritts.
+Alles andere am Block bleibt in Kraft.`
 
 export function buildTicketsPrompt(goal: Goal, spec: string, maxTickets: number): string {
   return [
@@ -108,7 +115,12 @@ export function workerChatLine(ticket: Ticket): string {
 // --- Review -----------------------------------------------------------------
 
 export const REVIEW_ROLE_NOTE = `Du prüfst gerade autonom das Ergebnis eines Vorhabens. Melde
-dein Urteil ausschließlich über \`goal_report\` — der Ablauf liest nur diese Meldung.`
+dein Urteil ausschließlich über \`goal_report\` — der Ablauf liest nur diese Meldung.
+
+Abweichend von der Zurückhaltungsregel „keine Tickets ungefragt" legst du hier ausdrücklich für
+jeden Mangel, der das Ziel des Vorhabens verfehlt, ein Nachbesserungs-Ticket an — das ist die
+Aufgabe dieses Schritts. Für Befunde, die nichts mit dem Ziel zu tun haben, gilt der Block
+weiter: ein Satz in der Begründung, kein Ticket. Alles andere am Block bleibt in Kraft.`
 
 export interface ReviewPromptInput {
   goal: Goal

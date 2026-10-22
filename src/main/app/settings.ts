@@ -32,6 +32,8 @@ const DEFAULTS: AppSettings = {
   minimizeToTray: true,
   notificationsEnabled: true,
   language: DEFAULT_LANGUAGE,
+  // Aus: der Nutzer will Tests nur, wenn er sie ausdrücklich verlangt.
+  agentsMayWriteTests: false,
   // Die Fernzugriff-Brücke ist aus, bis sie eingeschaltet wird: ohne Schalter verhält sich die
   // App genau wie vorher.
   remoteEnabled: false,
@@ -73,6 +75,7 @@ export function getSettings(): AppSettings {
     minimizeToTray: store.get('minimizeToTray') ?? DEFAULTS.minimizeToTray,
     notificationsEnabled: store.get('notificationsEnabled') ?? DEFAULTS.notificationsEnabled,
     language: isLanguage(stored) ? stored : defaultLanguage(),
+    agentsMayWriteTests: store.get('agentsMayWriteTests') ?? DEFAULTS.agentsMayWriteTests,
     remoteEnabled: store.get('remoteEnabled') ?? DEFAULTS.remoteEnabled,
     remotePort: store.get('remotePort') ?? DEFAULTS.remotePort,
     webuiPath: store.get('webuiPath') ?? null,

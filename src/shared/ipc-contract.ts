@@ -321,6 +321,7 @@ export const appSettingsSchema = z.object({
   minimizeToTray: z.boolean(),
   notificationsEnabled: z.boolean(),
   language: z.enum(['de', 'en', 'tr']),
+  agentsMayWriteTests: z.boolean(),
   remoteEnabled: z.boolean(),
   remotePort: z.number().int().min(1).max(65535),
   webuiPath: z.string().nullable(),
