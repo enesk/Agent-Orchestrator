@@ -17,12 +17,15 @@ export interface AgentModelOption {
 }
 
 export const AGENT_MODELS: readonly AgentModelOption[] = [
+  { value: 'claude-opus-5-5', label: 'Opus 5.5', group: 'Opus' },
   { value: 'claude-opus-5', label: 'Opus 5', group: 'Opus' },
+  { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5', group: 'Sonnet' },
   { value: 'claude-sonnet-5', label: 'Sonnet 5', group: 'Sonnet' },
+  { value: 'claude-haiku-5-5', label: 'Haiku 5.5', group: 'Haiku' },
   { value: 'claude-haiku-4-5', label: 'Haiku 4.5', group: 'Haiku' },
 ]
 
-export const DEFAULT_AGENT_MODEL = 'claude-sonnet-5'
+export const DEFAULT_AGENT_MODEL = 'claude-sonnet-5-5'
 
 export type AgentEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
