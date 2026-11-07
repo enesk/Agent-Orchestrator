@@ -27,6 +27,12 @@ export const HomeIcon = (props: IconProps) => (
   </Icon>
 )
 
+export const ListIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 6h16M4 12h16M4 18h16" />
+  </Icon>
+)
+
 export const ChatIcon = (props: IconProps) => (
   <Icon {...props}>
     <path d="M20 12a7 7 0 0 1-7 7H8l-4 3v-4.5A7 7 0 0 1 8 5h5a7 7 0 0 1 7 7z" />

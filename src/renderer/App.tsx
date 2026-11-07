@@ -9,6 +9,7 @@ import { SettingsView } from './features/settings/SettingsView'
 import { TicketsView } from './features/tickets/TicketsView'
 import { NavigationRail } from './layout/NavigationRail'
 import { TopBar } from './layout/TopBar'
+import { useActivityStore } from './store/activityStore'
 import { useClaudeStore } from './store/claudeStore'
 import { useProjectStore } from './store/projectStore'
 import { useUiStore, type Section } from './store/uiStore'
@@ -30,12 +31,19 @@ export function App() {
   const loadProjects = useProjectStore((state) => state.load)
   const loadClaudeStatus = useClaudeStore((state) => state.load)
   const setClaudeStatus = useClaudeStore((state) => state.set)
+  const subscribeActivity = useActivityStore((state) => state.subscribe)
 
   useEffect(() => {
     void loadProjects()
     void loadClaudeStatus()
-    return window.api.on('claude.status', setClaudeStatus)
-  }, [loadProjects, loadClaudeStatus, setClaudeStatus])
+    const offStatus = window.api.on('claude.status', setClaudeStatus)
+    // Die Projektliste braucht den Agentenstatus aller Projekte, nicht nur des offenen.
+    const offActivity = subscribeActivity()
+    return () => {
+      offStatus()
+      offActivity()
+    }
+  }, [loadProjects, loadClaudeStatus, setClaudeStatus, subscribeActivity])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {

@@ -3,6 +3,42 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Palette der Projektübersicht — Werte 1:1 aus docs/mockups/orchestrator-projekte-liste.html.
+   * Dunkel ist der Vorgabewert, die helle Variante hängt an `data-theme="light"`.
+   */
+  :root {
+    color-scheme: dark;
+    --bg: #121417;
+    --panel: #191c21;
+    --panel-2: #1f2329;
+    --line: #262b33;
+    --line-2: #333944;
+    --text: #eceef1;
+    --text-2: #a9afb8;
+    --text-3: #6b727d;
+    --accent: #7aa2ff;
+    --accent-soft: rgba(122, 162, 255, 0.14);
+    --warn: #e9b65a;
+    --ok: #4fd18f;
+  }
+
+  :root[data-theme='light'] {
+    color-scheme: light;
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --panel-2: #f3f4f6;
+    --line: #e4e7ec;
+    --line-2: #d0d5dc;
+    --text: #15181c;
+    --text-2: #4e555f;
+    --text-3: #8a919b;
+    --accent: #2f6fe0;
+    --accent-soft: rgba(47, 111, 224, 0.12);
+  }
+}
+
+@layer base {
   html,
   body,
   #root {

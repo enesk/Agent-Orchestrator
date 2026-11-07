@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import {
+  formatActivityStamp,
   formatBytes,
   formatDate,
   formatDateTime,
@@ -20,6 +21,8 @@ export interface Formatters {
   number: (value: number, options?: Intl.NumberFormatOptions) => string
   bytes: (value: number) => string
   duration: (ms: number) => string
+  /** Letzte Aktivität in der Kurzform der Projektliste. */
+  activityStamp: (value: string | number | Date) => string
 }
 
 /** Zahlen, Daten und Größen in der aktiven Sprache. Identität wechselt nur mit der Sprache. */
@@ -35,6 +38,7 @@ export function useFormat(): Formatters {
       number: (value, options) => formatNumber(language, value, options),
       bytes: (value) => formatBytes(language, value),
       duration: (ms) => formatDuration(language, ms),
+      activityStamp: (value) => formatActivityStamp(language, value),
     }),
     [language],
   )

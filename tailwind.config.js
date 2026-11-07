@@ -4,6 +4,10 @@ module.exports = {
   content: ['./src/renderer/index.html', './src/renderer/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      // Die Breite, ab der das Mockup auf die weiten Innenabstände wechselt.
+      screens: {
+        wide: '980px',
+      },
       colors: {
         // Flächen — von tief nach hoch gestapelt
         base: '#0b0b0d',
@@ -26,6 +30,26 @@ module.exports = {
         warning: '#e3b341',
         danger: '#e5645f',
         info: '#58a6c9',
+        /*
+         * Palette des Projektlisten-Mockups. Die Werte selbst stehen als CSS-Variablen in
+         * index.css, damit die helle Variante allein am `data-theme` hängt.
+         */
+        ui: {
+          bg: 'var(--bg)',
+          panel: 'var(--panel)',
+          'panel-2': 'var(--panel-2)',
+          line: 'var(--line)',
+          'line-2': 'var(--line-2)',
+          text: 'var(--text)',
+          'text-2': 'var(--text-2)',
+          'text-3': 'var(--text-3)',
+          accent: 'var(--accent)',
+          'accent-soft': 'var(--accent-soft)',
+          /* Schrift auf dem Akzentknopf — das Mockup setzt sie fest, nicht über eine Variable. */
+          'accent-ink': '#0d1b3d',
+          warn: 'var(--warn)',
+          ok: 'var(--ok)',
+        },
       },
       borderRadius: {
         DEFAULT: '0.375rem',
@@ -33,7 +57,7 @@ module.exports = {
         lg: '0.75rem',
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Inter', 'sans-serif'],
+        sans: ['Instrument Sans', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Inter', 'sans-serif'],
         mono: ['SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
       transitionDuration: {

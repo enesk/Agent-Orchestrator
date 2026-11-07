@@ -78,6 +78,33 @@ export function formatTimeWithSeconds(language: Language, value: string | number
   }).format(date)
 }
 
+/**
+ * Kurzer Stempel für die letzte Aktivität: heute nur die Uhrzeit, im laufenden Jahr Tag und
+ * Monat („31. Okt."), davor zusätzlich das Jahr.
+ */
+export function formatActivityStamp(
+  language: Language,
+  value: string | number | Date,
+  now: number = Date.now(),
+): string {
+  const date = toDate(value)
+  if (!date) return String(value)
+  const today = new Date(now)
+  const sameDay =
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate()
+  if (sameDay) return formatTime(language, date)
+  if (date.getFullYear() === today.getFullYear()) {
+    return dateTimeFormat(language, 'dayMonth', { day: 'numeric', month: 'short' }).format(date)
+  }
+  return dateTimeFormat(language, 'dayMonthYear', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
 export function formatNumber(language: Language, value: number, options: Intl.NumberFormatOptions = {}): string {
   const key = `${options.minimumFractionDigits ?? ''}/${options.maximumFractionDigits ?? ''}/${options.style ?? ''}`
   return numberFormat(language, key, options).format(value)

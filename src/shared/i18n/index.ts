@@ -8,6 +8,7 @@ export type { Language, Message, MessageParams, PluralForms } from './types'
 export type { Catalog, TranslationKey } from './de'
 export {
   LOCALES,
+  formatActivityStamp,
   formatBytes,
   formatDate,
   formatDateTime,
