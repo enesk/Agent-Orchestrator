@@ -34,6 +34,7 @@ export const de = {
   'nav.documents': 'Dokumente',
   'nav.goals': 'Vorhaben',
   'nav.agents': 'Agenten',
+  'nav.runs': 'Live',
   'nav.settings': 'Einstellungen',
   'nav.collapse': 'Seitenleiste einklappen',
   'nav.expand': 'Seitenleiste ausklappen',
@@ -902,6 +903,24 @@ export const de = {
   'main.goalLog.questionClosed': 'Die Rückfrage zu Ticket #{number} ist geschlossen — es geht weiter',
   'settings.push.trigger.questionAsked': 'Rückfrage eines Agenten',
   'settings.push.trigger.questionAskedHint': 'Ein wartender Lauf, den niemand bemerkt, ist der Fall, für den es diese Meldung gibt.',
+  // Live-Übersicht aller laufenden Agentenläufe
+  'runs.title': 'Live',
+  'runs.loadFailed': 'Die laufenden Agenten konnten nicht geladen werden',
+  'runs.empty.title': 'Gerade arbeitet niemand',
+  'runs.empty.description': 'Sobald ein Agent losläuft — im Chat oder in einem Vorhaben — steht er hier mit seiner letzten Aktion.',
+  'runs.column.project': 'Projekt',
+  'runs.column.occasion': 'Anlass',
+  'runs.column.action': 'Letzte Aktion',
+  'runs.column.agent': 'Agent',
+  'runs.column.model': 'Modell',
+  'runs.column.runtime': 'Laufzeit',
+  'runs.thinking': 'überlegt',
+  'runs.ticket': 'Ticket #{number}',
+  'runs.label.chat': 'Chat',
+  'runs.label.goal-spec': 'Spezifikation',
+  'runs.label.goal-tickets': 'Ticketplanung',
+  'runs.label.goal-worker': 'Ticketarbeit',
+  'runs.label.goal-review': 'Abnahme',
   // <<SECTIONS>>
 } satisfies Record<string, Message>
 

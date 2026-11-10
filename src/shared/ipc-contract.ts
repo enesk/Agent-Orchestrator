@@ -407,6 +407,42 @@ export const agentStatusUpdateSchema = z.object({
   messageId: z.string().nullable(),
 })
 
+export const runOutcomeSchema = z.enum(['done', 'aborted', 'failed', 'rate_limited'])
+
+/**
+ * Ein laufender Agentenlauf, wie ihn die Live-Übersicht zeigt. Namen von Projekt, Agent,
+ * Vorhaben und Ticket stehen hier mit drin: der Lauf selbst kennt nur IDs, und die Übersicht
+ * zeigt alle Projekte gleichzeitig — sie müsste sonst für jede Zeile nachladen.
+ */
+export const activeRunSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  projectName: z.string(),
+  agentId: z.string(),
+  agentName: z.string(),
+  model: z.string(),
+  /** Woher der Lauf kommt: `chat`, `goal-worker`, `goal-spec`, `goal-review`, … */
+  label: z.string().nullable(),
+  goalId: z.number().int().nullable(),
+  goalTitle: z.string().nullable(),
+  ticketId: z.string().nullable(),
+  ticketNumber: z.number().int().nullable(),
+  ticketTitle: z.string().nullable(),
+  startedAt: z.string(),
+  /** Beschriftung des laufenden Werkzeugs; `null`, solange der Agent überlegt. */
+  tool: z.string().nullable(),
+  /** Seit wann dieser Werkzeugzustand anhält. */
+  toolSince: z.string(),
+})
+
+export const runFinishedSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  outcome: runOutcomeSchema,
+  finishedAt: z.string(),
+  durationMs: z.number(),
+})
+
 // ---------------------------------------------------------------------------
 // Request-Schemas
 // ---------------------------------------------------------------------------
@@ -933,6 +969,13 @@ export const ipcContract = {
      */
     open: { request: z.object({ attachmentId: z.string() }), response: okSchema },
   },
+  /**
+   * Die Live-Übersicht. Nur Lesen und nur der Augenblick — fortgeschrieben wird sie über die
+   * `run.*`-Ereignisse, dieser Kanal liefert bloß den Anfangsstand nach dem Fensterstart.
+   */
+  runs: {
+    list: { request: z.void(), response: z.array(activeRunSchema) },
+  },
   claude: {
     status: { request: z.void(), response: claudeStatusSchema },
     detect: {
@@ -1064,6 +1107,22 @@ export const ipcEvents = {
     /** Seit wann dieser Zustand anhält, als ISO-Zeitstempel. */
     since: z.string(),
   }),
+  /**
+   * Lauf begonnen. Der Satz ist vollständig — die Übersicht muss für eine neue Zeile nichts
+   * nachladen.
+   */
+  'run.started': activeRunSchema,
+  /**
+   * Was der Lauf gerade tut. Bewusst nur die drei Felder, die sich ändern: dieses Ereignis
+   * kommt bei jedem Werkzeugaufruf, und der Rest der Zeile steht schon im Renderer.
+   */
+  'run.activity': z.object({
+    id: z.string(),
+    tool: z.string().nullable(),
+    since: z.string(),
+  }),
+  /** Lauf beendet — die Zeile verschwindet aus der Übersicht. */
+  'run.finished': runFinishedSchema,
   'claude.status': claudeStatusSchema,
   'log.entry': logEntrySchema,
   /** Brücke an oder aus, Gerät gekommen oder gegangen. */

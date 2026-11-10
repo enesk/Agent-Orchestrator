@@ -158,6 +158,42 @@ export function listRuns(): RunInfo[] {
 }
 
 /**
+ * Wie ein Lauf geendet hat. `aborted` ist kein Fehler, sondern ein Abbruch durch den Nutzer,
+ * und `rate_limited` ist noch kein Ende: der Aufrufer setzt den Lauf nach der Pause als
+ * neuen Lauf wieder an.
+ */
+export type RunOutcome = 'done' | 'aborted' | 'failed' | 'rate_limited'
+
+/**
+ * Der Lebenslauf eines Laufs für Zuhörer außerhalb des Runners. Die Live-Übersicht hängt
+ * hier dran, statt den Chat- und den Vorhaben-Weg je einzeln anzuzapfen — es gibt nur diesen
+ * einen Runner, also auch nur eine Stelle, an der ein Lauf beginnt und endet.
+ */
+export interface RunLifecycleObserver {
+  started?: (info: RunInfo) => void
+  /** `tool` ist der rohe CLI-Name; beschriftet wird er beim Zuhörer. */
+  activity?: (info: RunInfo, tool: string | null) => void
+  finished?: (info: RunInfo, outcome: RunOutcome, durationMs: number) => void
+}
+
+const lifecycleObservers = new Set<RunLifecycleObserver>()
+
+export function observeRunLifecycle(observer: RunLifecycleObserver): () => void {
+  lifecycleObservers.add(observer)
+  return () => lifecycleObservers.delete(observer)
+}
+
+function notifyLifecycle(call: (observer: RunLifecycleObserver) => void): void {
+  for (const observer of [...lifecycleObservers]) {
+    try {
+      call(observer)
+    } catch (error) {
+      log.error('Lebenslauf-Zuhörer hat einen Fehler geworfen', describeError(error))
+    }
+  }
+}
+
+/**
  * Beendet alle Läufe, auf die das Prädikat passt — z.B. alle eines Vorhabens oder eines
  * Agenten. Liefert die Anzahl der abgebrochenen Läufe.
  */
@@ -251,6 +287,9 @@ export function run(request: RunRequest): RunHandle {
   let idleTimedOut = false
   let finished = false
   let killTimer: NodeJS.Timeout | null = null
+  /** Gesetzt, sobald der Prozess steht — nur dann wurde ein Beginn gemeldet. */
+  let runInfo: RunInfo | null = null
+  let outcome: RunOutcome = 'failed'
 
   const abort = (): void => {
     if (aborted || finished) return
@@ -281,12 +320,23 @@ export function run(request: RunRequest): RunHandle {
         return { text: '', thinking: '', sessionId: null, turnCount: session.turnCount, aborted: true, durationMs: 0 }
       }
 
-      return await execute(binary, session.resumeId, session.turnCount, owned, pluginDir)
+      const result = await execute(binary, session.resumeId, session.turnCount, owned, pluginDir)
+      outcome = result.aborted ? 'aborted' : 'done'
+      return result
+    } catch (error) {
+      outcome = error instanceof RateLimitError ? 'rate_limited' : 'failed'
+      throw error
     } finally {
       finished = true
       if (killTimer) clearTimeout(killTimer)
       activeRuns.delete(id)
       release(scopeKey, owned)
+      // Nur Läufe melden, deren Beginn gemeldet wurde — ein Lauf, der am Projektpfad oder an
+      // der CLI scheitert, hat nie eine Zeile in der Übersicht gehabt.
+      if (runInfo) {
+        const info = runInfo
+        notifyLifecycle((observer) => observer.finished?.(info, outcome, Date.now() - startedAt))
+      }
     }
   }
 
@@ -390,18 +440,22 @@ export function run(request: RunRequest): RunHandle {
       }
       child = proc
 
-      activeRuns.set(id, {
-        info: {
-          id,
-          scopeKey,
-          scope: request.scope,
-          label: request.label ?? null,
-          model: request.model,
-          cwd: request.cwd,
-          startedAt,
-        },
-        abort,
-      })
+      const info: RunInfo = {
+        id,
+        scopeKey,
+        scope: request.scope,
+        label: request.label ?? null,
+        model: request.model,
+        cwd: request.cwd,
+        startedAt,
+      }
+      runInfo = info
+      activeRuns.set(id, { info, abort })
+      notifyLifecycle((observer) => observer.started?.(info))
+
+      const reportActivity = (tool: string | null): void => {
+        notifyLifecycle((observer) => observer.activity?.(info, tool))
+      }
 
       const handleEvents = (parsed: ReturnType<StreamParser['push']>): void => {
         for (const event of parsed) {
@@ -414,9 +468,11 @@ export function run(request: RunRequest): RunHandle {
               break
             case 'toolStart':
               events.emit('toolStart', { name: event.name })
+              reportActivity(event.name)
               break
             case 'toolEnd':
               events.emit('toolEnd', { name: event.name })
+              reportActivity(null)
               break
             case 'sessionId':
               events.emit('sessionId', event.sessionId)

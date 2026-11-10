@@ -120,6 +120,12 @@ export const AlertIcon = (props: IconProps) => (
   </Icon>
 )
 
+export const PulseIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M3 12h3.5l2-6 3 12 2.5-6H21" />
+  </Icon>
+)
+
 export const TerminalIcon = (props: IconProps) => (
   <Icon {...props}>
     <rect x="3" y="4" width="18" height="16" rx="2" />

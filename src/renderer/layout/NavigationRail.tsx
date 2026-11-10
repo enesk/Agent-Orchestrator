@@ -10,6 +10,7 @@ import {
   DocumentIcon,
   GoalIcon,
   ListIcon,
+  PulseIcon,
   QuestionIcon,
   SettingsIcon,
   TicketIcon,
@@ -23,6 +24,7 @@ const SECTIONS: { id: Section; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] 
   { id: 'documents', Icon: DocumentIcon },
   { id: 'goals', Icon: GoalIcon },
   { id: 'questions', Icon: QuestionIcon },
+  { id: 'runs', Icon: PulseIcon },
   { id: 'agents', Icon: AgentIcon },
 ]
 

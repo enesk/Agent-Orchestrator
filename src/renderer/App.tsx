@@ -6,6 +6,7 @@ import { GoalsView } from './features/goals/GoalsView'
 import { HomeView } from './features/home/HomeView'
 import { LogBar } from './features/logs/LogBar'
 import { QuestionsView } from './features/questions/QuestionsView'
+import { RunsView } from './features/runs/RunsView'
 import { SettingsView } from './features/settings/SettingsView'
 import { TicketsView } from './features/tickets/TicketsView'
 import { NavigationRail } from './layout/NavigationRail'
@@ -14,6 +15,7 @@ import { useActivityStore } from './store/activityStore'
 import { useClaudeStore } from './store/claudeStore'
 import { useProjectStore } from './store/projectStore'
 import { useQuestionStore } from './store/questionStore'
+import { useRunStore } from './store/runStore'
 import { useUiStore, type Section } from './store/uiStore'
 
 const VIEWS: Record<Section, () => ReactNode> = {
@@ -23,6 +25,7 @@ const VIEWS: Record<Section, () => ReactNode> = {
   documents: DocumentsView,
   goals: GoalsView,
   questions: QuestionsView,
+  runs: RunsView,
   agents: AgentsView,
   settings: SettingsView,
 }
@@ -37,6 +40,8 @@ export function App() {
   const subscribeActivity = useActivityStore((state) => state.subscribe)
   const loadQuestions = useQuestionStore((state) => state.load)
   const subscribeQuestions = useQuestionStore((state) => state.subscribe)
+  const loadRuns = useRunStore((state) => state.load)
+  const subscribeRuns = useRunStore((state) => state.subscribe)
 
   useEffect(() => {
     void loadProjects()
@@ -47,10 +52,15 @@ export function App() {
     // Der Zähler der Rückfragen gilt projektübergreifend und muss ab dem Start stimmen.
     void loadQuestions()
     const offQuestions = subscribeQuestions()
+    // Die Live-Übersicht hört von Anfang an mit: so ist sie beim Öffnen vollständig und muss
+    // nicht erst nachladen, was in der Zwischenzeit gelaufen ist.
+    const offRuns = subscribeRuns()
+    void loadRuns()
     return () => {
       offStatus()
       offActivity()
       offQuestions()
+      offRuns()
     }
   }, [
     loadProjects,
@@ -59,6 +69,8 @@ export function App() {
     subscribeActivity,
     loadQuestions,
     subscribeQuestions,
+    loadRuns,
+    subscribeRuns,
   ])
 
   useEffect(() => {

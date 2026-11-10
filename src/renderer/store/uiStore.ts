@@ -8,6 +8,7 @@ export type Section =
   | 'documents'
   | 'goals'
   | 'questions'
+  | 'runs'
   | 'agents'
   | 'settings'
 
@@ -18,6 +19,7 @@ export const SECTION_LABEL_KEYS: Record<Section, TranslationKey> = {
   documents: 'nav.documents',
   goals: 'nav.goals',
   questions: 'nav.questions',
+  runs: 'nav.runs',
   agents: 'nav.agents',
   settings: 'nav.settings',
 }
