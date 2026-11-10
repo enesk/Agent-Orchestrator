@@ -27,9 +27,15 @@ function merge(current: ActiveRun[], snapshot: ActiveRun[]): ActiveRun[] {
   const merged = snapshot.map((run) => {
     const local = known.get(run.id)
     known.delete(run.id)
+    if (!local) return run
+    // Ein `run.waiting`, das zwischen Anmeldung und Abzug kam, darf nicht verloren gehen.
+    const waiting =
+      local.waitingQuestionId !== null && run.waitingQuestionId === null
+        ? { waitingQuestionId: local.waitingQuestionId, waitingSince: local.waitingSince }
+        : {}
     // Der lokale Werkzeugzustand kann jünger sein als der Abzug aus dem Main-Prozess.
-    if (!local || local.toolSince <= run.toolSince) return run
-    return { ...run, tool: local.tool, toolSince: local.toolSince }
+    if (local.toolSince <= run.toolSince) return { ...run, ...waiting }
+    return { ...run, ...waiting, tool: local.tool, toolSince: local.toolSince }
   })
   return [...merged, ...known.values()]
 }
@@ -69,6 +75,22 @@ export const useRunStore = create<RunState>((set, get) => ({
       set({ runs: next })
     })
 
+    /**
+     * Ein wartender Lauf ist technisch beendet, bleibt aber stehen. Der Satz ist vollständig,
+     * die Zeile wird also ersetzt — und angelegt, falls das Fenster sie noch nicht kannte.
+     */
+    const offWaiting = window.api.on('run.waiting', (run) => {
+      const runs = get().runs
+      const index = runs.findIndex((entry) => entry.id === run.id)
+      if (index === -1) {
+        set({ runs: sortRuns([...runs, run]) })
+        return
+      }
+      const next = [...runs]
+      next[index] = run
+      set({ runs: next })
+    })
+
     const offFinished = window.api.on('run.finished', ({ id }) => {
       const runs = get().runs
       if (!runs.some((entry) => entry.id === id)) return
@@ -78,6 +100,7 @@ export const useRunStore = create<RunState>((set, get) => ({
     return () => {
       offStarted()
       offActivity()
+      offWaiting()
       offFinished()
     }
   },

@@ -59,7 +59,9 @@ interface RunRowProps {
 function RunRow({ run, now, onOpen }: RunRowProps) {
   const t = useT()
   const format = useFormat()
-  const started = Date.parse(run.startedAt)
+  // Ein wartender Lauf arbeitet nicht mehr: gezählt wird die Wartezeit, nicht die Laufzeit.
+  const waiting = run.waitingQuestionId !== null
+  const started = Date.parse(waiting ? (run.waitingSince ?? run.startedAt) : run.startedAt)
 
   return (
     <button
@@ -68,14 +70,21 @@ function RunRow({ run, now, onOpen }: RunRowProps) {
       className={cn(GRID, 'h-9 w-full border-b border-ui-line text-left hover:bg-ui-panel-2')}
     >
       <span className="flex min-w-0 items-center gap-2 font-medium">
-        <i aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-ui-ok" />
-        <span className="truncate">{run.projectName}</span>
+        <i
+          aria-hidden="true"
+          className={cn(
+            'h-1.5 w-1.5 shrink-0 rounded-full',
+            // Derselbe Punkt, nur in Warnfarbe — mehr braucht der Unterschied nicht.
+            waiting ? 'bg-ui-warn' : 'bg-ui-ok',
+          )}
+        />
+        <span className={cn('truncate', waiting && 'text-ui-text-2')}>{run.projectName}</span>
       </span>
 
       <span className="hidden min-w-0 truncate text-ui-text-2 sm:block">{occasion(run, t)}</span>
 
-      <span className="min-w-0 truncate text-ui-text-3">
-        {run.tool ?? t('runs.thinking')}
+      <span className={cn('min-w-0 truncate', waiting ? 'text-ui-warn' : 'text-ui-text-3')}>
+        {waiting ? t('runs.waiting') : (run.tool ?? t('runs.thinking'))}
       </span>
 
       <span className="hidden min-w-0 truncate text-ui-text-3 sm:block">{run.agentName}</span>

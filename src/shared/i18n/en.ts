@@ -910,6 +910,7 @@ export const en: Catalog = {
   'runs.column.model': 'Model',
   'runs.column.runtime': 'Runtime',
   'runs.thinking': 'thinking',
+  'runs.waiting': 'waiting for an answer',
   'runs.ticket': 'Ticket #{number}',
   'runs.label.chat': 'Chat',
   'runs.label.goal-spec': 'Specification',

@@ -438,6 +438,14 @@ export interface ActiveRun {
   tool: string | null
   /** Seit wann dieser Werkzeugzustand anhält. */
   toolSince: string
+  /**
+   * Die Rückfrage, auf deren Antwort dieser Lauf wartet (A3). Ein wartender Lauf ist beendet,
+   * bleibt in der Übersicht aber stehen — sonst wäre er von einem fertigen nicht zu
+   * unterscheiden. `null`, solange der Lauf selbst arbeitet.
+   */
+  waitingQuestionId: string | null
+  /** Seit wann gewartet wird. Die Laufzeitspalte zählt dann ab hier, nicht ab `startedAt`. */
+  waitingSince: string | null
 }
 
 export type { AgentEffort, AgentRole, GoalStatus, TicketCategory, TicketStatus }

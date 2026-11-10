@@ -34,9 +34,16 @@ export function RunsView() {
     return <EmptyState title={t('runs.loadFailed')} description={error} icon={<PulseIcon />} />
   }
 
-  /** Von der Zeile dorthin, wo der Lauf passiert: ins Vorhaben, sonst in den Chat. */
+  /**
+   * Von der Zeile dorthin, wo der Lauf passiert: ins Vorhaben, sonst in den Chat. Wartet er
+   * auf eine Antwort, führt die Zeile zu den Rückfragen — dort steht, was ihn weiterbringt.
+   */
   function open(run: ActiveRun): void {
     setActiveProject(run.projectId)
+    if (run.waitingQuestionId !== null) {
+      setActiveSection('questions')
+      return
+    }
     setActiveSection(run.goalId === null ? 'chat' : 'goals')
   }
 

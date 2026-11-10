@@ -433,6 +433,10 @@ export const activeRunSchema = z.object({
   tool: z.string().nullable(),
   /** Seit wann dieser Werkzeugzustand anhält. */
   toolSince: z.string(),
+  /** Die Rückfrage, auf deren Antwort der Lauf wartet (A3); `null`, wenn er arbeitet. */
+  waitingQuestionId: z.string().nullable(),
+  /** Seit wann gewartet wird — die Laufzeit zählt dann ab hier. */
+  waitingSince: z.string().nullable(),
 })
 
 export const runFinishedSchema = z.object({
@@ -1121,6 +1125,12 @@ export const ipcEvents = {
     tool: z.string().nullable(),
     since: z.string(),
   }),
+  /**
+   * Der Lauf wartet auf die Antwort auf eine Rückfrage (A3). Technisch ist er damit beendet,
+   * in der Übersicht bleibt er aber stehen: ein blockierter Agent wäre sonst von einem
+   * fertigen nicht zu unterscheiden. Der Satz ist vollständig und ersetzt die Zeile.
+   */
+  'run.waiting': activeRunSchema,
   /** Lauf beendet — die Zeile verschwindet aus der Übersicht. */
   'run.finished': runFinishedSchema,
   'claude.status': claudeStatusSchema,

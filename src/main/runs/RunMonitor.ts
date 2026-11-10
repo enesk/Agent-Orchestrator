@@ -6,9 +6,10 @@ import { getAgent } from '../db/repositories/agents'
 import { getGoal } from '../db/repositories/goals'
 import { getProject } from '../db/repositories/projects'
 import { getTicket } from '../db/repositories/tickets'
-import { emitEvent } from '../ipc/events'
+import { emitEvent, observeEvents } from '../ipc/events'
 import { scopedLogger } from '../Logger'
 import { formatDuration } from '@shared/i18n'
+import type { IpcEventPayload } from '@shared/ipc-contract'
 import type { ActiveRun } from '@shared/types'
 
 const log = scopedLogger('runs.monitor')
@@ -24,9 +25,15 @@ const runs = new Map<string, ActiveRun>()
 const SELF_ANNOUNCING_LABELS: readonly string[] = ['chat']
 
 let detach: (() => void) | null = null
+let detachQuestions: (() => void) | null = null
 
 export function startRunMonitor(): void {
   if (detach) return
+  detachQuestions = observeEvents((event, payload) => {
+    if (event !== 'question.changed') return
+    // `observeEvents` liefert den Satz ohne Typ; der Kanalname bürgt für die Form.
+    onQuestionChanged(payload as IpcEventPayload<'question.changed'>)
+  })
   detach = observeRunLifecycle({
     started: (info) => {
       const run = describe(info)
@@ -49,6 +56,15 @@ export function startRunMonitor(): void {
     finished: (info, outcome, durationMs) => {
       const existing = runs.get(info.id)
       if (!existing) return
+
+      // Ein Lauf, der eine Rückfrage gestellt hat, ist beendet, aber nicht fertig: er bleibt
+      // als wartende Zeile stehen, bis die Frage beantwortet, verworfen oder verfallen ist.
+      // Nur ein Abbruch durch Enes nimmt die Zeile sofort mit — den hat er selbst ausgelöst.
+      if (existing.waitingQuestionId !== null && outcome !== 'aborted') {
+        emitEvent('run.waiting', existing)
+        return
+      }
+
       runs.delete(info.id)
       emitEvent('run.finished', {
         id: info.id,
@@ -66,7 +82,69 @@ export function startRunMonitor(): void {
 export function stopRunMonitor(): void {
   detach?.()
   detach = null
+  detachQuestions?.()
+  detachQuestions = null
   runs.clear()
+}
+
+/**
+ * Rückfragen und Übersicht treffen sich hier. Eine neue Frage macht aus dem fragenden Lauf
+ * eine wartende Zeile; ist die Frage geschlossen, verschwindet die Zeile. Die Antwort startet
+ * denselben Agenten erneut — der kommt dann als neuer Lauf von vorn herein.
+ */
+function onQuestionChanged(payload: IpcEventPayload<'question.changed'>): void {
+  const { question } = payload
+
+  if (payload.action === 'created') {
+    const run = findAsker(question.projectId, question.agentId, question.ticketId, question.goalId)
+    // Ohne laufenden Lauf gibt es nichts zu markieren: die Frage steht dann nur im
+    // Rückfragen-Bereich. Nach einem Neustart der App ist das der normale Fall.
+    if (!run) return
+    const waiting: ActiveRun = {
+      ...run,
+      waitingQuestionId: question.id,
+      waitingSince: question.askedAt,
+    }
+    runs.set(run.id, waiting)
+    emitEvent('run.waiting', waiting)
+    log.info('Lauf wartet auf eine Antwort', { runId: run.id, questionId: question.id })
+    return
+  }
+
+  if (question.status === 'open') return
+
+  for (const run of [...runs.values()]) {
+    if (run.waitingQuestionId !== question.id) continue
+    runs.delete(run.id)
+    emitEvent('run.finished', {
+      id: run.id,
+      projectId: run.projectId,
+      // Kein Scheitern: die Frage ist vom Tisch, und der fortgesetzte Lauf meldet sich selbst.
+      outcome: 'done',
+      finishedAt: new Date().toISOString(),
+      durationMs: Math.max(0, Date.now() - Date.parse(run.startedAt)),
+    })
+  }
+}
+
+/**
+ * Der Lauf, aus dem die Frage kommt. Das Werkzeug `ask_user` kennt keine Lauf-ID, wohl aber
+ * seinen Scope — und in einem Scope arbeitet immer nur ein Lauf. Der jüngste passende gewinnt.
+ */
+function findAsker(
+  projectId: string,
+  agentId: string,
+  ticketId: string | null,
+  goalId: number | null,
+): ActiveRun | null {
+  let found: ActiveRun | null = null
+  for (const run of runs.values()) {
+    if (run.waitingQuestionId !== null) continue
+    if (run.projectId !== projectId || run.agentId !== agentId) continue
+    if (run.ticketId !== ticketId || run.goalId !== goalId) continue
+    if (!found || run.startedAt >= found.startedAt) found = run
+  }
+  return found
 }
 
 /** Der Anfangsstand für ein frisch geöffnetes Fenster; fortgeschrieben wird per Ereignis. */
@@ -100,6 +178,8 @@ function describe(info: RunInfo): ActiveRun | null {
     startedAt,
     tool: null,
     toolSince: startedAt,
+    waitingQuestionId: null,
+    waitingSince: null,
   }
 }
 

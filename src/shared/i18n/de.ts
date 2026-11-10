@@ -915,6 +915,7 @@ export const de = {
   'runs.column.model': 'Modell',
   'runs.column.runtime': 'Laufzeit',
   'runs.thinking': 'überlegt',
+  'runs.waiting': 'wartet auf Antwort',
   'runs.ticket': 'Ticket #{number}',
   'runs.label.chat': 'Chat',
   'runs.label.goal-spec': 'Spezifikation',

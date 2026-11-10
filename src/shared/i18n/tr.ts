@@ -910,6 +910,7 @@ export const tr: Catalog = {
   'runs.column.model': 'Model',
   'runs.column.runtime': 'Süre',
   'runs.thinking': 'düşünüyor',
+  'runs.waiting': 'yanıt bekliyor',
   'runs.ticket': 'Kayıt #{number}',
   'runs.label.chat': 'Sohbet',
   'runs.label.goal-spec': 'Belirtim',
