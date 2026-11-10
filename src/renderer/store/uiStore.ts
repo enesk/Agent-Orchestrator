@@ -1,7 +1,15 @@
 import { create } from 'zustand'
 import type { TranslationKey } from '@shared/i18n'
 
-export type Section = 'home' | 'chat' | 'tickets' | 'documents' | 'goals' | 'agents' | 'settings'
+export type Section =
+  | 'home'
+  | 'chat'
+  | 'tickets'
+  | 'documents'
+  | 'goals'
+  | 'runs'
+  | 'agents'
+  | 'settings'
 
 export const SECTION_LABEL_KEYS: Record<Section, TranslationKey> = {
   home: 'nav.home',
@@ -9,6 +17,7 @@ export const SECTION_LABEL_KEYS: Record<Section, TranslationKey> = {
   tickets: 'nav.tickets',
   documents: 'nav.documents',
   goals: 'nav.goals',
+  runs: 'nav.runs',
   agents: 'nav.agents',
   settings: 'nav.settings',
 }

@@ -406,4 +406,36 @@ export interface AgentStatusUpdate {
   messageId: string | null
 }
 
+/**
+ * Wie ein Lauf geendet hat. `aborted` ist kein Fehler, sondern ein Abbruch durch den Nutzer,
+ * und `rate_limited` ist noch kein Ende: nach der Pause läuft derselbe Schritt als neuer Lauf.
+ */
+export type RunOutcome = 'done' | 'aborted' | 'failed' | 'rate_limited'
+
+/**
+ * Eine Zeile der Live-Übersicht: ein Lauf, der gerade läuft. Projekt-, Agenten-, Vorhaben-
+ * und Ticketname stehen mit drin, weil die Übersicht alle Projekte gleichzeitig zeigt und
+ * sonst für jede Zeile nachladen müsste.
+ */
+export interface ActiveRun {
+  id: string
+  projectId: string
+  projectName: string
+  agentId: string
+  agentName: string
+  model: string
+  /** Woher der Lauf kommt: `chat`, `goal-worker`, `goal-spec`, `goal-review`, … */
+  label: string | null
+  goalId: number | null
+  goalTitle: string | null
+  ticketId: string | null
+  ticketNumber: number | null
+  ticketTitle: string | null
+  startedAt: string
+  /** Beschriftung des laufenden Werkzeugs; `null`, solange der Agent überlegt. */
+  tool: string | null
+  /** Seit wann dieser Werkzeugzustand anhält. */
+  toolSince: string
+}
+
 export type { AgentEffort, AgentRole, GoalStatus, TicketCategory, TicketStatus }

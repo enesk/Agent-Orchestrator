@@ -7,6 +7,7 @@ import { initChatEngine } from '../chat'
 import { resumeInterrupted, shutdown as shutdownGoals } from '../goals'
 import { getCachedClaudeStatus, listRuns, refreshClaudeStatus } from '../claude'
 import { registerIpcHandlers } from '../ipc'
+import { startRunMonitor, stopRunMonitor } from '../runs'
 import { releaseAll, start as startMcpServer, stop as stopMcpServer } from '../mcp'
 import { applySettings as applyPushSettings, stop as stopPush } from '../push'
 import { applySettings as applyRemoteSettings, stop as stopRemote } from '../remote'
@@ -67,6 +68,8 @@ async function bootstrap(): Promise<void> {
 
   registerAttachmentProtocol()
   initChatEngine()
+  // Vor allem, was Läufe starten kann — sonst fehlte der Übersicht der erste davon.
+  startRunMonitor()
   registerIpcHandlers()
 
   try {
@@ -108,6 +111,7 @@ async function bootstrap(): Promise<void> {
 app.on('before-quit', () => {
   setQuitting(true)
   shutdownGoals()
+  stopRunMonitor()
   releaseAll()
   void stopMcpServer()
   void stopRemote()

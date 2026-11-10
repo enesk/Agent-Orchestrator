@@ -12,6 +12,7 @@ import { projectsHandlers } from './projects'
 import { pushHandlers } from './push'
 import { registerDomain } from './registry'
 import { remoteHandlers } from './remote'
+import { runsHandlers } from './runs'
 import { settingsHandlers } from './settings'
 import { skillsHandlers } from './skills'
 import { ticketsHandlers } from './tickets'
@@ -27,6 +28,7 @@ export function registerIpcHandlers(): void {
   registerDomain('memory', memoryHandlers)
   registerDomain('goals', goalsHandlers)
   registerDomain('settings', settingsHandlers)
+  registerDomain('runs', runsHandlers)
   registerDomain('claude', claudeHandlers)
   registerDomain('logs', logsHandlers)
   registerDomain('app', appHandlers)
