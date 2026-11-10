@@ -23,6 +23,8 @@ const DEFAULT_PUSH_TRIGGERS: PushTriggers = {
   rateLimit: true,
   chatDone: false,
   liveActivity: true,
+  // An: eine Rückfrage hält einen Lauf auf, bis sie beantwortet ist.
+  questionAsked: true,
 }
 
 const PUSH_ENVIRONMENTS: readonly PushEnvironmentChoice[] = ['auto', 'sandbox', 'production']

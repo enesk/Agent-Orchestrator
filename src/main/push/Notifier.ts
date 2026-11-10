@@ -86,6 +86,9 @@ export function onEvent(event: IpcEventName, payload: unknown): void {
       case 'chat.message':
         onChatMessage(payload as IpcEventPayload<'chat.message'>)
         return
+      case 'question.changed':
+        onQuestionChanged(payload as IpcEventPayload<'question.changed'>)
+        return
       default:
         return
     }
@@ -242,6 +245,41 @@ function remember(messageId: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Rückfragen (A3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Nur eine **neue** Frage ist eine Meldung wert. Beantwortet, verworfen oder verfallen hat
+ * der Nutzer selbst ausgelöst oder nicht erlebt — beides braucht kein Push.
+ */
+function onQuestionChanged(payload: IpcEventPayload<'question.changed'>): void {
+  if (!getSettings().pushTriggers.questionAsked) return
+  if (payload.action !== 'created') return
+
+  const question = payload.question
+  const agent = getAgent(question.agentId)
+  const ticket = question.ticketId === null ? null : getTicket(question.ticketId)
+  const t = mainT()
+
+  void alert({
+    kind: 'question.open',
+    title:
+      ticket === null
+        ? t('main.push.question.title', { name: agent?.name ?? '—' })
+        : t('main.push.question.titleTicket', {
+            name: agent?.name ?? '—',
+            number: ticket.number,
+          }),
+    body: shorten(question.question),
+    projectId: question.projectId,
+    goalId: question.goalId,
+    ticketNumber: ticket?.number ?? null,
+    // Jede Frage ist ihr eigener Anlass — eine zweite darf die erste nicht ersetzen.
+    collapseId: `question-${question.id}`,
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Hilfen
 // ---------------------------------------------------------------------------
 
@@ -251,8 +289,8 @@ interface AlertArgs {
   body: string
   goal?: Goal
   projectId?: string
-  goalId?: number
-  ticketNumber?: number
+  goalId?: number | null
+  ticketNumber?: number | null
   collapseId: string
 }
 

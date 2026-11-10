@@ -382,6 +382,7 @@ const TRIGGER_KEYS: readonly (keyof PushTriggers)[] = [
   'goalCancelled',
   'ticketStuck',
   'rateLimit',
+  'questionAsked',
   'chatDone',
   'liveActivity',
 ]
@@ -392,6 +393,7 @@ const TRIGGER_LABELS: Record<keyof PushTriggers, `settings.push.trigger.${keyof 
   goalCancelled: 'settings.push.trigger.goalCancelled',
   ticketStuck: 'settings.push.trigger.ticketStuck',
   rateLimit: 'settings.push.trigger.rateLimit',
+  questionAsked: 'settings.push.trigger.questionAsked',
   chatDone: 'settings.push.trigger.chatDone',
   liveActivity: 'settings.push.trigger.liveActivity',
 }
@@ -574,6 +576,11 @@ function PushSection({ enabled, environment, triggers, onSave }: PushSectionProp
                   {key === 'chatDone' && (
                     <span className="ml-1 text-ink-faint">
                       {t('settings.push.trigger.chatDoneHint')}
+                    </span>
+                  )}
+                  {key === 'questionAsked' && (
+                    <span className="ml-1 text-ink-faint">
+                      {t('settings.push.trigger.questionAskedHint')}
                     </span>
                   )}
                   {key === 'liveActivity' && (

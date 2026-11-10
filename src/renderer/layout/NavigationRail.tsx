@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useT } from '../i18n'
+import { useQuestionStore } from '../store/questionStore'
 import { SECTION_LABEL_KEYS, useUiStore, type Section } from '../store/uiStore'
 import { Tooltip, cn } from '../ui'
 import {
@@ -9,6 +10,7 @@ import {
   DocumentIcon,
   GoalIcon,
   ListIcon,
+  QuestionIcon,
   SettingsIcon,
   TicketIcon,
 } from '../ui/icons'
@@ -20,6 +22,7 @@ const SECTIONS: { id: Section; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] 
   { id: 'tickets', Icon: TicketIcon },
   { id: 'documents', Icon: DocumentIcon },
   { id: 'goals', Icon: GoalIcon },
+  { id: 'questions', Icon: QuestionIcon },
   { id: 'agents', Icon: AgentIcon },
 ]
 
@@ -61,11 +64,15 @@ export function NavigationRail() {
   const setActiveSection = useUiStore((state) => state.setActiveSection)
   const navExpanded = useUiStore((state) => state.navExpanded)
   const toggleNavExpanded = useUiStore((state) => state.toggleNavExpanded)
+  const openQuestions = useQuestionStore((state) => state.openCount)
   const wide = useWideViewport()
   const expanded = navExpanded && wide
 
   const sectionButton = (id: Section, Icon: ComponentType<SVGProps<SVGSVGElement>>) => {
     const label = t(SECTION_LABEL_KEYS[id])
+    // Offene Rückfragen halten einen Lauf auf; der Zähler ist der einzige Hinweis darauf,
+    // solange der Bereich nicht offen ist.
+    const count = id === 'questions' ? openQuestions : 0
     return (
       <RailLabel key={id} expanded={expanded} label={label}>
         <button
@@ -74,7 +81,7 @@ export function NavigationRail() {
           aria-current={activeSection === id ? 'page' : undefined}
           onClick={() => setActiveSection(id)}
           className={cn(
-            'flex h-9 items-center rounded-md transition-colors',
+            'relative flex h-9 items-center rounded-md transition-colors',
             expanded ? 'w-full gap-2.5 px-2' : 'w-9 justify-center',
             activeSection === id
               ? 'bg-accent-soft text-accent'
@@ -83,6 +90,18 @@ export function NavigationRail() {
         >
           <Icon className="shrink-0" />
           {expanded && <span className="truncate text-sm">{label}</span>}
+          {count > 0 && (
+            <span
+              aria-label={t('questions.badge', { count })}
+              className={cn(
+                'flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1',
+                'text-[10px] font-semibold leading-none text-white',
+                expanded ? 'ml-auto' : 'absolute right-1 top-1',
+              )}
+            >
+              {count}
+            </span>
+          )}
         </button>
       </RailLabel>
     )

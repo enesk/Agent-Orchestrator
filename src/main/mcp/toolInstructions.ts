@@ -1,3 +1,7 @@
+// Direkt aus der Datei, nicht über '../questions': dessen Index verdrahtet den Chat, und der
+// Chat führt über den Runner wieder hierher.
+import { ASK_USER_RESTRAINT_LINES } from '../questions/prompt'
+
 /**
  * Wird vom PromptBuilder (T6) in jeden Systemprompt eingehängt. Der Text ist bewusst kurz:
  * die Werkzeuge beschreiben sich selbst, hier steht nur die Regel.
@@ -12,6 +16,8 @@ Dinge zu verändern:
 - Dokumente: \`doc_save\`, \`doc_get\`, \`doc_list\`
 - Gedächtnis: nachschlagen mit \`memory_get\`, \`memory_search\`; merken mit \`memory_save\`,
   \`memory_delete\`
+- Rückfrage an den Nutzer: \`ask_user\` — **nur** für eine Entscheidung, die du nicht treffen
+  darfst (siehe Zurückhaltung). Dein Lauf endet damit.
 
 Regeln:
 
@@ -60,6 +66,7 @@ export function buildRestraintBlock(allowTests: boolean): string {
     '  das nicht zur Aufgabe gehört, **tu nichts daran**: kein Ticket, kein Dokument, keine',
     '  Erinnerung, keine Korrektur. Nenne es stattdessen am Ende in **genau einem Satz** — dieser',
     '  Satz gehört dann aber dazu und darf nicht fehlen.',
+    ...ASK_USER_RESTRAINT_LINES,
     '- **Kein Aufräumen nebenbei.** Keine Formatierung, keine Umbenennung, kein Refactoring an',
     '  Stellen, nach denen nicht gefragt wurde.',
     '- **Wird eine Frage gestellt, antworte.** Eine Frage ist kein Arbeitsauftrag. „Wie funktioniert',

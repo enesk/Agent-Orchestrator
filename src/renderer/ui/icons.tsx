@@ -171,6 +171,15 @@ export const ThreadIcon = (props: IconProps) => (
   </Icon>
 )
 
+/** Fragezeichen im Kreis — die Rückfragen eines Agenten (A3). */
+export const QuestionIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.5 9a2.5 2.5 0 1 1 3.6 2.25c-.7.4-1.1 1-1.1 1.75v.5" />
+    <path d="M12 17h.01" />
+  </Icon>
+)
+
 export const TrashIcon = (props: IconProps) => (
   <Icon {...props}>
     <path d="M4 7h16" />

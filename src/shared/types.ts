@@ -317,6 +317,8 @@ export interface PushTriggers {
   rateLimit: boolean
   chatDone: boolean
   liveActivity: boolean
+  /** A3: ein Agent hat eine Rückfrage gestellt und wartet auf eine Antwort. */
+  questionAsked: boolean
 }
 
 /**
@@ -407,3 +409,40 @@ export interface AgentStatusUpdate {
 }
 
 export type { AgentEffort, AgentRole, GoalStatus, TicketCategory, TicketStatus }
+
+// ---------------------------------------------------------------------------
+// A3 — Rückfragen
+// ---------------------------------------------------------------------------
+
+/**
+ * `open` wartet auf eine Antwort, `answered` hat eine, `discarded` hat der Nutzer verworfen
+ * und `expired` ist nach sieben Tagen unbeantwortet geschlossen worden.
+ */
+export type QuestionStatus = 'open' | 'answered' | 'discarded' | 'expired'
+
+/**
+ * Eine Rückfrage eines Agenten. Sie ist der ganze Zustand eines wartenden Laufs: der Lauf
+ * selbst endet, sobald die Frage angelegt ist, und wird aus dieser Zeile heraus später
+ * wieder aufgenommen.
+ */
+export interface AgentQuestion {
+  id: string
+  projectId: string
+  agentId: string
+  /** Scope des fragenden Laufs; beide `null` heißt, die Frage kam aus dem Chat. */
+  goalId: number | null
+  ticketId: string | null
+  /** Nummer des Tickets, mitgelesen zur Anzeige. `null`, wenn die Frage an keinem hängt. */
+  ticketNumber: number | null
+  question: string
+  /** Was der Agent zur Lage gesagt hat — damit die Frage ohne Rückblick zu beantworten ist. */
+  context: string | null
+  /** Vorgeschlagene Antworten, höchstens sechs. Freitext bleibt immer möglich. */
+  options: string[]
+  status: QuestionStatus
+  answer: string | null
+  askedAt: string
+  answeredAt: string | null
+  /** Ab diesem Zeitpunkt gilt die Frage als unbeantwortet geschlossen. */
+  expiresAt: string
+}

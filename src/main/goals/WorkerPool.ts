@@ -1,6 +1,10 @@
 import { getDocument } from '../db/repositories/documents'
 import { listAttachmentsForTicket } from '../db/repositories/messages'
 import {
+  listAnsweredQuestionsForTicket,
+  listOpenQuestionsForTicket,
+} from '../db/repositories/questions'
+import {
   getTicket,
   getTicketByNumber,
   listDependencies,
@@ -12,8 +16,9 @@ import * as tickets from '../tickets/TicketService'
 import { reportActivity, reportRateLimit, type GoalContext } from './context'
 import { missingWorkerMessage, resolveWorkerCandidates, resolveWorkers } from './defaultAgents'
 import { WORKER_ROLE_NOTE, buildWorkerPrompt, workerChatLine } from './prompts'
+import { clearWaitingForGoal, clearWaiting, markWaiting } from './questionWaiters'
 import { GoalAbortedError, runGoalAgent, sleep, throwIfAborted } from './runAgent'
-import type { ProjectAgent, Ticket } from '@shared/types'
+import type { AgentQuestion, ProjectAgent, Ticket } from '@shared/types'
 import { mainT } from '../app/settings'
 
 /** So viele Tickets laufen gleichzeitig. Mehr bringt nichts und macht die Ausgabe unlesbar. */
@@ -24,8 +29,15 @@ const MAX_REQUEUES = 3
 const MAX_ATTEMPTS = 5
 /** So lange wartet die Phase, bevor sie erneut nach einem freien Agenten sieht. */
 const AGENT_WAIT_MS = 5_000
+/**
+ * So lange wartet die Phase, bevor sie erneut nachsieht, ob eine Rückfrage beantwortet ist.
+ * Länger als die Agentenwartezeit — hier hängt es an einem Menschen, nicht an einem Lauf.
+ */
+const QUESTION_WAIT_MS = 15_000
+/** So viele beantwortete Rückfragen gehen in den nächsten Lauf eines Tickets. */
+const MAX_ANSWERS_IN_PROMPT = 3
 
-type OutcomeKind = 'done' | 'blocked' | 'unfinished' | 'failed'
+type OutcomeKind = 'done' | 'blocked' | 'unfinished' | 'failed' | 'asked'
 
 interface Outcome {
   ticketId: string
@@ -68,11 +80,20 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
   const stuck = new Set<string>(restored.stuckTicketIds)
   /** Wer als Vorbedingung schon einmal einen Neuanfang bekommen hat, bekommt keinen zweiten. */
   const revived = new Set<string>(restored.revivedTicketIds)
+  /**
+   * Tickets, die auf die Antwort zu einer Rückfrage warten. Sie sind **nicht** gescheitert und
+   * belegen keinen Platz im Pool — die übrigen Tickets laufen weiter. Der Zustand steht in der
+   * Fragentabelle, diese Menge ist nur die Zusammenfassung davon.
+   */
+  const waiting = new Set<string>()
+  /** Wer gefragt hat. Nach der Antwort läuft dasselbe Ticket wieder bei diesem Agenten. */
+  const asking: Record<string, string> = {}
   const requeues: Record<string, number> = { ...restored.requeues }
   const attempts: Record<string, number> = { ...restored.attempts }
   const tried: Record<string, string[]> = { ...restored.triedAgents }
 
   let waitingLogged = false
+  let answerWaitLogged = false
 
   absorb(false)
   if (workset.size === 0) throw new Error(mainT()('main.error.goalNoTickets'))
@@ -90,6 +111,7 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
     while (true) {
       throwIfAborted(ctx.signal)
       absorb(true)
+      refreshWaiting()
 
       while (active.size < MAX_PARALLEL) {
         const ticket = pickReady()
@@ -107,8 +129,16 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
       const open = pending()
       if (open.length === 0) break
 
-      const workable = open.filter((ticket) => !stuck.has(ticket.id))
+      const workable = open.filter(
+        (ticket) => !stuck.has(ticket.id) && !waiting.has(ticket.id),
+      )
       if (workable.length === 0) {
+        // Wartende Tickets sind kein Stillstand: die Phase wartet mit, statt sie als
+        // gescheitert abzuschreiben. Spätestens der Verfall nach sieben Tagen löst das auf.
+        if (waiting.size > 0) {
+          await waitForAnswer()
+          continue
+        }
         reportStuck(open)
         break
       }
@@ -124,6 +154,9 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
   } finally {
     // Ein Abbruch darf keine Läufe hinter sich lassen, die noch in die Datenbank schreiben.
     if (active.size > 0) await Promise.allSettled([...active.values()].map((e) => e.promise))
+    // Nach dieser Phase betreut niemand mehr die Fortsetzung — sonst gälte ein Ticket für
+    // immer als von der Phase übernommen und eine Antwort liefe ins Leere.
+    clearWaitingForGoal(goal.id)
     saveCheckpoint()
   }
 
@@ -145,8 +178,12 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
       workset.set(ticket.id, ticket)
 
       if (ticket.status === 'done') done.add(ticket.id)
-      // Ein Neustart findet Tickets vor, die beim Beenden mitten in Arbeit waren.
-      else if (ticket.status === 'in_progress') reopen(ticket.id)
+      // Ein Ticket mit offener Rückfrage läuft nicht einfach wieder los — egal, in welchem
+      // Status es ein Neustart oder ein Abbruch hinterlassen hat. Sonst wäre die Frage
+      // sinnlos geworden und der Agent fragte gleich noch einmal.
+      else if (!markWaitingIfAsked(ticket.id) && ticket.status === 'in_progress') {
+        reopen(ticket.id)
+      }
 
       if (announce) {
         ctx.log({
@@ -203,7 +240,9 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
 
   /** Bereit und blockierend zuerst — sonst wartet der Rest auf ein spätes Ticket. */
   function pickReady(): Ticket | null {
-    const ready = pending().filter((ticket) => !stuck.has(ticket.id) && isReady(ticket))
+    const ready = pending().filter(
+      (ticket) => !stuck.has(ticket.id) && !waiting.has(ticket.id) && isReady(ticket),
+    )
     if (ready.length === 0) return null
 
     return ready.sort((a, b) => blockingWeight(b) - blockingWeight(a) || a.number - b.number)[0] ?? null
@@ -236,6 +275,17 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
     const available = availableAgents()
     if (available.length === 0) return null
 
+    // Nach einer beantworteten Rückfrage läuft das Ticket wieder bei dem Agenten, der gefragt
+    // hat: seine CLI-Session ist noch warm, und er weiß, worauf er gewartet hat.
+    const asked = asking[ticket.id]
+    if (asked) {
+      const sameAgent = available.find((agent) => agent.id === asked)
+      if (sameAgent) {
+        delete asking[ticket.id]
+        return sameAgent
+      }
+    }
+
     const list = tried[ticket.id] ?? []
     if (list.length === 0 && ticket.assignedAgentId) {
       const assigned = available.find((agent) => agent.id === ticket.assignedAgentId)
@@ -250,6 +300,57 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
     const load = (agent: ProjectAgent): number =>
       [...active.values()].filter((entry) => entry.agentId === agent.id).length
     return [...pool].sort((a, b) => load(a) - load(b))[0] ?? null
+  }
+
+  /**
+   * Wartet, bis eine Rückfrage beantwortet, verworfen oder verfallen ist. Kostet nichts: es
+   * läuft dabei kein Claude-Prozess, nur diese Schleife sieht alle paar Sekunden nach.
+   */
+  async function waitForAnswer(): Promise<void> {
+    if (!answerWaitLogged) {
+      ctx.log({
+        message: mainT()('main.goalLog.waitingForAnswer', { count: waiting.size }),
+        phase: 'work',
+      })
+      answerWaitLogged = true
+    }
+    await sleep(QUESTION_WAIT_MS, ctx.signal)
+  }
+
+  /**
+   * Trägt ein Ticket als wartend ein, wenn dazu eine Frage offen ist. Liefert `false`, wenn
+   * keine offen ist — dann ist das Ticket gewöhnliche Arbeit.
+   */
+  function markWaitingIfAsked(ticketId: string): boolean {
+    const open = listOpenQuestionsForTicket(ticketId)
+    const first = open[0]
+    if (!first) return false
+
+    waiting.add(ticketId)
+    asking[ticketId] = first.agentId
+    markWaiting(ticketId, goal.id)
+    return true
+  }
+
+  /** Antwort da, verworfen oder verfallen → das Ticket ist wieder gewöhnliche Arbeit. */
+  function refreshWaiting(): void {
+    for (const ticketId of [...waiting]) {
+      if (listOpenQuestionsForTicket(ticketId).length > 0) continue
+
+      waiting.delete(ticketId)
+      clearWaiting(ticketId)
+      answerWaitLogged = false
+      reopen(ticketId)
+
+      const ticket = workset.get(ticketId) ?? getTicket(ticketId)
+      if (ticket) {
+        ctx.log({
+          message: mainT()('main.goalLog.questionClosed', { number: ticket.number }),
+          phase: 'work',
+          ticketId,
+        })
+      }
+    }
   }
 
   async function waitForAgent(): Promise<void> {
@@ -315,6 +416,7 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
           attachments: listAttachmentsForTicket(ticket.id),
           attempt,
           lastComment: attempt > 1 ? lastComment(ticket.id) : null,
+          answeredQuestions: answeredQuestions(ticket.id),
         }),
         label: 'goal-worker',
         ticketId: ticket.id,
@@ -323,6 +425,18 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
         onRateLimit: reportRateLimit(ctx, 'work', agent.id, `Ticket #${ticket.number}`),
         onActivity: reportActivity(goal.id, agent.id, ticket.id),
       })
+
+      // Vor allem anderen: ein Lauf, der eine Rückfrage hinterlassen hat, ist nicht
+      // gescheitert und nicht fertig — er wartet.
+      if (result.questionIds.length > 0 && listOpenQuestionsForTicket(ticket.id).length > 0) {
+        return {
+          ticketId: ticket.id,
+          agentId: agent.id,
+          kind: 'asked',
+          blockingTicketNumber: null,
+          message: mainT()('main.goalLog.ticketAsked', { number: ticket.number }),
+        }
+      }
 
       const report = result.report
       if (report?.kind === 'blocked_by') {
@@ -401,12 +515,40 @@ export async function runWorkPhase(ctx: GoalContext): Promise<void> {
           status: 'success',
         })
         return
+      case 'asked':
+        handleAsked(ticket, outcome)
+        return
       case 'blocked':
         handleBlocked(ticket, outcome)
         return
       default:
         registerAttempt(ticket, outcome.agentId, outcome.message)
     }
+  }
+
+  /**
+   * Eine Rückfrage kostet keinen Versuch und setzt das Ticket nicht zurück: es **bleibt in
+   * Arbeit**, bis die Frage beantwortet ist. Der Pool wird dabei nicht belegt — der Lauf ist
+   * beendet, der Platz ist frei, die übrigen Tickets laufen weiter.
+   */
+  function handleAsked(ticket: Ticket, outcome: Outcome): void {
+    waiting.add(ticket.id)
+    asking[ticket.id] = outcome.agentId
+    markWaiting(ticket.id, goal.id)
+    answerWaitLogged = false
+
+    ctx.log({
+      message: outcome.message,
+      phase: 'work',
+      agentId: outcome.agentId,
+      ticketId: ticket.id,
+    })
+  }
+
+  /** Die beantworteten und verfallenen Fragen dieses Tickets für den nächsten Lauf. */
+  function answeredQuestions(ticketId: string): AgentQuestion[] {
+    const answered = listAnsweredQuestionsForTicket(ticketId)
+    return answered.slice(-MAX_ANSWERS_IN_PROMPT)
   }
 
   /**

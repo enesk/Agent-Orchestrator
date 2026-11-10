@@ -25,6 +25,8 @@ export interface GoalReport {
 interface Entry {
   context: RunContext
   report: GoalReport | null
+  /** IDs der Rückfragen, die dieser Lauf über `ask_user` gestellt hat (A3). */
+  questionIds: string[]
 }
 
 const entries = new Map<string, Entry>()
@@ -36,7 +38,7 @@ function newToken(): string {
 
 export function register(context: RunContext): string {
   const token = newToken()
-  entries.set(token, { context, report: null })
+  entries.set(token, { context, report: null, questionIds: [] })
   return token
 }
 
@@ -59,6 +61,27 @@ export function takeReport(token: string): GoalReport | null {
   const report = entry.report
   entry.report = null
   return report
+}
+
+/**
+ * Vermerkt eine gestellte Rückfrage am Lauf. Wie bei `setReport` liegt die Angabe am Kontext
+ * und nicht im Antworttext: der Aufrufer muss erkennen können, dass dieser Lauf nicht fertig
+ * ist, sondern wartet — und zwar ohne den Text zu lesen.
+ */
+export function addQuestion(token: string, questionId: string): boolean {
+  const entry = entries.get(token)
+  if (!entry) return false
+  entry.questionIds.push(questionId)
+  return true
+}
+
+/** Holt die gestellten Fragen ab und leert die Liste. Muss vor `release` passieren. */
+export function takeQuestions(token: string): string[] {
+  const entry = entries.get(token)
+  if (!entry) return []
+  const ids = entry.questionIds
+  entry.questionIds = []
+  return ids
 }
 
 /** Nach dem Lauf aufrufen. Das Token ist danach wertlos. */

@@ -9,6 +9,7 @@ import { getCachedClaudeStatus, listRuns, refreshClaudeStatus } from '../claude'
 import { registerIpcHandlers } from '../ipc'
 import { releaseAll, start as startMcpServer, stop as stopMcpServer } from '../mcp'
 import { applySettings as applyPushSettings, stop as stopPush } from '../push'
+import { initQuestions, stopQuestions } from '../questions'
 import { applySettings as applyRemoteSettings, stop as stopRemote } from '../remote'
 import { describeError, logger } from '../Logger'
 import { registerAttachmentProtocol, registerAttachmentSchemePrivileges } from './attachments'
@@ -67,6 +68,7 @@ async function bootstrap(): Promise<void> {
 
   registerAttachmentProtocol()
   initChatEngine()
+  initQuestions()
   registerIpcHandlers()
 
   try {
@@ -108,6 +110,7 @@ async function bootstrap(): Promise<void> {
 app.on('before-quit', () => {
   setQuitting(true)
   shutdownGoals()
+  stopQuestions()
   releaseAll()
   void stopMcpServer()
   void stopRemote()

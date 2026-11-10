@@ -4,7 +4,7 @@ import {
   TICKET_ATTACHMENT_TITLE,
   attachmentPromptBody,
 } from '../agents/attachmentPrompt'
-import type { MessageAttachment, Ticket } from '@shared/types'
+import type { AgentQuestion, MessageAttachment, Ticket } from '@shared/types'
 
 /**
  * Der Arbeitsauftrag eines Worker-Laufs, bewusst ohne Datenbank-, MCP- und Electron-Bezug:
@@ -21,8 +21,15 @@ const LAST_COMMENT_LIMIT = 1_200
 const CATEGORY_LABELS = new Map(TICKET_CATEGORIES.map((entry) => [entry.value, entry.label]))
 
 export const WORKER_ROLE_NOTE = `Du arbeitest gerade autonom an einem Ticket eines Vorhabens.
-Du hast keinen Chat-Verlauf und kannst niemanden fragen — alles, was du brauchst, steht in der
-Aufgabe. Melde das Ergebnis über die Werkzeuge, nicht im Fließtext.
+Du hast keinen Chat-Verlauf; es sitzt niemand davor, der auf dich wartet. Alles, was du zum
+Arbeiten brauchst, steht in der Aufgabe. Melde das Ergebnis über die Werkzeuge, nicht im
+Fließtext.
+
+Die einzige Ausnahme vom „du fragst nicht" ist \`ask_user\`, und sie gilt nur für eine
+Entscheidung, die dir nicht zusteht: etwas Unumkehrbares oder nach außen Wirkendes —
+veröffentlichen, zusammenführen, löschen, verschicken, Kosten auslösen. Dann fragst du,
+statt zu raten oder still stehen zu bleiben; dein Lauf endet damit, und du wirst mit der
+Antwort erneut gestartet.
 
 Abweichend von der Zurückhaltungsregel „keine Tickets ungefragt" darfst du hier ein Ticket
 anlegen — aber nur für **notwendige** Arbeit, ohne die dieses Ticket nicht fertig wird und die
@@ -46,6 +53,12 @@ export interface WorkerPromptInput {
   attempt?: number
   /** Die letzte Begründung des vorigen Agenten aus `ticket_comment`. */
   lastComment?: string | null
+  /**
+   * Rückfragen zu diesem Ticket, die der Nutzer beantwortet hat oder die verfallen sind (A3).
+   * Sie stehen vollständig im Prompt: eine Antwort, die der nächste Lauf nicht sieht, wäre
+   * schlimmer als keine Frage.
+   */
+  answeredQuestions?: readonly AgentQuestion[]
 }
 
 /**
@@ -117,6 +130,28 @@ export function buildWorkerPrompt(input: WorkerPromptInput): string {
     )
   }
 
+  const questions = input.answeredQuestions ?? []
+  if (questions.length > 0) {
+    lines.push('', '## Deine Rückfragen', '')
+    for (const entry of questions) {
+      lines.push(`**Frage:** ${entry.question.trim()}`)
+      const context = entry.context?.trim()
+      if (context) lines.push('', `Dein Kontext dazu: ${context}`)
+      lines.push(
+        '',
+        entry.status === 'answered'
+          ? `**Antwort des Nutzers:** ${entry.answer?.trim() || '(leer)'}`
+          : '**Unbeantwortet:** darauf hat in sieben Tagen niemand geantwortet.',
+        '',
+      )
+    }
+    lines.push(
+      'Die Antworten sind die Entscheidung — richte dich danach und frage nicht erneut nach',
+      'demselben Punkt. Blieb eine Frage unbeantwortet, wähle den Weg, der am wenigsten kaputt',
+      'macht, und tu insbesondere nichts Unumkehrbares.',
+    )
+  }
+
   if (attempt > 1) {
     lines.push(
       '',
@@ -145,9 +180,14 @@ export function buildWorkerPrompt(input: WorkerPromptInput): string {
     '   `ticket_comment` — was du geändert hast und in welchen Dateien.',
     `2. Bist du fertig, rufe \`ticket_update\` mit \`number: ${ticket.number}\` und`,
     '   `status: "done"` auf. Ohne diesen Aufruf gilt das Ticket als offen.',
-    '3. Du entscheidest selbst und wartest nie auf Rückfragen. Gibt es mehrere vertretbare Wege,',
-    '   wähle den, der am wenigsten kaputt macht, und halte deine Annahme mit `ticket_comment`',
-    '   fest. Frage nicht nach Bestätigung — es liest niemand mit.',
+    '3. Technische Entscheidungen trifft du selbst. Gibt es mehrere vertretbare Wege, wähle den,',
+    '   der am wenigsten kaputt macht, und halte deine Annahme mit `ticket_comment` fest. Frage',
+    '   nicht nach Bestätigung und nicht danach, was im Ticket steht oder im Repository zu finden',
+    '   ist. Nur wenn eine Entscheidung dir nicht zusteht — etwas Unumkehrbares oder nach außen',
+    '   Wirkendes wie veröffentlichen, zusammenführen, löschen, verschicken, Kosten auslösen —,',
+    '   rufst du `ask_user` auf. Dein Lauf endet damit; das Ticket bleibt in Arbeit, und du wirst',
+    '   mit der Antwort erneut gestartet. Still stehen zu bleiben ist in diesem Fall das',
+    '   Schlechteste: dann weiß niemand, dass du wartest.',
     '4. `goal_report` mit `kind: "blocked_by"` ist nur für **echte, umfangreiche** Vorbedingungen',
     '   gedacht: ein anderes, noch offenes Ticket, dessen Arbeit erst getan sein muss. Ist die',
     '   Vorarbeit klein und liegt in Reichweite, **erledige sie selbst** und vermerke das mit',

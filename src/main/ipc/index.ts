@@ -10,6 +10,7 @@ import { mcpHandlers } from './mcp'
 import { memoryHandlers } from './memory'
 import { projectsHandlers } from './projects'
 import { pushHandlers } from './push'
+import { questionsHandlers } from './questions'
 import { registerDomain } from './registry'
 import { remoteHandlers } from './remote'
 import { settingsHandlers } from './settings'
@@ -33,6 +34,7 @@ export function registerIpcHandlers(): void {
   registerDomain('attachments', attachmentsHandlers)
   registerDomain('remote', remoteHandlers)
   registerDomain('push', pushHandlers)
+  registerDomain('questions', questionsHandlers)
 }
 
 export { emitEvent, observeEvents } from './events'

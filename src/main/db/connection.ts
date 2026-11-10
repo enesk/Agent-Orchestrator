@@ -9,6 +9,8 @@ import skillFiles003 from './migrations/003_skill_files.sql?raw'
 import mcpServers004 from './migrations/004_mcp_servers.sql?raw'
 import ticketGuidelines005 from './migrations/005_ticket_guidelines.sql?raw'
 import push006 from './migrations/006_push.sql?raw'
+// 007 (usage) und 008 (schedules) entstehen parallel auf eigenen Zweigen; 009 ist A3.
+import questions009 from './migrations/009_questions.sql?raw'
 
 /**
  * Migrationen werden als Rohtext eingebettet, damit sie im gebauten Paket ohne
@@ -21,6 +23,7 @@ const MIGRATIONS: readonly { name: string; sql: string }[] = [
   { name: '004_mcp_servers', sql: mcpServers004 },
   { name: '005_ticket_guidelines', sql: ticketGuidelines005 },
   { name: '006_push', sql: push006 },
+  { name: '009_questions', sql: questions009 },
 ]
 
 let db: Database.Database | null = null

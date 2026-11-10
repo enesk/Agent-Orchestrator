@@ -47,6 +47,11 @@ export interface GoalRunInput {
 export interface GoalRunResult {
   text: string
   report: GoalReport | null
+  /**
+   * IDs der Rückfragen, die dieser Lauf über `ask_user` gestellt hat (A3). Nicht leer heißt:
+   * der Lauf ist nicht fertig, sondern wartet auf eine Entscheidung.
+   */
+  questionIds: string[]
   aborted: boolean
 }
 
@@ -120,8 +125,13 @@ function execute(
 
     try {
       const result = await claudeRun.done
-      // Die Meldung muss geholt werden, solange das Token noch registriert ist.
-      return { text: result.text, report: context.takeReport(), aborted: result.aborted }
+      // Meldung und Rückfragen müssen geholt werden, solange das Token noch registriert ist.
+      return {
+        text: result.text,
+        report: context.takeReport(),
+        questionIds: context.takeQuestions(),
+        aborted: result.aborted,
+      }
     } catch (error) {
       if (input.signal.aborted) throw new GoalAbortedError()
       log.error('Lauf des Vorhabens fehlgeschlagen', {

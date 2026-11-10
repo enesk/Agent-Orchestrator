@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerDocumentTools } from './documents'
 import { registerGoalTools } from './goal'
 import { registerMemoryTools } from './memory'
+import { registerQuestionTools } from './questions'
 import { registerTicketTools } from './tickets'
 import type { ToolContext } from './context'
 
@@ -13,4 +14,5 @@ export function registerAllTools(server: McpServer, tool: ToolContext): void {
   registerDocumentTools(server, tool)
   registerMemoryTools(server, tool)
   registerGoalTools(server, tool)
+  registerQuestionTools(server, tool)
 }

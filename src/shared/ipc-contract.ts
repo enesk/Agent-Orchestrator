@@ -314,6 +314,8 @@ export const pushTriggersSchema = z.object({
   rateLimit: z.boolean(),
   chatDone: z.boolean(),
   liveActivity: z.boolean(),
+  /** A3: ein Agent hat eine Rückfrage gestellt und wartet auf eine Antwort. */
+  questionAsked: z.boolean(),
 })
 
 export const appSettingsSchema = z.object({
@@ -562,6 +564,32 @@ export const pushDeviceTokenSchema = z.object({ deviceToken: z.string().min(1).m
 export const setPushCredentialsSchema = z.object({
   keyId: z.string().min(1).max(64),
   teamId: z.string().min(1).max(64),
+})
+
+// ---------------------------------------------------------------------------
+// A3 — Rückfragen
+// ---------------------------------------------------------------------------
+
+export const questionStatusSchema = z.enum(['open', 'answered', 'discarded', 'expired'])
+
+/** So viele Antwortvorschläge nimmt eine Frage höchstens mit — mehr liest niemand. */
+export const QUESTION_MAX_OPTIONS = 6
+
+export const agentQuestionSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  agentId: z.string(),
+  goalId: z.number().int().nullable(),
+  ticketId: z.string().nullable(),
+  ticketNumber: z.number().int().nullable(),
+  question: z.string(),
+  context: z.string().nullable(),
+  options: z.array(z.string()),
+  status: questionStatusSchema,
+  answer: z.string().nullable(),
+  askedAt: z.string(),
+  answeredAt: z.string().nullable(),
+  expiresAt: z.string(),
 })
 
 // ---------------------------------------------------------------------------
@@ -939,6 +967,37 @@ export const ipcContract = {
     clearCredentials: { request: z.void(), response: pushStatusSchema },
     pickKeyFile: { request: z.void(), response: pushStatusSchema },
   },
+  /**
+   * A3 — Rückfragen. Bewusst **nicht** in `UNSUPPORTED_METHODS`: eine Frage zu beantworten
+   * ist genau das, was man unterwegs am Telefon tun will, und es gehen dabei keine
+   * Zugangsdaten über die Brücke.
+   */
+  questions: {
+    /** Ohne `projectId` über alle Projekte; `status` weggelassen heißt „nur offene". */
+    list: {
+      request: z.object({
+        projectId: z.string().nullable().optional(),
+        status: questionStatusSchema.nullable().optional(),
+        limit: z.number().int().positive().optional(),
+      }),
+      response: z.array(agentQuestionSchema),
+    },
+    /** Nur die Zahl der offenen Fragen — für den Zähler in der Seitenleiste. */
+    openCount: {
+      request: z.object({ projectId: z.string().nullable().optional() }),
+      response: z.object({ count: z.number().int() }),
+    },
+    /**
+     * Beantwortet die Frage und nimmt den Lauf wieder auf, der sie gestellt hat. Die Antwort
+     * ist Freitext; die vorgeschlagenen Optionen sind nur Vorschläge.
+     */
+    answer: {
+      request: z.object({ id: z.string(), answer: z.string().min(1) }),
+      response: agentQuestionSchema,
+    },
+    /** Verwerfen: die Frage wird geschlossen, der Lauf **nicht** wieder aufgenommen. */
+    discard: { request: idSchema, response: agentQuestionSchema },
+  },
 } as const satisfies Record<string, Record<string, IpcChannelDefinition>>
 
 // ---------------------------------------------------------------------------
@@ -1011,6 +1070,18 @@ export const ipcEvents = {
   'remote.changed': remoteStatusSchema,
   /** Schlüssel hinterlegt, Gerät angemeldet, Meldung geschickt oder gescheitert. */
   'push.changed': pushSnapshotSchema,
+  /**
+   * A3: eine Rückfrage ist entstanden, beantwortet, verworfen oder verfallen. `question`
+   * ist immer dabei — die Oberfläche soll für den Zähler nicht nachfragen müssen.
+   */
+  'question.changed': z.object({
+    questionId: z.string(),
+    projectId: z.string(),
+    question: agentQuestionSchema,
+    action: changeActionSchema,
+    /** Zahl der danach noch offenen Fragen über alle Projekte. */
+    openCount: z.number().int(),
+  }),
 } as const satisfies Record<string, z.ZodType>
 
 // ---------------------------------------------------------------------------

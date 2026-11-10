@@ -19,6 +19,8 @@ export type PushKind =
   | 'goal.rateLimit'
   | 'ticket.stuck'
   | 'chat.done'
+  /** A3: ein Agent wartet auf eine Entscheidung des Nutzers. */
+  | 'question.open'
 
 export type ActivityEvent = 'update' | 'end'
 
@@ -56,6 +58,9 @@ const INTERRUPTION: Record<PushKind, 'active' | 'passive'> = {
   'goal.rateLimit': 'passive',
   'ticket.stuck': 'active',
   'chat.done': 'passive',
+  // Eine Rückfrage blockiert einen Lauf, bis sie beantwortet ist — sie darf nicht still
+  // ankommen.
+  'question.open': 'active',
 }
 
 export interface AlertInput {

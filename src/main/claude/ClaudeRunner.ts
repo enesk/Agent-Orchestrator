@@ -18,8 +18,8 @@ import { resolveClaudeBinary } from './status'
 import { describeError, scopedLogger } from '../Logger'
 import { LANGUAGE_NAMES_DE } from '@shared/i18n'
 import { getLanguage, getSettings, mainT } from '../app/settings'
-// Direkt aus der Datei, nicht über '../mcp': dieses Modul hat keine Importe und zieht so
-// keinen Kreis zwischen Runner und MCP-Server.
+// Direkt aus der Datei, nicht über '../mcp': das Modul hängt nur an Textbausteinen
+// (`questions/prompt`) und zieht so keinen Kreis zwischen Runner und MCP-Server.
 import { buildRestraintBlock } from '../mcp/toolInstructions'
 
 const log = scopedLogger('claude.runner')

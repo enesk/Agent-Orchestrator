@@ -5,6 +5,7 @@ import { DocumentsView } from './features/documents/DocumentsView'
 import { GoalsView } from './features/goals/GoalsView'
 import { HomeView } from './features/home/HomeView'
 import { LogBar } from './features/logs/LogBar'
+import { QuestionsView } from './features/questions/QuestionsView'
 import { SettingsView } from './features/settings/SettingsView'
 import { TicketsView } from './features/tickets/TicketsView'
 import { NavigationRail } from './layout/NavigationRail'
@@ -12,6 +13,7 @@ import { TopBar } from './layout/TopBar'
 import { useActivityStore } from './store/activityStore'
 import { useClaudeStore } from './store/claudeStore'
 import { useProjectStore } from './store/projectStore'
+import { useQuestionStore } from './store/questionStore'
 import { useUiStore, type Section } from './store/uiStore'
 
 const VIEWS: Record<Section, () => ReactNode> = {
@@ -20,6 +22,7 @@ const VIEWS: Record<Section, () => ReactNode> = {
   tickets: TicketsView,
   documents: DocumentsView,
   goals: GoalsView,
+  questions: QuestionsView,
   agents: AgentsView,
   settings: SettingsView,
 }
@@ -32,6 +35,8 @@ export function App() {
   const loadClaudeStatus = useClaudeStore((state) => state.load)
   const setClaudeStatus = useClaudeStore((state) => state.set)
   const subscribeActivity = useActivityStore((state) => state.subscribe)
+  const loadQuestions = useQuestionStore((state) => state.load)
+  const subscribeQuestions = useQuestionStore((state) => state.subscribe)
 
   useEffect(() => {
     void loadProjects()
@@ -39,11 +44,22 @@ export function App() {
     const offStatus = window.api.on('claude.status', setClaudeStatus)
     // Die Projektliste braucht den Agentenstatus aller Projekte, nicht nur des offenen.
     const offActivity = subscribeActivity()
+    // Der Zähler der Rückfragen gilt projektübergreifend und muss ab dem Start stimmen.
+    void loadQuestions()
+    const offQuestions = subscribeQuestions()
     return () => {
       offStatus()
       offActivity()
+      offQuestions()
     }
-  }, [loadProjects, loadClaudeStatus, setClaudeStatus, subscribeActivity])
+  }, [
+    loadProjects,
+    loadClaudeStatus,
+    setClaudeStatus,
+    subscribeActivity,
+    loadQuestions,
+    subscribeQuestions,
+  ])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {

@@ -139,6 +139,34 @@ export function send(input: SendInput): ChatMessage {
   return message
 }
 
+export interface PostUserMessageInput {
+  projectId: string
+  content: string
+  mentions?: string[]
+  replyToId?: string | null
+  metadata?: JsonObject
+}
+
+/**
+ * Legt eine Nachricht des Nutzers an und zeigt sie an, **ohne** einen Lauf zu starten. Für
+ * Anlässe, bei denen der Lauf anders angestoßen wird als durch Erwähnung — heute die Antwort
+ * auf eine Rückfrage (A3).
+ */
+export function postUserMessage(input: PostUserMessageInput): ChatMessage {
+  const created = createMessage({
+    projectId: input.projectId,
+    role: 'user',
+    content: input.content,
+    mentions: input.mentions ?? [],
+    replyToId: input.replyToId ?? null,
+    status: 'done',
+    metadata: input.metadata ?? {},
+  })
+  const message = getMessage(created.id) ?? created
+  emitMessage(message, null)
+  return message
+}
+
 /**
  * Warum auf diese Nachricht niemand antwortet. Die drei Fälle unterscheiden sich für den Nutzer
  * deutlich: kein Agent im Projekt, ein Agent erwähnt der nicht zum Projekt gehört, oder schlicht
@@ -177,6 +205,12 @@ export interface RunAgentOptions {
   visited?: Set<string>
   /** Vorhandene Nachricht überschreiben statt eine neue anzulegen (Wiederholen). */
   reuseMessageId?: string
+  /**
+   * Ersetzt den Auftrag am Ende des Prompts. Angezeigt wird weiter die Nachricht in `trigger`
+   * — A3 braucht das, um einen wartenden Lauf mit Frage und Antwort fortzusetzen, ohne den
+   * ganzen Auftrag in den Verlauf zu schreiben.
+   */
+  taskOverride?: string
 }
 
 export interface StartedRun {
@@ -239,7 +273,12 @@ async function execute(
   const depth = options.depth ?? 0
   const scope = { projectId: project.id, agentId: agent.id }
   const warm = getSession(buildScopeKey(scope)) !== null
-  const promptInput = { project, agent, trigger, task: buildTask(project.id, trigger) }
+  const promptInput = {
+    project,
+    agent,
+    trigger,
+    task: options.taskOverride?.trim() || buildTask(project.id, trigger),
+  }
   const prompt = warm ? buildResume(promptInput) : buildFull(promptInput)
 
   const tools: string[] = []

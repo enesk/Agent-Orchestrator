@@ -39,6 +39,32 @@ export function notifyError(title: string, body: string): void {
   notify({ title, body: shorten(body) })
 }
 
+export interface NotifyQuestionInput {
+  agentName: string
+  question: string
+  ticketNumber: number | null
+}
+
+/**
+ * Ein Agent hat eine Rückfrage gestellt und wartet auf eine Antwort. Als einzige Meldung der
+ * App **auch dann**, wenn das Fenster vorne ist: ein blockierter Lauf, den niemand bemerkt,
+ * ist genau der Fall, den A3 abstellt — und der Nutzer kann in einem anderen Bereich stehen.
+ */
+export function notifyQuestion(input: NotifyQuestionInput): void {
+  const t = mainT()
+  notify({
+    title:
+      input.ticketNumber === null
+        ? t('main.notify.question', { name: input.agentName })
+        : t('main.notify.questionTicket', {
+            name: input.agentName,
+            number: input.ticketNumber,
+          }),
+    body: shorten(input.question),
+    whenFocused: true,
+  })
+}
+
 const MAX_BODY_LENGTH = 220
 
 function shorten(text: string): string {

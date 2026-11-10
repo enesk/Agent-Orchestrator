@@ -3,6 +3,7 @@ import { buildMcpConfig } from './buildMcpConfig'
 import {
   register,
   release,
+  takeQuestions,
   takeReport,
   type GoalReport,
   type RunContext,
@@ -14,6 +15,8 @@ export interface RunContextHandle {
   mcp: RunMcpConfig
   /** Die Meldung aus `goal_report`, oder `null`. Muss vor dem Ende von `fn` geholt werden. */
   takeReport(): GoalReport | null
+  /** IDs der Rückfragen aus `ask_user`. Ebenfalls vor dem Ende von `fn` zu holen. */
+  takeQuestions(): string[]
 }
 
 /**
@@ -30,6 +33,7 @@ export async function withRunContext<T>(
       token,
       mcp: buildMcpConfig(token, context.projectId),
       takeReport: () => takeReport(token),
+      takeQuestions: () => takeQuestions(token),
     })
   } finally {
     release(token)
